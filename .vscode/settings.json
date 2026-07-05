@@ -1,0 +1,10 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}/services/api-gateway",
+    "${workspaceFolder}/services/proposal-service",
+    "${workspaceFolder}/services/market-intelligence-service",
+    "${workspaceFolder}/services/governance-service",
+    "${workspaceFolder}/services/data-quality-service"
+  ]
+}

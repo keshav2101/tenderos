@@ -1,0 +1,37 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.poetry/
+
+# Node/Frontend
+node_modules/
+.next/
+dist/
+build/
+out/
+.vercel
+*.log
+
+# Databases & local storage
+data/
+minio-data/
+qdrant-data/
+postgres-data/
+
+# Environment secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.pem
+*.key
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,36 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'tenderos-services'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets:
+          - 'api-gateway:8000'
+          - 'auth-service:8001'
+          - 'tender-service:8002'
+          - 'connector-service:8003'
+          - 'scheduler-service:8004'
+          - 'document-pipeline:8005'
+          - 'ocr-service:8006'
+          - 'ai-extraction:8007'
+          - 'classification-service:8008'
+          - 'knowledge-graph-service:8009'
+          - 'search-service:8010'
+          - 'copilot-service:8011'
+          - 'digital-twin-service:8012'
+          - 'bid-qualification-service:8013'
+          - 'market-intelligence-service:8014'
+          - 'prediction-service:8015'
+          - 'competitor-service:8016'
+          - 'proposal-service:8017'
+          - 'notification-service:8018'
+          - 'admin-service:8019'
+          - 'billing-service:8020'
+          - 'governance-service:8021'
+          - 'data-quality-service:8022'

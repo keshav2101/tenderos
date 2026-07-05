@@ -1,0 +1,54 @@
+apiVersion: networking.gke.io/v1
+kind: MultiClusterIngress
+metadata:
+  name: tenderos-global-ingress
+  namespace: default
+  annotations:
+    networking.gke.io/static-ip: "tenderos-global-static-ip"
+spec:
+  template:
+    spec:
+      rules:
+        - host: tenderos.cloud
+          http:
+            paths:
+              - path: /
+                pathType: Prefix
+                backend:
+                  serviceName: frontend-mcs # Multi-cluster service definition
+                  servicePort: 3000
+              - path: /api/v1
+                pathType: Prefix
+                backend:
+                  serviceName: api-gateway-mcs
+                  servicePort: 8000
+---
+apiVersion: networking.gke.io/v1
+kind: MultiClusterService
+metadata:
+  name: frontend-mcs
+  namespace: default
+spec:
+  template:
+    spec:
+      ports:
+        - name: web
+          port: 3000
+          targetPort: 3000
+      selector:
+        app: frontend
+---
+apiVersion: networking.gke.io/v1
+kind: MultiClusterService
+metadata:
+  name: api-gateway-mcs
+  namespace: default
+spec:
+  template:
+    spec:
+      ports:
+        - name: http
+          port: 8000
+          targetPort: 8000
+      selector:
+        app: api-gateway

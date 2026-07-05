@@ -1,0 +1,334 @@
+version: "3.9"
+
+# ============================================================
+# TenderOS v1.0.0 — LOCAL LIGHTWEIGHT PROFILE
+# Optimized for Apple Silicon M1/M2/M3 laptops with 8 GB RAM.
+#
+# Footprint: 2 Database/Cache services + 8 App microservices.
+# Excludes heavy OpenSearch, Qdrant, Neo4j, RabbitMQ, and MinIO.
+#
+# Usage:
+#   docker-compose -f docker-compose.local.yml up -d
+#   # Wait for healthchecks to pass
+#   docker-compose -f docker-compose.local.yml ps
+#   # Seed demo database:
+#   docker exec -i tenderos-postgres-local psql -U tenderos -d tenderos \
+#     < infrastructure/postgres/seed_demo.sql
+# ============================================================
+
+networks:
+  tenderos-local-net:
+    driver: bridge
+
+volumes:
+  postgres_local_data:
+  redis_local_data:
+
+x-local-postgres-env: &local-postgres-env
+  POSTGRES_HOST: postgres
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: ${POSTGRES_DB:-tenderos}
+  POSTGRES_USER: ${POSTGRES_USER:-tenderos}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tenderos_local_pwd}
+
+x-local-redis-env: &local-redis-env
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  REDIS_PASSWORD: ${REDIS_PASSWORD:-tenderos_local_redis}
+
+x-local-ai-env: &local-ai-env
+  LLM_PROVIDER: ${LLM_PROVIDER:-gemini}
+  GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+  EMBEDDING_MODEL: ${EMBEDDING_MODEL:-sentence-transformers/all-MiniLM-L6-v2}
+
+x-local-common-env: &local-common-env
+  <<: [*local-postgres-env, *local-redis-env, *local-ai-env]
+  ENVIRONMENT: development
+  LOG_LEVEL: INFO
+  JWT_SECRET: ${JWT_SECRET:-358f2762b7cd8053a8904791a27e7fcd632efb6b6900f6825c93c12baea690ab}
+  JWT_ALGORITHM: HS256
+  JWT_ACCESS_EXPIRE_MINUTES: "60"
+  JWT_REFRESH_EXPIRE_DAYS: "30"
+  API_GATEWAY_URL: http://api-gateway:8000
+
+x-local-limits: &local-limits
+  deploy:
+    resources:
+      limits:
+        cpus: '0.50'
+        memory: 512M
+  restart: on-failure
+
+
+x-ml-limits: &ml-limits
+  deploy:
+    resources:
+      limits:
+        cpus: '1.0'
+        memory: 512M
+  restart: on-failure
+
+services:
+  # ──────────────────────────────────────────
+  # CORE INFRASTRUCTURE (Lightweight)
+  # ──────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: tenderos-postgres-local
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-tenderos}
+      POSTGRES_USER: ${POSTGRES_USER:-tenderos}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tenderos_local_pwd}
+    volumes:
+      - postgres_local_data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+    ports:
+      - "127.0.0.1:5432:5432"
+    networks:
+      - tenderos-local-net
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tenderos -d tenderos"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: tenderos-redis-local
+    command: redis-server --requirepass ${REDIS_PASSWORD:-tenderos_local_redis} --maxmemory 128mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_local_data:/data
+    ports:
+      - "127.0.0.1:6379:6379"
+    networks:
+      - tenderos-local-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-tenderos_local_redis}", "ping"]
+      interval: 5s
+      retries: 5
+
+  # ──────────────────────────────────────────
+  # CORE APPLICATION SERVICES
+  # ──────────────────────────────────────────
+  api-gateway:
+    <<: *local-limits
+    build:
+      context: ./services/api-gateway
+      dockerfile: Dockerfile
+    image: tenderos/api-gateway:local
+    container_name: tenderos-gateway-local
+    environment:
+      <<: *local-common-env
+      SERVICE_PORT: "8000"
+      CORS_ORIGINS: '["http://localhost:3000", "http://localhost:3001"]'
+    ports:
+      - "18000:8000"
+
+
+    networks:
+      - tenderos-local-net
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8000/health\")'"]
+      interval: 10s
+      retries: 3
+
+  auth-service:
+    <<: *local-limits
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    image: tenderos/auth-service:local
+    container_name: tenderos-auth-local
+    environment:
+      <<: *local-common-env
+      SERVICE_PORT: "8001"
+    ports:
+      - "127.0.0.1:8001:8001"
+    networks:
+      - tenderos-local-net
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  tender-service:
+    <<: *local-limits
+    build:
+      context: ./services/tender-service
+      dockerfile: Dockerfile
+    image: tenderos/tender-service:local
+    container_name: tenderos-tender-local
+    environment:
+      <<: *local-common-env
+      SERVICE_PORT: "8002"
+    ports:
+      - "127.0.0.1:8002:8002"
+    networks:
+      - tenderos-local-net
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  search-service:
+    <<: *ml-limits
+    build:
+      context: ./services/search-service
+      dockerfile: Dockerfile
+    image: tenderos/search-service:local
+    container_name: tenderos-search-local
+    environment:
+      <<: *local-common-env
+      SERVICE_PORT: "8010"
+      # OpenSearch/Qdrant connection variables default to non-existent to trigger Postgres fallback search
+      OPENSEARCH_HOST: disabled
+      QDRANT_HOST: disabled
+    ports:
+      - "127.0.0.1:8010:8010"
+    networks:
+      - tenderos-local-net
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  copilot-service:
+    <<: *ml-limits
+    build:
+      context: ./services/copilot-service
+      dockerfile: Dockerfile
+    image: tenderos/copilot-service:local
+    container_name: tenderos-copilot-local
+    environment:
+      <<: *local-common-env
+      SERVICE_PORT: "8011"
+      QDRANT_HOST: disabled
+    ports:
+      - "127.0.0.1:8011:8011"
+    networks:
+      - tenderos-local-net
+
+  digital-twin-service:
+    <<: *local-limits
+    build:
+      context: ./services/digital-twin-service
+      dockerfile: Dockerfile
+    image: tenderos/digital-twin-service:local
+    container_name: tenderos-digital-twin-local
+    environment:
+      <<: *local-common-env
+      SERVICE_PORT: "8012"
+    ports:
+      - "127.0.0.1:8012:8012"
+    networks:
+      - tenderos-local-net
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  bid-qualification-service:
+    <<: *local-limits
+    build:
+      context: ./services/bid-qualification-service
+      dockerfile: Dockerfile
+    image: tenderos/bid-qualification-service:local
+    container_name: tenderos-bid-qual-local
+    environment:
+      <<: *local-common-env
+      SERVICE_PORT: "8013"
+    ports:
+      - "127.0.0.1:8013:8013"
+    networks:
+      - tenderos-local-net
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  proposal-service:
+    <<: *local-limits
+    build:
+      context: ./services/proposal-service
+      dockerfile: Dockerfile
+    image: tenderos/proposal-service:local
+    container_name: tenderos-proposal-local
+    environment:
+      <<: *local-common-env
+      SERVICE_PORT: "8017"
+    ports:
+      - "127.0.0.1:8017:8017"
+    networks:
+      - tenderos-local-net
+
+  connector-service:
+    <<: *local-limits
+    build:
+      context: ./services/connector-service
+      dockerfile: Dockerfile
+    image: tenderos/connector-service:local
+    container_name: tenderos-connector-local
+    environment:
+      <<: *local-common-env
+      SERVICE_PORT: "8003"
+    ports:
+      - "127.0.0.1:8003:8003"
+    networks:
+      - tenderos-local-net
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  scheduler-service:
+    <<: *local-limits
+    build:
+      context: ./services/scheduler-service
+      dockerfile: Dockerfile
+    image: tenderos/scheduler-service:local
+    container_name: tenderos-scheduler-local
+    environment:
+      <<: *local-common-env
+      SERVICE_PORT: "8004"
+    ports:
+      - "127.0.0.1:8004:8004"
+    networks:
+      - tenderos-local-net
+    depends_on:
+      connector-service: { condition: service_started }
+
+  ocr-service:
+    <<: *local-limits
+    build:
+      context: ./services/ocr-service
+      dockerfile: Dockerfile
+    image: tenderos/ocr-service:local
+    container_name: tenderos-ocr-local
+    environment:
+      <<: *local-common-env
+      SERVICE_PORT: "8006"
+    ports:
+      - "127.0.0.1:8006:8006"
+    networks:
+      - tenderos-local-net
+
+  document-pipeline:
+    <<: *local-limits
+    build:
+      context: ./services/document-pipeline
+      dockerfile: Dockerfile
+    image: tenderos/document-pipeline:local
+    container_name: tenderos-doc-pipeline-local
+    environment:
+      <<: *local-common-env
+      SERVICE_PORT: "8005"
+      QDRANT_HOST: disabled
+    ports:
+      - "127.0.0.1:8005:8005"
+    networks:
+      - tenderos-local-net
+    depends_on:
+      ocr-service: { condition: service_started }
+
+

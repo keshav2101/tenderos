@@ -1,0 +1,655 @@
+version: "3.9"
+
+# TenderOS Full Platform — All services + infrastructure
+# Usage: docker-compose up -d
+# First time: docker-compose up -d && sleep 60 && python scripts/seed_tenders.py
+
+networks:
+  tenderos-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:
+  minio_data:
+  opensearch_data:
+  qdrant_data:
+  neo4j_data:
+  neo4j_logs:
+
+# ─────────────────────────────────────────────
+# INFRASTRUCTURE SERVICES
+# ─────────────────────────────────────────────
+x-postgres-env: &postgres-env
+  POSTGRES_HOST: postgres
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: tenderos
+  POSTGRES_USER: tenderos
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tenderos_dev_password}
+
+x-redis-env: &redis-env
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  REDIS_PASSWORD: ${REDIS_PASSWORD:-tenderos_redis_dev}
+
+x-rabbitmq-env: &rabbitmq-env
+  RABBITMQ_HOST: rabbitmq
+  RABBITMQ_PORT: "5672"
+  RABBITMQ_USER: tenderos
+  RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-tenderos_rabbit_dev}
+  RABBITMQ_VHOST: tenderos
+
+x-minio-env: &minio-env
+  MINIO_ENDPOINT: minio:9000
+  MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-tenderos_minio}
+  MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-tenderos_minio_secret_dev}
+  MINIO_BUCKET_DOCUMENTS: tender-documents
+  MINIO_BUCKET_PROFILES: company-profiles
+  MINIO_SECURE: "false"
+
+x-opensearch-env: &opensearch-env
+  OPENSEARCH_HOST: opensearch
+  OPENSEARCH_PORT: "9200"
+
+x-qdrant-env: &qdrant-env
+  QDRANT_HOST: qdrant
+  QDRANT_PORT: "6333"
+  QDRANT_API_KEY: ${QDRANT_API_KEY:-tenderos_qdrant_dev}
+
+x-neo4j-env: &neo4j-env
+  NEO4J_URI: bolt://neo4j:7687
+  NEO4J_USER: neo4j
+  NEO4J_PASSWORD: ${NEO4J_PASSWORD:-tenderos_neo4j_dev}
+
+x-ai-env: &ai-env
+  LLM_PROVIDER: ${LLM_PROVIDER:-gemini}
+  GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+  OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+  OLLAMA_HOST: ${OLLAMA_HOST:-http://host.docker.internal:11434}
+  EMBEDDING_MODEL: ${EMBEDDING_MODEL:-sentence-transformers/all-MiniLM-L6-v2}
+
+x-common-env: &common-env
+  <<: [*postgres-env, *redis-env, *rabbitmq-env, *minio-env, *opensearch-env, *qdrant-env, *neo4j-env, *ai-env]
+  ENVIRONMENT: ${ENVIRONMENT:-development}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  JWT_SECRET: ${JWT_SECRET:-tenderos_jwt_secret_change_in_production}
+  JWT_ALGORITHM: HS256
+  JWT_ACCESS_EXPIRE_MINUTES: "60"
+  JWT_REFRESH_EXPIRE_DAYS: "30"
+  API_GATEWAY_URL: http://api-gateway:8000
+
+services:
+  # ─────────────────────────────────────────────
+  # Infrastructure
+  # ─────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: tenderos-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: tenderos
+      POSTGRES_USER: tenderos
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tenderos_dev_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5432:5432"
+    networks:
+      - tenderos-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tenderos -d tenderos"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: tenderos-redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:-tenderos_redis_dev} --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - tenderos-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: tenderos-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: tenderos
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-tenderos_rabbit_dev}
+      RABBITMQ_DEFAULT_VHOST: tenderos
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - tenderos-net
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 30s
+      retries: 3
+
+  minio:
+    image: minio/minio:latest
+    container_name: tenderos-minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-tenderos_minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-tenderos_minio_secret_dev}
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    command: server /data --console-address ":9001"
+    networks:
+      - tenderos-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      retries: 3
+
+  opensearch:
+    image: opensearchproject/opensearch:2.14.0
+    container_name: tenderos-opensearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g"
+      - plugins.security.disabled=true
+    ulimits:
+      memlock: { soft: -1, hard: -1 }
+      nofile: { soft: 65536, hard: 65536 }
+    volumes:
+      - opensearch_data:/usr/share/opensearch/data
+    ports:
+      - "9200:9200"
+    networks:
+      - tenderos-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health"]
+      interval: 30s
+      retries: 5
+
+  qdrant:
+    image: qdrant/qdrant:v1.9.0
+    container_name: tenderos-qdrant
+    restart: unless-stopped
+    volumes:
+      - qdrant_data:/qdrant/storage
+    ports:
+      - "6333:6333"
+    networks:
+      - tenderos-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/healthz"]
+      interval: 30s
+      retries: 5
+
+  neo4j:
+    image: neo4j:5.20-community
+    container_name: tenderos-neo4j
+    restart: unless-stopped
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-tenderos_neo4j_dev}
+      NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_dbms_security_procedures_unrestricted: "apoc.*"
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    networks:
+      - tenderos-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:7474 || exit 1"]
+      interval: 30s
+      retries: 5
+
+  # ─────────────────────────────────────────────
+  # APPLICATION SERVICES
+  # ─────────────────────────────────────────────
+
+  api-gateway:
+    build:
+      context: ./services/api-gateway
+      dockerfile: Dockerfile
+    container_name: tenderos-api-gateway
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      SERVICE_PORT: "8000"
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+    ports:
+      - "8000:8000"
+    networks:
+      - tenderos-net
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      retries: 3
+
+  auth-service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    container_name: tenderos-auth
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      SERVICE_PORT: "8001"
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      MICROSOFT_CLIENT_ID: ${MICROSOFT_CLIENT_ID:-}
+      MICROSOFT_CLIENT_SECRET: ${MICROSOFT_CLIENT_SECRET:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      FROM_EMAIL: ${FROM_EMAIL:-noreply@tenderos.in}
+    ports:
+      - "8001:8001"
+    networks:
+      - tenderos-net
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  tender-service:
+    build:
+      context: ./services/tender-service
+      dockerfile: Dockerfile
+    container_name: tenderos-tender
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      SERVICE_PORT: "8002"
+    ports:
+      - "8002:8002"
+    networks:
+      - tenderos-net
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  billing-service:
+    build:
+      context: ./services/billing-service
+      dockerfile: Dockerfile
+    container_name: tenderos-billing
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      SERVICE_PORT: "8020"
+      STRIPE_API_KEY: ${STRIPE_API_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-whsec_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx}
+    ports:
+      - "8020:8020"
+    networks:
+      - tenderos-net
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  connector-service:
+    build:
+      context: ./services/connector-service
+      dockerfile: Dockerfile
+    container_name: tenderos-connector
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      SERVICE_PORT: "8003"
+      GEM_API_KEY: ${GEM_API_KEY:-}
+      GEM_API_BASE: ${GEM_API_BASE:-https://gem.gov.in/api}
+      CPPP_BASE_URL: ${CPPP_BASE_URL:-https://eprocure.gov.in}
+      CRAWLER_MAX_CONCURRENT: "5"
+      CRAWLER_RATE_LIMIT_RPS: "2"
+    ports:
+      - "8003:8003"
+    networks:
+      - tenderos-net
+    depends_on:
+      rabbitmq: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  scheduler-service:
+    build:
+      context: ./services/scheduler-service
+      dockerfile: Dockerfile
+    container_name: tenderos-scheduler
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      SERVICE_PORT: "8004"
+      CELERY_CONCURRENCY: "4"
+    ports:
+      - "8004:8004"
+    networks:
+      - tenderos-net
+    depends_on:
+      rabbitmq: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  # Celery Beat — Cron scheduler
+  scheduler-beat:
+    build:
+      context: ./services/scheduler-service
+      dockerfile: Dockerfile
+    container_name: tenderos-scheduler-beat
+    restart: unless-stopped
+    command: celery -A app.celery_app beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    environment:
+      <<: *common-env
+    networks:
+      - tenderos-net
+    depends_on:
+      - scheduler-service
+
+  document-pipeline:
+    build:
+      context: ./services/document-pipeline
+      dockerfile: Dockerfile
+    container_name: tenderos-doc-pipeline
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      SERVICE_PORT: "8005"
+    ports:
+      - "8005:8005"
+    networks:
+      - tenderos-net
+    depends_on:
+      minio: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+
+  ocr-service:
+    build:
+      context: ./services/ocr-service
+      dockerfile: Dockerfile
+    container_name: tenderos-ocr
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      SERVICE_PORT: "8006"
+      OCR_WORKERS: "2"
+    ports:
+      - "8006:8006"
+    networks:
+      - tenderos-net
+    depends_on:
+      - minio
+
+  ai-extraction:
+    build:
+      context: ./services/ai-extraction
+      dockerfile: Dockerfile
+    container_name: tenderos-ai-extraction
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      SERVICE_PORT: "8007"
+      EXTRACTION_CACHE_TTL: "604800"  # 7 days
+    ports:
+      - "8007:8007"
+    networks:
+      - tenderos-net
+    depends_on:
+      redis: { condition: service_healthy }
+
+  classification-service:
+    build:
+      context: ./services/classification-service
+      dockerfile: Dockerfile
+    container_name: tenderos-classification
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      SERVICE_PORT: "8008"
+    ports:
+      - "8008:8008"
+    networks:
+      - tenderos-net
+
+  knowledge-graph-service:
+    build:
+      context: ./services/knowledge-graph-service
+      dockerfile: Dockerfile
+    container_name: tenderos-graph
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      SERVICE_PORT: "8009"
+    ports:
+      - "8009:8009"
+    networks:
+      - tenderos-net
+    depends_on:
+      neo4j: { condition: service_healthy }
+
+  governance-service:
+    build:
+      context: ./services/governance-service
+      dockerfile: Dockerfile
+    container_name: tenderos-governance
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      SERVICE_PORT: "8021"
+    ports:
+      - "8021:8021"
+    networks:
+      - tenderos-net
+
+  data-quality-service:
+    build:
+      context: ./services/data-quality-service
+      dockerfile: Dockerfile
+    container_name: tenderos-data-quality
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      SERVICE_PORT: "8022"
+    ports:
+      - "8022:8022"
+    networks:
+      - tenderos-net
+
+  search-service:
+    build:
+      context: ./services/search-service
+      dockerfile: Dockerfile
+    container_name: tenderos-search
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      SERVICE_PORT: "8010"
+      SEARCH_RESULT_CACHE_TTL: "300"  # 5 minutes
+    ports:
+      - "8010:8010"
+    networks:
+      - tenderos-net
+    depends_on:
+      opensearch: { condition: service_healthy }
+      qdrant: { condition: service_healthy }
+
+  copilot-service:
+    build:
+      context: ./services/copilot-service
+      dockerfile: Dockerfile
+    container_name: tenderos-copilot
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      SERVICE_PORT: "8011"
+      RAG_CHUNK_SIZE: "512"
+      RAG_CHUNK_OVERLAP: "50"
+      RAG_TOP_K: "5"
+    ports:
+      - "8011:8011"
+    networks:
+      - tenderos-net
+    depends_on:
+      qdrant: { condition: service_healthy }
+
+  digital-twin-service:
+    build:
+      context: ./services/digital-twin-service
+      dockerfile: Dockerfile
+    container_name: tenderos-digital-twin
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      SERVICE_PORT: "8012"
+    ports:
+      - "8012:8012"
+    networks:
+      - tenderos-net
+    depends_on:
+      postgres: { condition: service_healthy }
+      minio: { condition: service_healthy }
+
+  bid-qualification-service:
+    build:
+      context: ./services/bid-qualification-service
+      dockerfile: Dockerfile
+    container_name: tenderos-bid-qual
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      SERVICE_PORT: "8013"
+    ports:
+      - "8013:8013"
+    networks:
+      - tenderos-net
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  market-intelligence-service:
+    build:
+      context: ./services/market-intelligence-service
+      dockerfile: Dockerfile
+    container_name: tenderos-market-intel
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      SERVICE_PORT: "8014"
+    ports:
+      - "8014:8014"
+    networks:
+      - tenderos-net
+
+  prediction-service:
+    build:
+      context: ./services/prediction-service
+      dockerfile: Dockerfile
+    container_name: tenderos-prediction
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      SERVICE_PORT: "8015"
+    ports:
+      - "8015:8015"
+    networks:
+      - tenderos-net
+
+  competitor-service:
+    build:
+      context: ./services/competitor-service
+      dockerfile: Dockerfile
+    container_name: tenderos-competitor
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      SERVICE_PORT: "8016"
+    ports:
+      - "8016:8016"
+    networks:
+      - tenderos-net
+
+  proposal-service:
+    build:
+      context: ./services/proposal-service
+      dockerfile: Dockerfile
+    container_name: tenderos-proposal
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      SERVICE_PORT: "8017"
+    ports:
+      - "8017:8017"
+    networks:
+      - tenderos-net
+
+  notification-service:
+    build:
+      context: ./services/notification-service
+      dockerfile: Dockerfile
+    container_name: tenderos-notification
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      SERVICE_PORT: "8018"
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      FROM_EMAIL: ${FROM_EMAIL:-alerts@tenderos.in}
+      WEBHOOK_MAX_RETRIES: "3"
+    ports:
+      - "8018:8018"
+    networks:
+      - tenderos-net
+
+  admin-service:
+    build:
+      context: ./services/admin-service
+      dockerfile: Dockerfile
+    container_name: tenderos-admin
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      SERVICE_PORT: "8019"
+    ports:
+      - "8019:8019"
+    networks:
+      - tenderos-net
+
+  # ─────────────────────────────────────────────
+  # FRONTEND
+  # ─────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./apps/frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+    container_name: tenderos-frontend
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+    ports:
+      - "3000:3000"
+    networks:
+      - tenderos-net
+    depends_on:
+      - api-gateway
