@@ -13,7 +13,6 @@ from uuid import UUID
 import structlog
 from qdrant_client import AsyncQdrantClient
 from qdrant_client.models import Filter, FieldCondition, MatchValue
-from sentence_transformers import SentenceTransformer
 
 from app.config import settings
 from app.llm_client import LLMClient
@@ -56,7 +55,7 @@ class CopilotRAGPipeline:
 
     def __init__(self):
         self._qdrant: Optional[AsyncQdrantClient] = None
-        self._embedding_model: Optional[SentenceTransformer] = None
+        self._embedding_model: Optional[Any] = None
         self._llm = LLMClient()
 
     async def _get_qdrant(self) -> AsyncQdrantClient:
@@ -68,8 +67,9 @@ class CopilotRAGPipeline:
             )
         return self._qdrant
 
-    def _get_embedder(self) -> SentenceTransformer:
+    def _get_embedder(self) -> Any:
         if self._embedding_model is None:
+            from sentence_transformers import SentenceTransformer
             self._embedding_model = SentenceTransformer(settings.EMBEDDING_MODEL)
         return self._embedding_model
 

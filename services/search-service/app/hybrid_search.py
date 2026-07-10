@@ -10,7 +10,6 @@ from typing import Any, Dict, List, Optional, Tuple
 import structlog
 from opensearchpy import AsyncOpenSearch
 from qdrant_client import AsyncQdrantClient
-from sentence_transformers import SentenceTransformer
 
 from app.config import settings
 from app.indexing_contract import build_embedding_text, build_tender_document
@@ -60,7 +59,7 @@ class HybridSearchEngine:
     def __init__(self):
         self._os: Optional[AsyncOpenSearch] = None
         self._qdrant: Optional[AsyncQdrantClient] = None
-        self._embedder: Optional[SentenceTransformer] = None
+        self._embedder: Optional[Any] = None
 
     def _get_os(self) -> AsyncOpenSearch:
         if self._os is None:
@@ -80,8 +79,9 @@ class HybridSearchEngine:
             )
         return self._qdrant
 
-    def _get_embedder(self) -> SentenceTransformer:
+    def _get_embedder(self) -> Any:
         if self._embedder is None:
+            from sentence_transformers import SentenceTransformer
             self._embedder = SentenceTransformer(settings.EMBEDDING_MODEL)
         return self._embedder
 

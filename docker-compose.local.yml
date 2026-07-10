@@ -83,7 +83,7 @@ services:
       - postgres_local_data:/var/lib/postgresql/data
       - ./infrastructure/postgres/init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
     ports:
-      - "127.0.0.1:5432:5432"
+      - "5432:5432"
     networks:
       - tenderos-local-net
     deploy:
@@ -104,7 +104,7 @@ services:
     volumes:
       - redis_local_data:/data
     ports:
-      - "127.0.0.1:6379:6379"
+      - "6379:6379"
     networks:
       - tenderos-local-net
     deploy:
@@ -133,6 +133,7 @@ services:
       CORS_ORIGINS: '["http://localhost:3000", "http://localhost:3001"]'
     ports:
       - "18000:8000"
+      - "8000:8000"
 
 
     networks:
@@ -156,7 +157,7 @@ services:
       <<: *local-common-env
       SERVICE_PORT: "8001"
     ports:
-      - "127.0.0.1:8001:8001"
+      - "8001:8001"
     networks:
       - tenderos-local-net
     depends_on:
@@ -173,7 +174,7 @@ services:
       <<: *local-common-env
       SERVICE_PORT: "8002"
     ports:
-      - "127.0.0.1:8002:8002"
+      - "8002:8002"
     networks:
       - tenderos-local-net
     depends_on:
@@ -193,7 +194,7 @@ services:
       OPENSEARCH_HOST: disabled
       QDRANT_HOST: disabled
     ports:
-      - "127.0.0.1:8010:8010"
+      - "8010:8010"
     networks:
       - tenderos-local-net
     depends_on:
@@ -211,7 +212,7 @@ services:
       SERVICE_PORT: "8011"
       QDRANT_HOST: disabled
     ports:
-      - "127.0.0.1:8011:8011"
+      - "8011:8011"
     networks:
       - tenderos-local-net
 
@@ -226,7 +227,7 @@ services:
       <<: *local-common-env
       SERVICE_PORT: "8012"
     ports:
-      - "127.0.0.1:8012:8012"
+      - "8012:8012"
     networks:
       - tenderos-local-net
     depends_on:
@@ -243,7 +244,7 @@ services:
       <<: *local-common-env
       SERVICE_PORT: "8013"
     ports:
-      - "127.0.0.1:8013:8013"
+      - "8013:8013"
     networks:
       - tenderos-local-net
     depends_on:
@@ -260,7 +261,7 @@ services:
       <<: *local-common-env
       SERVICE_PORT: "8017"
     ports:
-      - "127.0.0.1:8017:8017"
+      - "8017:8017"
     networks:
       - tenderos-local-net
 
@@ -275,7 +276,7 @@ services:
       <<: *local-common-env
       SERVICE_PORT: "8003"
     ports:
-      - "127.0.0.1:8003:8003"
+      - "8003:8003"
     networks:
       - tenderos-local-net
     depends_on:
@@ -292,7 +293,7 @@ services:
       <<: *local-common-env
       SERVICE_PORT: "8004"
     ports:
-      - "127.0.0.1:8004:8004"
+      - "8004:8004"
     networks:
       - tenderos-local-net
     depends_on:
@@ -309,7 +310,7 @@ services:
       <<: *local-common-env
       SERVICE_PORT: "8006"
     ports:
-      - "127.0.0.1:8006:8006"
+      - "8006:8006"
     networks:
       - tenderos-local-net
 
@@ -325,10 +326,93 @@ services:
       SERVICE_PORT: "8005"
       QDRANT_HOST: disabled
     ports:
-      - "127.0.0.1:8005:8005"
+      - "8005:8005"
     networks:
       - tenderos-local-net
     depends_on:
       ocr-service: { condition: service_started }
 
+  market-intelligence-service:
+    <<: *local-limits
+    build:
+      context: ./services/market-intelligence-service
+      dockerfile: Dockerfile
+    image: tenderos/market-intelligence-service:local
+    container_name: tenderos-market-intel
+    environment:
+      <<: *local-common-env
+      SERVICE_PORT: "8014"
+    ports:
+      - "8014:8014"
+    networks:
+      - tenderos-local-net
+    depends_on:
+      postgres: { condition: service_healthy }
 
+  prediction-service:
+    <<: *local-limits
+    build:
+      context: ./services/prediction-service
+      dockerfile: Dockerfile
+    image: tenderos/prediction-service:local
+    container_name: tenderos-prediction
+    environment:
+      <<: *local-common-env
+      SERVICE_PORT: "8015"
+    ports:
+      - "8015:8015"
+    networks:
+      - tenderos-local-net
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  competitor-service:
+    <<: *local-limits
+    build:
+      context: ./services/competitor-service
+      dockerfile: Dockerfile
+    image: tenderos/competitor-service:local
+    container_name: tenderos-competitor
+    environment:
+      <<: *local-common-env
+      SERVICE_PORT: "8016"
+    ports:
+      - "8016:8016"
+    networks:
+      - tenderos-local-net
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  notification-service:
+    <<: *local-limits
+    build:
+      context: ./services/notification-service
+      dockerfile: Dockerfile
+    image: tenderos/notification-service:local
+    container_name: tenderos-notification
+    environment:
+      <<: *local-common-env
+      SERVICE_PORT: "8018"
+    ports:
+      - "8018:8018"
+    networks:
+      - tenderos-local-net
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  admin-service:
+    <<: *local-limits
+    build:
+      context: ./services/admin-service
+      dockerfile: Dockerfile
+    image: tenderos/admin-service:local
+    container_name: tenderos-admin
+    environment:
+      <<: *local-common-env
+      SERVICE_PORT: "8019"
+    ports:
+      - "8019:8019"
+    networks:
+      - tenderos-local-net
+    depends_on:
+      postgres: { condition: service_healthy }

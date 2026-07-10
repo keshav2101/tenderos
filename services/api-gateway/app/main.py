@@ -116,7 +116,7 @@ async def add_process_time_header(request: Request, call_next):
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com; "
         "img-src 'self' data:; "
-        "connect-src 'self' http://localhost:8000 http://localhost:3000 http://127.0.0.1:8000 http://127.0.0.1:3000;"
+        "connect-src 'self' http://localhost:8000 http://localhost:18000 http://localhost:3000 http://localhost:3001 http://127.0.0.1:8000 http://127.0.0.1:18000 http://127.0.0.1:3000 http://127.0.0.1:3001;"
     )
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"

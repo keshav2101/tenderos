@@ -7,6 +7,7 @@ import asyncpg
 import structlog
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 from app.config import settings
 
 logger = structlog.get_logger()

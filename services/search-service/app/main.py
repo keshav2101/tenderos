@@ -5,8 +5,11 @@ from fastapi import FastAPI, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
+import structlog
 from app.config import settings
 from app.hybrid_search import HybridSearchEngine
+
+logger = structlog.get_logger()
 
 app = FastAPI(title="TenderOS Search Service")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
