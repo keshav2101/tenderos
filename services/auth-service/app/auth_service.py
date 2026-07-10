@@ -24,8 +24,19 @@ class AuthService:
         self._redis: Optional[aioredis.Redis] = None
 
     async def _get_redis(self) -> aioredis.Redis:
-        if self._redis is None:
-            self._redis = await aioredis.from_url(settings.redis_url, decode_responses=True)
+        """Return a live Redis connection, reconnecting if the cached client is stale."""
+        if self._redis is not None:
+            try:
+                await self._redis.ping()
+                return self._redis
+            except Exception:
+                # Cached client is broken (e.g. Redis restarted) — reconnect
+                try:
+                    await self._redis.aclose()
+                except Exception:
+                    pass
+                self._redis = None
+        self._redis = await aioredis.from_url(settings.redis_url, decode_responses=True)
         return self._redis
 
     # ─── Password ─────────────────────────────────────────────────────────────
