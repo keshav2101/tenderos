@@ -4,7 +4,54 @@
 
 ---
 
-## 1. Accomplished Validation Actions
+## 1. Deployment Dependency Graph (Phase A)
+
+The following diagram maps the startup order and runtime dependencies for the TenderOS microservices ecosystem:
+
+```mermaid
+graph TD
+    %% Frontend
+    FE[frontend] --> GW[api-gateway]
+
+    %% Gateway & Core services
+    GW --> PG[(PostgreSQL)]
+    GW --> RD[(Redis)]
+
+    %% Auth & Tenant services
+    AUTH[auth-service] --> PG
+    AUTH --> RD
+    TNDR[tender-service] --> PG
+    TNDR --> RD
+    DT[digital-twin-service] --> PG
+    BILL[billing-service] --> PG
+    BID[bid-qualification-service] --> PG
+
+    %% Search & Vector store services
+    SRCH[search-service] --> OS[(OpenSearch)]
+    SRCH --> QD[(Qdrant)]
+    COP[copilot-service] --> QD
+
+    %% Message queues & async processing
+    CONN[connector-service] --> RMQ[(RabbitMQ)]
+    CONN --> RD
+    SCHED[scheduler-service] --> RMQ
+    SCHED --> RD
+    DOC[document-pipeline] --> RMQ
+    DOC --> MIN[(MinIO / GCS)]
+    OCR[ocr-service] --> MIN
+    EXT[ai-extraction] --> RD
+    KG[knowledge-graph-service] --> N4J[(Neo4j)]
+
+    %% Styling
+    classDef infra fill:#2d3748,stroke:#4a5568,stroke-width:2px,color:#fff;
+    classDef app fill:#3182ce,stroke:#2b6cb0,stroke-width:2px,color:#fff;
+    class PG,RD,RMQ,MIN,OS,QD,N4J infra;
+    class FE,GW,AUTH,TNDR,DT,BILL,BID,SRCH,COP,CONN,SCHED,DOC,OCR,EXT,KG app;
+```
+
+---
+
+## 2. Accomplished Validation Actions
 
 We have evaluated the General Availability (GA) readiness of TenderOS v1.0.0. While the local production stack is fully operational, the hosted cloud backend target does not exist.
 
@@ -16,7 +63,7 @@ Key findings:
 
 ---
 
-## 2. Fixed Defects & Code Changes
+## 3. Fixed Defects & Code Changes
 
 ### [MODIFY] [auth_service.py](file:///Users/keshavgupta/antigravity/Tender%20AI/services/auth-service/app/auth_service.py)
 Implemented active connection validation inside the Redis client provider function:
@@ -40,7 +87,7 @@ Implemented active connection validation inside the Redis client provider functi
 
 ---
 
-## 3. Phase 11 Validation Reports Index
+## 4. Phase 11 Validation Reports Index
 
 The following reports document the evidence gathered during Phase 11 validation:
 

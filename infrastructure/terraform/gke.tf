@@ -4,9 +4,12 @@ resource "google_container_cluster" "gke_autopilot" {
   location = var.region
 
   enable_autopilot = true
+  network          = google_compute_network.vpc.id
+  subnetwork       = google_compute_subnetwork.subnet.id
 
   ip_allocation_policy {
-    use_ip_aliases = true
+    cluster_secondary_range_name  = "gke-pods"
+    services_secondary_range_name = "gke-services"
   }
 
   release_channel {
@@ -15,18 +18,8 @@ resource "google_container_cluster" "gke_autopilot" {
 
   deletion_protection = false
 
-  labels = {
+  resource_labels = {
     env = var.environment
     app = "tenderos"
   }
-}
-
-output "kubernetes_cluster_name" {
-  value       = google_container_cluster.gke_autopilot.name
-  description = "GKE Cluster Name"
-}
-
-output "kubernetes_cluster_endpoint" {
-  value       = google_container_cluster.gke_autopilot.endpoint
-  description = "GKE Cluster Endpoint"
 }
