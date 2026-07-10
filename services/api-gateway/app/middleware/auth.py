@@ -6,6 +6,7 @@ from typing import Optional
 import structlog
 import httpx
 from fastapi import Request, HTTPException, status
+from fastapi.responses import JSONResponse
 from jose import jwt, JWTError
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -45,6 +46,9 @@ PUBLIC_PATHS = {
     # Homepage analytics overview (powers the stats widgets on the landing page)
     "/api/v1/analytics/overview",
 
+    # AI Copilot chat for guest users
+    "/api/v1/chat",
+
     # External webhook — Stripe sends events without a user JWT
     "/api/v1/billing/webhook",
 }
@@ -71,57 +75,63 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
         request.state.tenant_id = tenant_id
 
-        # Skip auth for public paths — attach a minimal guest context so that
-        # downstream routers that optionally read request.state.user don't fail.
+        # Check if auth headers are present first, regardless of public path
+        api_key = request.headers.get("X-API-Key")
+        auth_header = request.headers.get("Authorization", "")
+        has_auth = bool(api_key or auth_header.startswith("Bearer "))
+
+        if has_auth:
+            if api_key:
+                user_ctx = await self._validate_api_key(api_key)
+                if user_ctx:
+                    request.state.user = user_ctx
+                    request.state.auth_method = "api_key"
+                    res = self._check_role_transition(path, user_ctx)
+                    if res:
+                        return res
+                    return await call_next(request)
+                return JSONResponse(
+                    status_code=401,
+                    content={"detail": "Invalid API key"}
+                )
+
+            if auth_header.startswith("Bearer "):
+                token = auth_header.removeprefix("Bearer ")
+                user_ctx = await self._validate_jwt(token)
+                if user_ctx:
+                    request.state.user = user_ctx
+                    request.state.auth_method = "jwt"
+                    res = self._check_role_transition(path, user_ctx)
+                    if res:
+                        return res
+                    return await call_next(request)
+                return JSONResponse(
+                    status_code=401,
+                    content={"detail": "Invalid or expired token"},
+                    headers={"WWW-Authenticate": "Bearer"}
+                )
+
+        # Fallback to public path check if no auth credentials were sent
         if any(path.startswith(p) for p in PUBLIC_PATHS):
             request.state.user = None
             request.state.auth_method = "none"
             return await call_next(request)
 
-        # Try API key first
-        api_key = request.headers.get("X-API-Key")
-        if api_key:
-            user_ctx = await self._validate_api_key(api_key)
-            if user_ctx:
-                request.state.user = user_ctx
-                request.state.auth_method = "api_key"
-                self._check_role_transition(path, user_ctx)
-                return await call_next(request)
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid API key",
-            )
-
-        # Try Bearer JWT
-        auth_header = request.headers.get("Authorization", "")
-        if auth_header.startswith("Bearer "):
-            token = auth_header.removeprefix("Bearer ")
-            user_ctx = await self._validate_jwt(token)
-            if user_ctx:
-                request.state.user = user_ctx
-                request.state.auth_method = "jwt"
-                self._check_role_transition(path, user_ctx)
-                return await call_next(request)
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid or expired token",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required",
-            headers={"WWW-Authenticate": "Bearer"},
+        return JSONResponse(
+            status_code=401,
+            content={"detail": "Authentication required"},
+            headers={"WWW-Authenticate": "Bearer"}
         )
 
-    def _check_role_transition(self, path: str, user: dict):
+    def _check_role_transition(self, path: str, user: dict) -> Optional[JSONResponse]:
         if path.endswith("/workflow/transition"):
             role = user.get("role", "viewer")
-            if role not in ("admin", "enterprise", "consultant"):
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Role does not have permission to transition bid workflow states"
+            if role not in ("admin", "enterprise", "consultant", "sme"):
+                return JSONResponse(
+                    status_code=403,
+                    content={"detail": "Role does not have permission to transition bid workflow states"}
                 )
+        return None
 
     async def _validate_jwt(self, token: str) -> Optional[dict]:
         try:

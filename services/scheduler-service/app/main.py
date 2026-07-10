@@ -34,7 +34,7 @@ async def get_pool() -> asyncpg.Pool:
         )
     return _pool
 
-async def run_single_sync(client: httpx.AsyncClient, source_id: str):
+async def run_single_sync(source_id: str):
     """Run a single sync, insert into database, and update status on completion."""
     pool = await get_pool()
     job_id = None
@@ -65,7 +65,8 @@ async def run_single_sync(client: httpx.AsyncClient, source_id: str):
     logger.info("Triggering connector sync job", source=source_id, url=sync_url, job_id=str(job_id))
     
     try:
-        resp = await client.post(sync_url, timeout=60.0)
+        async with httpx.AsyncClient(timeout=65.0) as client:
+            resp = await client.post(sync_url, timeout=60.0)
         finished_at = datetime.utcnow()
         duration = int((finished_at - started_at).total_seconds())
         
@@ -208,7 +209,7 @@ async def trigger_connector_syncs():
                             
                         if should_trigger:
                             logger.info("Triggering scheduled sync run", source=source_id, cron=refresh_cron)
-                            asyncio.create_task(run_single_sync(client, source_id))
+                            asyncio.create_task(run_single_sync(source_id))
         except Exception as e:
             logger.error("Error inside scheduler main loop", error=str(e))
         

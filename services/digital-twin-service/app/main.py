@@ -78,25 +78,29 @@ async def upsert_profile(body: dict):
             raise HTTPException(status_code=404, detail="User not found")
 
         company_id = user["company_id"]
+        entity_type = body.get("entity_type", "MSME_Medium")
+        if entity_type in ("SME", "sme", "sme_plan", ""):
+            entity_type = "MSME_Medium"
+
         if not company_id:
             company_id = uuid4()
             # FIX: column is `legal_name` not `name`; include required `user_id`
             await conn.execute(
-                "INSERT INTO companies (id, user_id, legal_name, gstin, pan, entity_type, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+                "INSERT INTO companies (id, user_id, legal_name, gstin, pan, entity_type, cin, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
                 company_id, user_id,
                 body.get("legal_name", body.get("name", "New Company")),
                 body.get("gstin", ""), body.get("pan", ""),
-                body.get("entity_type", "SME"), datetime.utcnow()
+                entity_type, body.get("cin", ""), datetime.utcnow()
             )
             # Link to user
             await conn.execute("UPDATE users SET company_id = $1 WHERE id = $2", company_id, user_id)
         else:
             # FIX: column is `legal_name` not `name`
             await conn.execute(
-                "UPDATE companies SET legal_name = $1, gstin = $2, pan = $3, entity_type = $4 WHERE id = $5",
+                "UPDATE companies SET legal_name = $1, gstin = $2, pan = $3, entity_type = $4, cin = $5 WHERE id = $6",
                 body.get("legal_name", body.get("name", "")),
                 body.get("gstin", ""), body.get("pan", ""),
-                body.get("entity_type", ""), company_id
+                entity_type, body.get("cin", ""), company_id
             )
         return {"status": "success", "company_id": str(company_id)}
 

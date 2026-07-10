@@ -26,11 +26,12 @@ async def chat(request: Request, tender_id: str = Path(...), body: ChatMessage =
     - "Show all penalties"
     """
     user = request.state.user
+    user_id = user["user_id"] if user else "guest"
     payload = {
         "tender_id": tender_id,
         "message": body.message,
         "conversation_id": body.conversation_id,
-        "user_id": user["user_id"],
+        "user_id": user_id,
     }
     return await _proxy.post(f"/chat/{tender_id}", json=payload)
 
@@ -38,6 +39,8 @@ async def chat(request: Request, tender_id: str = Path(...), body: ChatMessage =
 @router.get("/{tender_id}/history", summary="Get conversation history for a tender")
 async def get_history(request: Request, tender_id: str = Path(...)):
     user = request.state.user
+    if not user:
+        return []
     return await _proxy.get(
         f"/chat/{tender_id}/history",
         params={"user_id": user["user_id"]},
@@ -47,6 +50,8 @@ async def get_history(request: Request, tender_id: str = Path(...)):
 @router.delete("/{tender_id}/history", summary="Clear conversation history")
 async def clear_history(request: Request, tender_id: str = Path(...)):
     user = request.state.user
+    if not user:
+        return {"status": "success"}
     return await _proxy.delete(
         f"/chat/{tender_id}/history?user_id={user['user_id']}"
     )
