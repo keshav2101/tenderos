@@ -3,6 +3,8 @@ Base Connector Interface — all data source connectors implement this.
 
 Plugin architecture: drop a new connector file into connectors/plugins/
 and register it in the connector registry. No core changes required.
+
+Phase 14: Extended with ConnectorState, stats(), enable/disable, schedule() support.
 """
 from __future__ import annotations
 import hashlib
@@ -21,6 +23,48 @@ class HealthStatus(str, Enum):
     HEALTHY = "healthy"
     DEGRADED = "degraded"
     FAILED = "failed"
+
+
+class ConnectorStatus(str, Enum):
+    ENABLED = "enabled"
+    DISABLED = "disabled"
+    RUNNING = "running"
+    IDLE = "idle"
+
+
+@dataclass
+class ConnectorState:
+    """Runtime state and statistics for a connector."""
+    source_id: str
+    enabled: bool = True
+    status: str = "idle"
+    last_run: Optional[datetime] = None
+    last_success: Optional[datetime] = None
+    success_count: int = 0
+    failure_count: int = 0
+    total_tenders: int = 0
+    new_tenders: int = 0
+    updated_tenders: int = 0
+    last_error: Optional[str] = None
+    last_duration_seconds: float = 0.0
+    quality_score: float = 0.0
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "source_id": self.source_id,
+            "enabled": self.enabled,
+            "status": self.status,
+            "last_run": self.last_run.isoformat() if self.last_run else None,
+            "last_success": self.last_success.isoformat() if self.last_success else None,
+            "success_count": self.success_count,
+            "failure_count": self.failure_count,
+            "total_tenders": self.total_tenders,
+            "new_tenders": self.new_tenders,
+            "updated_tenders": self.updated_tenders,
+            "last_error": self.last_error,
+            "last_duration_seconds": self.last_duration_seconds,
+            "quality_score": self.quality_score,
+        }
 
 
 @dataclass
@@ -65,6 +109,12 @@ class BaseConnector(ABC):
     """
     Abstract base class for all source connectors.
     Each connector is responsible for one procurement data source.
+
+    Phase 14 extended interface:
+      - health_check() -> HealthStatus
+      - fetch_tenders() -> AsyncIterator[RawTender]
+      - get_stats() -> ConnectorState
+      - enable() / disable()
     """
     source_id: str
     display_name: str
@@ -74,9 +124,13 @@ class BaseConnector(ABC):
     retry_policy: RetryPolicy
     timeout_seconds: int = 30
 
+    # Access limitation documentation for gated portals
+    access_limitations: str = ""
+
     def __init__(self, config: Dict[str, Any] = None):
         self.config = config or {}
         self._logger = structlog.get_logger().bind(connector=self.source_id)
+        self._state = ConnectorState(source_id=self.source_id)
 
     @abstractmethod
     async def fetch_tenders(self, since: Optional[datetime] = None) -> AsyncIterator[RawTender]:
@@ -91,6 +145,44 @@ class BaseConnector(ABC):
     async def health_check(self) -> HealthStatus:
         """Return the health status of the source portal."""
         ...
+
+    def get_stats(self) -> ConnectorState:
+        """Return current connector runtime statistics."""
+        return self._state
+
+    def enable(self):
+        """Enable this connector for scheduled sync."""
+        self._state.enabled = True
+        self._logger.info("Connector enabled")
+
+    def disable(self):
+        """Disable this connector from scheduled sync."""
+        self._state.enabled = False
+        self._logger.info("Connector disabled")
+
+    def record_run_start(self):
+        """Mark that a run has started."""
+        self._state.status = "running"
+        self._state.last_run = datetime.utcnow()
+
+    def record_run_success(self, new: int = 0, updated: int = 0, total: int = 0,
+                           duration: float = 0.0, quality_score: float = 0.0):
+        """Record a successful sync run."""
+        self._state.status = "idle"
+        self._state.last_success = datetime.utcnow()
+        self._state.success_count += 1
+        self._state.new_tenders = new
+        self._state.updated_tenders = updated
+        self._state.total_tenders = total
+        self._state.last_duration_seconds = duration
+        self._state.quality_score = quality_score
+        self._state.last_error = None
+
+    def record_run_failure(self, error: str):
+        """Record a failed sync run."""
+        self._state.status = "idle"
+        self._state.failure_count += 1
+        self._state.last_error = error
 
     def get_dom_fingerprint(self, html: str) -> str:
         """
