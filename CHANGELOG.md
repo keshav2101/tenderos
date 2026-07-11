@@ -1,11 +1,16 @@
-# TenderOS — Changelog
+## [1.0.0] — 2026-07-11 — General Availability (B.Tech Submission Release)
 
-All notable changes will be documented in this file.
-Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+### Added
+- Created Docker deployment script (`start.sh`) utilizing background process groups and staggered startup routines to run 22 microservices inside 512MB RAM Hobby-tier instances.
+- PostgreSQL table schema migration execution via Python database connection.
+- Auto-routing for public vs authenticated pathways within API Gateway middleware.
+
+### Fixed
+- Installed missing `email-validator` backend package dependency.
+- Resolved `AttributeError: '_IncludedRouter' object has no attribute 'path'` inside Gateway prometheus middleware by upgrading `prometheus-fastapi-instrumentator>=8.0.2`.
+- Hardened CORS origins using proper JSON list parameters.
 
 ---
-
-## [Unreleased] — Phase 3 (Production Hardening)
 
 ### In Progress
 - End-to-end connector verification (GeM, CPPP, Railways, PSU, State)

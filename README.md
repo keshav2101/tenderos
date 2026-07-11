@@ -1,215 +1,90 @@
 # TenderOS — AI Procurement Intelligence Platform
+> **B.Tech Major Project Submission (College Release v1.0.0)**
 
-> **Not another tender website. An AI operating system for procurement.**
-
-Read every government tender in India. Understand it. Predict it. Help businesses win it.
+TenderOS is an enterprise-grade, AI-powered Government Procurement Operating System designed for the Indian Public Procurement Ecosystem. It automates aggregation, deep layout document intelligence, and qualification scoring for tenders published on the Government e-Marketplace (GeM), Central Public Procurement Portal (CPPP), Indian Railways (IREPS), PSUs, and state procurement portals.
 
 ---
 
-## Architecture
+## 🚀 Live Production Details
+- **Production API Gateway**: [https://backend-production-4aa8.up.railway.app](https://backend-production-4aa8.up.railway.app)
+- **Hosted Environment**: Railway (SFO Region)
+
+---
+
+## 🛠️ Complete Project Documentation Index
+
+To explore the architecture, installation, or validation evidence of TenderOS, reference the corresponding project manuals below:
+
+### 1. Verification & Compliance
+- 📂 **[Production Validation Report](production_validation_report.md)**: Live verification status of routing, databases, and HSTS/CSP headers.
+- 📂 **[Final Delivery Report](FINAL_DELIVERY_REPORT.md)**: GA release certification and Git metrics overview.
+- 📂 **[Testing Report](TEST_REPORT.md)**: E2E and regression testing matrices for auth, gateway, and backend services.
+- 📂 **[Performance Report](PERFORMANCE_REPORT.md)**: Latency profile curves (P50, P95, P99) and container RAM footprints.
+
+### 2. Design & Architecture
+- 📂 **[System Architecture](ARCHITECTURE.md)**: Detailed Mermaid UML topologies, data flow routes, and API Gateway sequences.
+- 📂 **[Database Documentation](DATABASE_DOCUMENTATION.md)**: ER diagrams, constraints, trigram indexes, and schema tables.
+- 📂 **[Security Policy](SECURITY.md)**: Details JWT session TTL, RBAC roles matrix, and transit encryption rules.
+- 📂 **[Project Metrics](PROJECT_METRICS.md)**: Lines of code, container topologies, and component statistics.
+
+### 3. Operations & Setup Manuals
+- 📂 **[API Reference Documentation](API_DOCUMENTATION.md)**: Route specs, parameter details, and JSON request/response schema samples.
+- 📂 **[User Operations Manual](USER_MANUAL.md)**: User guide for dashboard controls, search, and AI bid generation.
+- 📂 **[Administrator Operations Manual](ADMIN_MANUAL.md)**: DevOps workflows for database snapshots, monitoring, and service restarts.
+- 📂 **[Installation Manual](INSTALLATION.md)**: Setting up local python environments, Docker Compose, and cloud instances.
+- 📂 **[Deployment Playbook](DEPLOYMENT.md)**: Railway environment keys and rollback sequences.
+
+### 4. B.Tech Academic Deliverables
+- 📂 **[Major Project Report](PROJECT_REPORT.md)**: The final B.Tech Project thesis report (Abstract, survey, algorithms, and methodologies).
+- 📂 **[Presentation Slide Deck Content](PRESENTATION_CONTENT.md)**: Slide-by-slide project deck layout for the major viva defense.
+- 📂 **[Viva Defense Preparation Guide](VIVA_GUIDE.md)**: 50+ viva defense questions covering database, AI/RAG, and microservices.
+- 📂 **[Resume Project Highlights](RESUME_PROJECT_DESCRIPTION.md)**: Portfolio-grade resume summary points.
+- 📂 **[Release Notes](RELEASE_NOTES.md)** & **[Changelog](CHANGELOG.md)**: Version release notes for v1.0.0.
+
+---
+
+## 🏢 Platform System Architecture
 
 ```
-52+ Ministries · 200+ Departments · 30+ State Portals · GeM · CPPP · Railways
-
+52+ Indian Ministries · 200+ Depts · GeM · CPPP · Railways
                     │
                     ▼
-      Distributed Intelligent Crawlers (Connector Service)
+      Connector Service (Scrapers & Normalizers)
                     │
-      Change Detection + Scheduler + RabbitMQ Queue
-                    │
-                    ▼
-         OCR + Layout Understanding (OCR Service)
-         pdfplumber (text) · pytesseract (scanned) · PyMuPDF
+      Redis Ingestion Queue (tenderos:ingestion_queue)
                     │
                     ▼
-         3-Tier AI Information Extraction
-         Tier 1: Rule-based / regex / spaCy (~70% of fields)
-         Tier 2: Small open-weights model (complex layouts)
-         Tier 3: Gemini 2.0 Flash (hard cases, 7-day cache)
+     OCR & Layout Intelligence (ocr-service)
                     │
                     ▼
-      ┌─────────────────────────────────────────────────┐
-      │          Core Data Stores                        │
-      │  PostgreSQL  ·  Qdrant  ·  OpenSearch  ·  Neo4j │
-      └─────────────────────────────────────────────────┘
+          Core Microservices Ecosystem
+     [auth] · [tender] · [search] · [copilot] · [proposal]
                     │
                     ▼
-         Intelligence Layers 5–11
-         └─ Search (BM25 + Semantic + RRF)
-         └─ Copilot RAG (cited Q&A)
-         └─ Digital Twin (company profile)
-         └─ Bid Qualification Engine
-         └─ Market Intelligence
-         └─ Predictive Procurement
-         └─ Competitor Intelligence
-         └─ Proposal Generator
-         └─ Notification Engine
+  PostgreSQL 16 · Redis Cache · Qdrant Vector DB
                     │
                     ▼
-         API Gateway (FastAPI) → Next.js 14 Frontend
+          Uvicorn API Gateway (Port 8080)
+                    │
+                    ▼
+       Next.js 14 Responsive UI
 ```
 
 ---
 
-## 11 Intelligence Layers
+## ⚡ Technology Stack
 
-| Layer | Component | Description |
-|-------|-----------|-------------|
-| 1 | Connector Service | GeM, CPPP, state portals via official APIs |
-| 2 | OCR Service | PDF intelligence (text/scanned/mixed auto-detect) |
-| 3 | AI Extraction | 3-tier pipeline with Redis caching |
-| 4 | Knowledge Graph | Neo4j: Ministries → Depts → Vendors → Tenders |
-| 5 | Hybrid Search | BM25 + Semantic + RRF < 300ms |
-| 6 | Tender Copilot | RAG with page-level citations |
-| 7 | Digital Twin | AI-parsed company profile |
-| 8 | Bid Qualification | Match score, gap analysis, win probability |
-| 9 | Market Intelligence | Spending trends, seasonality, ministry analytics |
-| 10 | Predictive Procurement | Probabilistic forecasts by ministry/category |
-| 11 | Competitor Intelligence | Historical win rates from public procurement records |
+* **Frontend**: Next.js 14, React 18, TypeScript, Tailwind CSS
+* **API Gateway & Services**: FastAPI (Uvicorn), Python 3.11
+* **Primary Relational DB**: PostgreSQL 16
+* **In-Memory Cache**: Redis 7
+* **Search Engine**: OpenSearch (Hybrid BM25) / PG Trigram Fallback
+* **Vector Vector Store**: Qdrant Semantic Vector Index
+* **Graph Database**: Neo4j (Ministry relationship network mapping)
+* **LLM Engine**: Gemini 2.0 Flash (Default RAG)
 
 ---
 
-## Technology Stack
+## 📜 License
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | Next.js 14 (App Router), TypeScript, Tailwind CSS |
-| API Gateway | FastAPI, Python 3.11 |
-| Microservices | FastAPI (17 services) |
-| Primary DB | PostgreSQL 16 (pg_trgm, btree_gin) |
-| Vector DB | Qdrant |
-| Search | OpenSearch (BM25) |
-| Graph DB | Neo4j |
-| Object Storage | MinIO (S3-compatible) |
-| Cache | Redis 7 |
-| Message Queue | RabbitMQ |
-| LLM | Gemini 2.0 Flash (default), OpenAI GPT-4o-mini, Claude 3.5 Sonnet |
-| Embeddings | sentence-transformers/all-MiniLM-L6-v2 |
-| OCR | pytesseract + PyMuPDF (300 DPI) |
-| Container | Docker + Docker Compose |
-
----
-
-## Quick Start
-
-### Prerequisites
-- Docker 24+ and Docker Compose 2.20+
-- Python 3.11+
-- Node.js 18+
-
-### 1. Start Infrastructure
-
-```bash
-make infra
-```
-
-This starts: PostgreSQL, Redis, RabbitMQ, Qdrant, OpenSearch, MinIO, Neo4j.
-
-### 2. Seed Data
-
-```bash
-make seed
-```
-
-Generates 500 realistic synthetic tenders and indexes them into:
-- PostgreSQL (structured data)
-- OpenSearch (BM25 full-text index)
-- Qdrant (semantic vector index)
-
-### 3. Start Frontend
-
-```bash
-make dev-frontend
-```
-
-Open [http://localhost:3000](http://localhost:3000)
-
-### 4. Start All Services
-
-```bash
-make up
-```
-
-- Frontend: http://localhost:3000
-- API Gateway: http://localhost:8000
-- API Docs: http://localhost:8000/docs
-- Health: http://localhost:8000/health/deep
-
----
-
-## Environment Variables
-
-Copy `.env.example` to `.env` and configure:
-
-```bash
-# Required for AI extraction (at least one)
-GEMINI_API_KEY=your-key
-OPENAI_API_KEY=your-key          # Optional fallback
-ANTHROPIC_API_KEY=your-key       # Optional fallback
-
-# Database (defaults work for local Docker)
-POSTGRES_HOST=localhost
-POSTGRES_PASSWORD=tenderos_dev_password
-
-# Infrastructure (defaults for local Docker)
-REDIS_HOST=localhost
-QDRANT_HOST=localhost
-OPENSEARCH_HOST=localhost
-
-# JWT
-JWT_SECRET=change-this-in-production
-```
-
----
-
-## Service Directory
-
-```
-services/
-├── api-gateway/          # Routing, auth middleware, rate limiting
-├── auth-service/         # JWT, OAuth, API keys, password reset
-├── tender-service/       # Tender CRUD, watchlist, similar tenders
-├── connector-service/    # Data source connectors (GeM, CPPP, etc.)
-├── scheduler-service/    # Cron-based sync scheduler
-├── ocr-service/          # PDF extraction (text + scanned)
-├── document-pipeline/    # Document orchestration queue consumer
-├── ai-extraction/        # 3-tier extraction pipeline
-├── search-service/       # Hybrid BM25 + semantic search
-├── copilot-service/      # RAG chat with document citations
-├── digital-twin-service/ # Company profile and document AI
-├── bid-qualification/    # Eligibility scoring and gap analysis
-├── market-intelligence/  # Spending analytics and trends
-├── prediction-service/   # Probabilistic tender forecasting
-├── competitor-service/   # Competitor win rate analysis
-├── proposal-service/     # AI proposal draft generation
-├── notification-service/ # Deadline alerts and feed updates
-└── admin-service/        # Platform ops, sync management
-```
-
----
-
-## Monetization Tiers
-
-| Tier | Price | Rate Limit | Features |
-|------|-------|------------|---------|
-| Free | ₹0 | 10 req/min | 20 tenders/day, basic search |
-| SME | ₹2,999/mo | 200 req/min | Full access, Copilot, Digital Twin |
-| Enterprise | ₹14,999/mo | 2,000 req/min | All features + API access |
-| API | Custom | 10,000 req/min | API-only, full data access |
-
----
-
-## Ethical Guidelines
-
-- **Official APIs only**: Connectors use published government APIs (GeM, CPPP)
-- **Rate limiting**: All crawlers respect portal rate limits
-- **No auth bypass**: No login bypass or CAPTCHA solving
-- **Public data only**: Only publicly available procurement data
-- **Competitor intelligence**: Based solely on public procurement award records
-- **Forecasts labeled**: All predictions are labeled as probabilistic estimates
-
----
-
-## License
-
-MIT — See [LICENSE](LICENSE)
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
