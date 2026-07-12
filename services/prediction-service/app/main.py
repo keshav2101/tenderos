@@ -92,9 +92,9 @@ async def get_predictions(
                     "details": f"Dynamically predicted next cycle for {cat} in {min_name}. Calculated from average historical cost of ₹{avg_val:.2f} Lakhs.",
                 })
             
-            # If database has no tenders, use robust fallback list
+            # If database has no tenders, return empty predictions array
             if not predictions:
-                predictions = get_fallback_predictions(ministry, category)
+                predictions = []
                 
             return {
                 "horizon_days": horizon_days,
@@ -102,11 +102,8 @@ async def get_predictions(
             }
             
     except Exception as e:
-        logger.warning("Failed to fetch dynamic predictions from database, using fallback", error=str(e))
-        return {
-            "horizon_days": horizon_days,
-            "predictions": get_fallback_predictions(ministry, category)
-        }
+        logger.error("Failed to fetch dynamic predictions from database", error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to retrieve predictions from database.")
 
 
 @app.get("/predictions/seasonal")
@@ -154,72 +151,8 @@ async def get_seasonal_patterns(ministry: Optional[str] = None):
             }
             
     except Exception as e:
-        logger.warning("Failed to fetch seasonal patterns from database, using fallback", error=str(e))
-        return {
-            "ministry": ministry or "all",
-            "patterns": get_fallback_patterns(ministry)
-        }
+        logger.error("Failed to fetch seasonal patterns from database", error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to retrieve seasonal patterns from database.")
 
 
-def get_fallback_predictions(ministry: Optional[str] = None, category: Optional[str] = None) -> List[Dict]:
-    raw = [
-        {
-            "id": "pred_1",
-            "ministry": "Ministry of Health and Family Welfare",
-            "category": "Medical Equipment",
-            "estimated_value_cr": 85.0,
-            "estimated_value_lakhs": 8500.0,
-            "expected_release_date": "July 2026",
-            "estimated_publish_month": "July 2026",
-            "probability": 88,
-            "confidence": "HIGH",
-            "details": "Annual procurement of MRI/CT scans for district hospitals. Historically released in late July.",
-        },
-        {
-            "id": "pred_2",
-            "ministry": "Ministry of Finance",
-            "category": "AI / Data Analytics",
-            "estimated_value_cr": 120.0,
-            "estimated_value_lakhs": 12000.0,
-            "expected_release_date": "August 2026",
-            "estimated_publish_month": "August 2026",
-            "probability": 72,
-            "confidence": "MEDIUM",
-            "details": "Upgrade of Tax Processing engines. Expected to include machine learning fraud pattern analysis tools.",
-        },
-        {
-            "id": "pred_3",
-            "ministry": "Ministry of Electronics and Information Technology",
-            "category": "Cybersecurity",
-            "estimated_value_cr": 45.0,
-            "estimated_value_lakhs": 4500.0,
-            "expected_release_date": "September 2026",
-            "estimated_publish_month": "September 2026",
-            "probability": 65,
-            "confidence": "MEDIUM",
-            "details": "National Security Audit contract. Retender due to contract expiration of the current empanelment vendor.",
-        },
-    ]
-    filtered = raw
-    if ministry:
-        filtered = [p for p in filtered if ministry.lower() in p["ministry"].lower()]
-    if category:
-        filtered = [p for p in filtered if category.lower() in p["category"].lower()]
-    return filtered
-
-
-def get_fallback_patterns(ministry: Optional[str] = None) -> List[Dict]:
-    return [
-        {"month": "January", "intensity": "MEDIUM", "historical_share_pct": 8.5},
-        {"month": "February", "intensity": "HIGH", "historical_share_pct": 12.4},
-        {"month": "March", "intensity": "PEAK", "historical_share_pct": 28.1},
-        {"month": "April", "intensity": "LOW", "historical_share_pct": 3.2},
-        {"month": "May", "intensity": "LOW", "historical_share_pct": 4.5},
-        {"month": "June", "intensity": "MEDIUM", "historical_share_pct": 6.8},
-        {"month": "July", "intensity": "HIGH", "historical_share_pct": 9.2},
-        {"month": "August", "intensity": "HIGH", "historical_share_pct": 8.9},
-        {"month": "September", "intensity": "HIGH", "historical_share_pct": 9.5},
-        {"month": "October", "intensity": "MEDIUM", "historical_share_pct": 7.4},
-        {"month": "November", "intensity": "MEDIUM", "historical_share_pct": 6.2},
-        {"month": "December", "intensity": "MEDIUM", "historical_share_pct": 7.1},
-    ]
+# Fallbacks removed in Phase 1 production mock elimination.
