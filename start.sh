@@ -33,6 +33,8 @@ export DIGITAL_TWIN_SERVICE_URL="http://127.0.0.1:8012"
 export PROPOSAL_SERVICE_URL="http://127.0.0.1:8017"
 export NOTIFICATION_SERVICE_URL="http://127.0.0.1:8018"
 export ADMIN_SERVICE_URL="http://127.0.0.1:8019"
+export MARKET_INTEL_SERVICE_URL="http://127.0.0.1:8014"
+export PREDICTION_SERVICE_URL="http://127.0.0.1:8015"
 
 # Core services list to start
 CORE_SERVICES=(
@@ -46,6 +48,8 @@ CORE_SERVICES=(
     "proposal-service:8017"
     "notification-service:8018"
     "admin-service:8019"
+    "market-intelligence-service:8014"
+    "prediction-service:8015"
 )
 
 # Start core services in the background with staggered 2s delays
