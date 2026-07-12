@@ -20,6 +20,12 @@ def test_build_tender_document_preserves_filterable_fields():
             "msme_eligible": True,
             "startup_eligible": False,
             "ai_summary": "Supply and installation of AI cameras.",
+            "sector": "Technology",
+            "cpv": "72200000-7",
+            "gem": True,
+            "railway": False,
+            "defence": False,
+            "psu": False,
         }
     )
 
@@ -30,6 +36,13 @@ def test_build_tender_document_preserves_filterable_fields():
     assert tender["estimated_cost_lakhs"] == 480.0
     assert tender["msme_eligible"] is True
     assert tender["startup_eligible"] is False
+    # Phase 15 fields
+    assert tender["sector"] == "Technology"
+    assert tender["cpv"] == "72200000-7"
+    assert tender["gem"] is True
+    assert tender["railway"] is False
+    assert tender["defence"] is False
+    assert tender["psu"] is False
 
 
 def test_build_embedding_text_includes_search_relevance_context():
@@ -45,6 +58,7 @@ def test_build_embedding_text_includes_search_relevance_context():
             "state": "Delhi",
             "categories": ["AI", "Surveillance"],
             "ai_summary": "Supply and installation of AI cameras.",
+            "sector": "Technology",
         }
     )
 
@@ -54,3 +68,4 @@ def test_build_embedding_text_includes_search_relevance_context():
     assert "Supply and installation" in embedding_text
     assert "National Informatics Centre" in embedding_text
     assert "AI Surveillance" in embedding_text
+    assert "Technology" in embedding_text  # sector included

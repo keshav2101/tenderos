@@ -1,0 +1,1051 @@
+[
+  {
+    "source_id": "gem",
+    "display_name": "Government e-Marketplace (GeM)",
+    "type": "central",
+    "url": "https://gem.gov.in",
+    "domain": "gem.gov.in"
+  },
+  {
+    "source_id": "cppp",
+    "display_name": "Central Public Procurement Portal (CPPP)",
+    "type": "central",
+    "url": "https://eprocure.gov.in/cppp",
+    "domain": "eprocure.gov.in"
+  },
+  {
+    "source_id": "eprocure",
+    "display_name": "eProcure National Portal",
+    "type": "central",
+    "url": "https://eprocure.gov.in",
+    "domain": "eprocure.gov.in"
+  },
+  {
+    "source_id": "railways",
+    "display_name": "Indian Railways (IREPS)",
+    "type": "railway",
+    "url": "https://www.ireps.gov.in",
+    "domain": "ireps.gov.in"
+  },
+  {
+    "source_id": "cair",
+    "display_name": "Centre for AI & Robotics (CAIR)",
+    "type": "defence",
+    "url": "https://www.drdo.gov.in/labs-and-establishments/centre-artificial-intelligence-and-robotics-cair",
+    "domain": "drdo.gov.in"
+  },
+  {
+    "source_id": "dl_pwd",
+    "display_name": "Delhi Public Works Department",
+    "type": "state",
+    "state": "Delhi",
+    "url": "https://pwd.delhi.gov.in",
+    "domain": "delhi.gov.in"
+  },
+  {
+    "source_id": "mh_pwd",
+    "display_name": "Maharashtra Public Works Department",
+    "type": "state",
+    "state": "Maharashtra",
+    "url": "https://mahapwd.gov.in",
+    "domain": "mahapwd.gov.in"
+  },
+  {
+    "source_id": "ka_pwd",
+    "display_name": "Karnataka Public Works Department",
+    "type": "state",
+    "state": "Karnataka",
+    "url": "https://kpwd.karnataka.gov.in",
+    "domain": "karnataka.gov.in"
+  },
+  {
+    "source_id": "tn_pwd",
+    "display_name": "Tamil Nadu Public Works Department",
+    "type": "state",
+    "state": "Tamil Nadu",
+    "url": "https://www.tnpwd.com",
+    "domain": "tnpwd.com"
+  },
+  {
+    "source_id": "up_pwd",
+    "display_name": "Uttar Pradesh Public Works Department",
+    "type": "state",
+    "state": "Uttar Pradesh",
+    "url": "https://uppwd.gov.in",
+    "domain": "uppwd.gov.in"
+  },
+  {
+    "source_id": "ap_pwd",
+    "display_name": "Andhra Pradesh Public Works Department",
+    "type": "state",
+    "state": "Andhra Pradesh",
+    "url": "https://appwd.ap.gov.in",
+    "domain": "ap.gov.in"
+  },
+  {
+    "source_id": "ts_pwd",
+    "display_name": "Telangana Public Works Department",
+    "type": "state",
+    "state": "Telangana",
+    "url": "https://pwd.telangana.gov.in",
+    "domain": "telangana.gov.in"
+  },
+  {
+    "source_id": "gj_pwd",
+    "display_name": "Gujarat Roads and Buildings Department",
+    "type": "state",
+    "state": "Gujarat",
+    "url": "https://rnb.gujarat.gov.in",
+    "domain": "gujarat.gov.in"
+  },
+  {
+    "source_id": "rj_pwd",
+    "display_name": "Rajasthan Public Works Department",
+    "type": "state",
+    "state": "Rajasthan",
+    "url": "https://pwd.rajasthan.gov.in",
+    "domain": "rajasthan.gov.in"
+  },
+  {
+    "source_id": "mp_pwd",
+    "display_name": "Madhya Pradesh Public Works Department",
+    "type": "state",
+    "state": "Madhya Pradesh",
+    "url": "https://mppwd.gov.in",
+    "domain": "mppwd.gov.in"
+  },
+  {
+    "source_id": "wb_pwd",
+    "display_name": "West Bengal Public Works Department",
+    "type": "state",
+    "state": "West Bengal",
+    "url": "https://pwdwb.in",
+    "domain": "pwdwb.in"
+  },
+  {
+    "source_id": "br_pwd",
+    "display_name": "Bihar Building Construction Department",
+    "type": "state",
+    "state": "Bihar",
+    "url": "https://bcd.bih.nic.in",
+    "domain": "bih.nic.in"
+  },
+  {
+    "source_id": "kl_pwd",
+    "display_name": "Kerala Public Works Department",
+    "type": "state",
+    "state": "Kerala",
+    "url": "https://www.pwd.kerala.gov.in",
+    "domain": "kerala.gov.in"
+  },
+  {
+    "source_id": "pb_pwd",
+    "display_name": "Punjab Public Works Department",
+    "type": "state",
+    "state": "Punjab",
+    "url": "https://pwdpunjab.gov.in",
+    "domain": "pwdpunjab.gov.in"
+  },
+  {
+    "source_id": "hr_pwd",
+    "display_name": "Haryana Public Works Department",
+    "type": "state",
+    "state": "Haryana",
+    "url": "https://haryanapwd.gov.in",
+    "domain": "haryanapwd.gov.in"
+  },
+  {
+    "source_id": "od_pwd",
+    "display_name": "Odisha Works Department",
+    "type": "state",
+    "state": "Odisha",
+    "url": "https://worksodisha.gov.in",
+    "domain": "worksodisha.gov.in"
+  },
+  {
+    "source_id": "as_pwd",
+    "display_name": "Assam Public Works Department",
+    "type": "state",
+    "state": "Assam",
+    "url": "https://apwd.in",
+    "domain": "apwd.in"
+  },
+  {
+    "source_id": "jh_pwd",
+    "display_name": "Jharkhand Public Works Department",
+    "type": "state",
+    "state": "Jharkhand",
+    "url": "https://pwdjharkhand.gov.in",
+    "domain": "pwdjharkhand.gov.in"
+  },
+  {
+    "source_id": "cg_pwd",
+    "display_name": "Chhattisgarh Public Works Department",
+    "type": "state",
+    "state": "Chhattisgarh",
+    "url": "https://pwd.cg.nic.in",
+    "domain": "cg.nic.in"
+  },
+  {
+    "source_id": "uk_pwd",
+    "display_name": "Uttarakhand Public Works Department",
+    "type": "state",
+    "state": "Uttarakhand",
+    "url": "https://pwd.uk.gov.in",
+    "domain": "uk.gov.in"
+  },
+  {
+    "source_id": "hp_pwd",
+    "display_name": "Himachal Pradesh Public Works Department",
+    "type": "state",
+    "state": "Himachal Pradesh",
+    "url": "https://hppwd.hp.gov.in",
+    "domain": "hp.gov.in"
+  },
+  {
+    "source_id": "jk_pwd",
+    "display_name": "Jammu & Kashmir Public Works Department",
+    "type": "state",
+    "state": "Jammu and Kashmir",
+    "url": "https://jkpwdrb.nic.in",
+    "domain": "jkpwdrb.nic.in"
+  },
+  {
+    "source_id": "ga_pwd",
+    "display_name": "Goa Public Works Department",
+    "type": "state",
+    "state": "Goa",
+    "url": "https://pwd.goa.gov.in",
+    "domain": "pwd.goa.gov.in"
+  },
+  {
+    "source_id": "tr_pwd",
+    "display_name": "Tripura Public Works Department",
+    "type": "state",
+    "state": "Tripura",
+    "url": "https://pwd.tripura.gov.in",
+    "domain": "tripura.gov.in"
+  },
+  {
+    "source_id": "mn_pwd",
+    "display_name": "Manipur Public Works Department",
+    "type": "state",
+    "state": "Manipur",
+    "url": "https://pwdmanipur.nic.in",
+    "domain": "pwdmanipur.nic.in"
+  },
+  {
+    "source_id": "ml_pwd",
+    "display_name": "Meghalaya Public Works Department",
+    "type": "state",
+    "state": "Meghalaya",
+    "url": "https://megpwd.gov.in",
+    "domain": "megpwd.gov.in"
+  },
+  {
+    "source_id": "mz_pwd",
+    "display_name": "Mizoram Public Works Department",
+    "type": "state",
+    "state": "Mizoram",
+    "url": "https://pwd.mizoram.gov.in",
+    "domain": "mizoram.gov.in"
+  },
+  {
+    "source_id": "nl_pwd",
+    "display_name": "Nagaland Public Works Department",
+    "type": "state",
+    "state": "Nagaland",
+    "url": "https://pwd.nagaland.gov.in",
+    "domain": "pwd.nagaland.gov.in"
+  },
+  {
+    "source_id": "sk_pwd",
+    "display_name": "Sikkim Roads and Bridges Department",
+    "type": "state",
+    "state": "Sikkim",
+    "url": "https://sikkim.gov.in/departments/roads-bridges-department",
+    "domain": "sikkim.gov.in"
+  },
+  {
+    "source_id": "ch_pwd",
+    "display_name": "Chandigarh Engineering Department",
+    "type": "state",
+    "state": "Chandigarh",
+    "url": "https://chandigarh.gov.in",
+    "domain": "chandigarh.gov.in"
+  },
+  {
+    "source_id": "py_pwd",
+    "display_name": "Puducherry Public Works Department",
+    "type": "state",
+    "state": "Puducherry",
+    "url": "https://pwd.py.gov.in",
+    "domain": "pwd.py.gov.in"
+  },
+  {
+    "source_id": "an_pwd",
+    "display_name": "Andaman and Nicobar Public Works Department",
+    "type": "state",
+    "state": "Andaman and Nicobar Islands",
+    "url": "https://apwd.and.nic.in",
+    "domain": "and.nic.in"
+  },
+  {
+    "source_id": "la_pwd",
+    "display_name": "Ladakh Public Works Department",
+    "type": "state",
+    "state": "Ladakh",
+    "url": "https://ladakh.nic.in/departments/public-works-department",
+    "domain": "ladakh.nic.in"
+  },
+  {
+    "source_id": "ld_pwd",
+    "display_name": "Lakshadweep Public Works Department",
+    "type": "state",
+    "state": "Lakshadweep",
+    "url": "https://lakshadweep.gov.in",
+    "domain": "lakshadweep.gov.in"
+  },
+  {
+    "source_id": "dd_pwd",
+    "display_name": "Daman & Diu Public Works Department",
+    "type": "state",
+    "state": "Dadra and Nagar Haveli and Daman and Diu",
+    "url": "https://daman.nic.in",
+    "domain": "daman.nic.in"
+  },
+  {
+    "source_id": "bmc",
+    "display_name": "Brihanmumbai Municipal Corporation",
+    "type": "municipal",
+    "state": "Maharashtra",
+    "url": "https://portal.mcgm.gov.in",
+    "domain": "mcgm.gov.in"
+  },
+  {
+    "source_id": "bbmp",
+    "display_name": "Bruhat Bengaluru Mahanagara Palike",
+    "type": "municipal",
+    "state": "Karnataka",
+    "url": "https://bbmp.gov.in",
+    "domain": "bbmp.gov.in"
+  },
+  {
+    "source_id": "mcd",
+    "display_name": "Municipal Corporation of Delhi",
+    "type": "municipal",
+    "state": "Delhi",
+    "url": "https://mcdonline.nic.in",
+    "domain": "mcdonline.nic.in"
+  },
+  {
+    "source_id": "pmc",
+    "display_name": "Pune Municipal Corporation",
+    "type": "municipal",
+    "state": "Maharashtra",
+    "url": "https://pmc.gov.in",
+    "domain": "pmc.gov.in"
+  },
+  {
+    "source_id": "kmc",
+    "display_name": "Kolkata Municipal Corporation",
+    "type": "municipal",
+    "state": "West Bengal",
+    "url": "https://www.kmcgov.in",
+    "domain": "kmcgov.in"
+  },
+  {
+    "source_id": "gcc",
+    "display_name": "Greater Chennai Corporation",
+    "type": "municipal",
+    "state": "Tamil Nadu",
+    "url": "https://www.chennaicorporation.gov.in",
+    "domain": "chennaicorporation.gov.in"
+  },
+  {
+    "source_id": "amc",
+    "display_name": "Ahmedabad Municipal Corporation",
+    "type": "municipal",
+    "state": "Gujarat",
+    "url": "https://ahmedabadcity.gov.in",
+    "domain": "ahmedabadcity.gov.in"
+  },
+  {
+    "source_id": "smc",
+    "display_name": "Surat Municipal Corporation",
+    "type": "municipal",
+    "state": "Gujarat",
+    "url": "https://www.suratmunicipal.gov.in",
+    "domain": "suratmunicipal.gov.in"
+  },
+  {
+    "source_id": "ghmc",
+    "display_name": "Greater Hyderabad Municipal Corporation",
+    "type": "municipal",
+    "state": "Telangana",
+    "url": "https://www.ghmc.gov.in",
+    "domain": "ghmc.gov.in"
+  },
+  {
+    "source_id": "jmc",
+    "display_name": "Jaipur Municipal Corporation",
+    "type": "municipal",
+    "state": "Rajasthan",
+    "url": "https://jaipurmc.org",
+    "domain": "jaipurmc.org"
+  },
+  {
+    "source_id": "lmc",
+    "display_name": "Lucknow Municipal Corporation",
+    "type": "municipal",
+    "state": "Uttar Pradesh",
+    "url": "https://lmc.up.nic.in",
+    "domain": "lmc.up.nic.in"
+  },
+  {
+    "source_id": "nmmc",
+    "display_name": "Navi Mumbai Municipal Corporation",
+    "type": "municipal",
+    "state": "Maharashtra",
+    "url": "https://www.nmmc.gov.in",
+    "domain": "nmmc.gov.in"
+  },
+  {
+    "source_id": "mcg",
+    "display_name": "Municipal Corporation of Gurugram",
+    "type": "municipal",
+    "state": "Haryana",
+    "url": "https://www.mcg.gov.in",
+    "domain": "mcg.gov.in"
+  },
+  {
+    "source_id": "kdmc",
+    "display_name": "Kalyan Dombivli Municipal Corporation",
+    "type": "municipal",
+    "state": "Maharashtra",
+    "url": "https://kdmc.gov.in",
+    "domain": "kdmc.gov.in"
+  },
+  {
+    "source_id": "vtmc",
+    "display_name": "Vijayawada Municipal Corporation",
+    "type": "municipal",
+    "state": "Andhra Pradesh",
+    "url": "https://ourvmc.org",
+    "domain": "ourvmc.org"
+  },
+  {
+    "source_id": "kannur_mc",
+    "display_name": "Kannur Municipal Corporation",
+    "type": "municipal",
+    "state": "Kerala",
+    "url": "https://kannurcorporation.lsgkerala.gov.in",
+    "domain": "lsgkerala.gov.in"
+  },
+  {
+    "source_id": "coimbatore_mc",
+    "display_name": "Coimbatore Municipal Corporation",
+    "type": "municipal",
+    "state": "Tamil Nadu",
+    "url": "https://www.ccmc.gov.in",
+    "domain": "ccmc.gov.in"
+  },
+  {
+    "source_id": "nagpur_mc",
+    "display_name": "Nagpur Municipal Corporation",
+    "type": "municipal",
+    "state": "Maharashtra",
+    "url": "https://www.nmcnagpur.gov.in",
+    "domain": "nmcnagpur.gov.in"
+  },
+  {
+    "source_id": "patna_mc",
+    "display_name": "Patna Municipal Corporation",
+    "type": "municipal",
+    "state": "Bihar",
+    "url": "https://www.pmc.bihar.gov.in",
+    "domain": "pmc.bihar.gov.in"
+  },
+  {
+    "source_id": "asansol_mc",
+    "display_name": "Asansol Municipal Corporation",
+    "type": "municipal",
+    "state": "West Bengal",
+    "url": "https://www.asansolmunicipalcorporation.com",
+    "domain": "asansolmunicipalcorporation.com"
+  },
+  {
+    "source_id": "nr",
+    "display_name": "Northern Railway Zone",
+    "type": "railway",
+    "url": "https://nr.indianrailways.gov.in",
+    "domain": "nr.indianrailways.gov.in"
+  },
+  {
+    "source_id": "sr",
+    "display_name": "Southern Railway Zone",
+    "type": "railway",
+    "url": "https://sr.indianrailways.gov.in",
+    "domain": "sr.indianrailways.gov.in"
+  },
+  {
+    "source_id": "wr",
+    "display_name": "Western Railway Zone",
+    "type": "railway",
+    "url": "https://wr.indianrailways.gov.in",
+    "domain": "wr.indianrailways.gov.in"
+  },
+  {
+    "source_id": "er",
+    "display_name": "Eastern Railway Zone",
+    "type": "railway",
+    "url": "https://er.indianrailways.gov.in",
+    "domain": "er.indianrailways.gov.in"
+  },
+  {
+    "source_id": "scr",
+    "display_name": "South Central Railway Zone",
+    "type": "railway",
+    "url": "https://scr.indianrailways.gov.in",
+    "domain": "scr.indianrailways.gov.in"
+  },
+  {
+    "source_id": "secr",
+    "display_name": "South East Central Railway Zone",
+    "type": "railway",
+    "url": "https://secr.indianrailways.gov.in",
+    "domain": "secr.indianrailways.gov.in"
+  },
+  {
+    "source_id": "swr",
+    "display_name": "South Western Railway Zone",
+    "type": "railway",
+    "url": "https://swr.indianrailways.gov.in",
+    "domain": "swr.indianrailways.gov.in"
+  },
+  {
+    "source_id": "ecor",
+    "display_name": "East Coast Railway Zone",
+    "type": "railway",
+    "url": "https://eastcoastrail.indianrailways.gov.in",
+    "domain": "eastcoastrail.indianrailways.gov.in"
+  },
+  {
+    "source_id": "ecr",
+    "display_name": "East Central Railway Zone",
+    "type": "railway",
+    "url": "https://ecr.indianrailways.gov.in",
+    "domain": "ecr.indianrailways.gov.in"
+  },
+  {
+    "source_id": "nfr",
+    "display_name": "Northeast Frontier Railway Zone",
+    "type": "railway",
+    "url": "https://nfr.indianrailways.gov.in",
+    "domain": "nfr.indianrailways.gov.in"
+  },
+  {
+    "source_id": "ncr",
+    "display_name": "North Central Railway Zone",
+    "type": "railway",
+    "url": "https://ncr.indianrailways.gov.in",
+    "domain": "ncr.indianrailways.gov.in"
+  },
+  {
+    "source_id": "ner",
+    "display_name": "North Eastern Railway Zone",
+    "type": "railway",
+    "url": "https://ner.indianrailways.gov.in",
+    "domain": "ner.indianrailways.gov.in"
+  },
+  {
+    "source_id": "nwr",
+    "display_name": "North Western Railway Zone",
+    "type": "railway",
+    "url": "https://nwr.indianrailways.gov.in",
+    "domain": "nwr.indianrailways.gov.in"
+  },
+  {
+    "source_id": "wcr",
+    "display_name": "West Central Railway Zone",
+    "type": "railway",
+    "url": "https://wcr.indianrailways.gov.in",
+    "domain": "wcr.indianrailways.gov.in"
+  },
+  {
+    "source_id": "ser",
+    "display_name": "South Eastern Railway Zone",
+    "type": "railway",
+    "url": "https://ser.indianrailways.gov.in",
+    "domain": "ser.indianrailways.gov.in"
+  },
+  {
+    "source_id": "cr",
+    "display_name": "Central Railway Zone",
+    "type": "railway",
+    "url": "https://cr.indianrailways.gov.in",
+    "domain": "cr.indianrailways.gov.in"
+  },
+  {
+    "source_id": "dmrc",
+    "display_name": "Delhi Metro Rail Corporation",
+    "type": "railway",
+    "url": "https://www.delhimetrorail.com",
+    "domain": "delhimetrorail.com"
+  },
+  {
+    "source_id": "mmrc",
+    "display_name": "Mumbai Metro Rail Corporation",
+    "type": "railway",
+    "url": "https://mmrcl.com",
+    "domain": "mmrcl.com"
+  },
+  {
+    "source_id": "bmrc",
+    "display_name": "Bangalore Metro Rail Corporation",
+    "type": "railway",
+    "url": "https://english.bmrc.co.in",
+    "domain": "bmrc.co.in"
+  },
+  {
+    "source_id": "cmrc",
+    "display_name": "Chennai Metro Rail Limited",
+    "type": "railway",
+    "url": "https://chennaimetrorail.org",
+    "domain": "chennaimetrorail.org"
+  },
+  {
+    "source_id": "kmrc",
+    "display_name": "Kolkata Metro Rail Corporation",
+    "type": "railway",
+    "url": "https://mtp.indianrailways.gov.in",
+    "domain": "mtp.indianrailways.gov.in"
+  },
+  {
+    "source_id": "rvnl",
+    "display_name": "Rail Vikas Nigam Limited",
+    "type": "railway",
+    "url": "https://rvnl.org",
+    "domain": "rvnl.org"
+  },
+  {
+    "source_id": "railtel",
+    "display_name": "RailTel Corporation of India",
+    "type": "railway",
+    "url": "https://www.railtelindia.com",
+    "domain": "railtelindia.com"
+  },
+  {
+    "source_id": "rdso",
+    "display_name": "Research Designs and Standards Organisation",
+    "type": "railway",
+    "url": "https://rdso.indianrailways.gov.in",
+    "domain": "rdso.indianrailways.gov.in"
+  },
+  {
+    "source_id": "core",
+    "display_name": "Central Organisation for Railway Electrification",
+    "type": "railway",
+    "url": "https://core.indianrailways.gov.in",
+    "domain": "core.indianrailways.gov.in"
+  },
+  {
+    "source_id": "dfcc",
+    "display_name": "Dedicated Freight Corridor Corporation",
+    "type": "railway",
+    "url": "https://dfccil.com",
+    "domain": "dfccil.com"
+  },
+  {
+    "source_id": "iitb",
+    "display_name": "Indian Institute of Technology Bombay",
+    "type": "university",
+    "state": "Maharashtra",
+    "url": "https://www.iitb.ac.in",
+    "domain": "iitb.ac.in"
+  },
+  {
+    "source_id": "iitd",
+    "display_name": "Indian Institute of Technology Delhi",
+    "type": "university",
+    "state": "Delhi",
+    "url": "https://home.iitd.ac.in",
+    "domain": "iitd.ac.in"
+  },
+  {
+    "source_id": "iitm",
+    "display_name": "Indian Institute of Technology Madras",
+    "type": "university",
+    "state": "Tamil Nadu",
+    "url": "https://www.iitm.ac.in",
+    "domain": "iitm.ac.in"
+  },
+  {
+    "source_id": "iitk",
+    "display_name": "Indian Institute of Technology Kanpur",
+    "type": "university",
+    "state": "Uttar Pradesh",
+    "url": "https://www.iitk.ac.in",
+    "domain": "iitk.ac.in"
+  },
+  {
+    "source_id": "iitkgp",
+    "display_name": "Indian Institute of Technology Kharagpur",
+    "type": "university",
+    "state": "West Bengal",
+    "url": "https://www.iitkgp.ac.in",
+    "domain": "iitkgp.ac.in"
+  },
+  {
+    "source_id": "iitg",
+    "display_name": "Indian Institute of Technology Guwahati",
+    "type": "university",
+    "state": "Assam",
+    "url": "https://www.iitg.ac.in",
+    "domain": "iitg.ac.in"
+  },
+  {
+    "source_id": "iitr",
+    "display_name": "Indian Institute of Technology Roorkee",
+    "type": "university",
+    "state": "Uttarakhand",
+    "url": "https://www.iitr.ac.in",
+    "domain": "iitr.ac.in"
+  },
+  {
+    "source_id": "iith",
+    "display_name": "Indian Institute of Technology Hyderabad",
+    "type": "university",
+    "state": "Telangana",
+    "url": "https://www.iith.ac.in",
+    "domain": "iith.ac.in"
+  },
+  {
+    "source_id": "iitindore",
+    "display_name": "Indian Institute of Technology Indore",
+    "type": "university",
+    "state": "Madhya Pradesh",
+    "url": "https://www.iiti.ac.in",
+    "domain": "iiti.ac.in"
+  },
+  {
+    "source_id": "iitbhu",
+    "display_name": "Indian Institute of Technology (BHU) Varanasi",
+    "type": "university",
+    "state": "Uttar Pradesh",
+    "url": "https://www.iitbhu.ac.in",
+    "domain": "iitbhu.ac.in"
+  },
+  {
+    "source_id": "iitbbs",
+    "display_name": "Indian Institute of Technology Bhubaneswar",
+    "type": "university",
+    "state": "Odisha",
+    "url": "https://www.iitbbs.ac.in",
+    "domain": "iitbbs.ac.in"
+  },
+  {
+    "source_id": "iitgn",
+    "display_name": "Indian Institute of Technology Gandhinagar",
+    "type": "university",
+    "state": "Gujarat",
+    "url": "https://iitgn.ac.in",
+    "domain": "iitgn.ac.in"
+  },
+  {
+    "source_id": "iitpatna",
+    "display_name": "Indian Institute of Technology Patna",
+    "type": "university",
+    "state": "Bihar",
+    "url": "https://www.iitp.ac.in",
+    "domain": "iitp.ac.in"
+  },
+  {
+    "source_id": "iitrpr",
+    "display_name": "Indian Institute of Technology Ropar",
+    "type": "university",
+    "state": "Punjab",
+    "url": "https://www.iitrpr.ac.in",
+    "domain": "iitrpr.ac.in"
+  },
+  {
+    "source_id": "iitmandi",
+    "display_name": "Indian Institute of Technology Mandi",
+    "type": "university",
+    "state": "Himachal Pradesh",
+    "url": "https://www.iitmandi.ac.in",
+    "domain": "iitmandi.ac.in"
+  },
+  {
+    "source_id": "iitjodh",
+    "display_name": "Indian Institute of Technology Jodhpur",
+    "type": "university",
+    "state": "Rajasthan",
+    "url": "https://iitj.ac.in",
+    "domain": "iitj.ac.in"
+  },
+  {
+    "source_id": "iittirupati",
+    "display_name": "Indian Institute of Technology Tirupati",
+    "type": "university",
+    "state": "Andhra Pradesh",
+    "url": "https://iittp.ac.in",
+    "domain": "iittp.ac.in"
+  },
+  {
+    "source_id": "iitpalakkad",
+    "display_name": "Indian Institute of Technology Palakkad",
+    "type": "university",
+    "state": "Kerala",
+    "url": "https://iitpkd.ac.in",
+    "domain": "iitpkd.ac.in"
+  },
+  {
+    "source_id": "iitdharwad",
+    "display_name": "Indian Institute of Technology Dharwad",
+    "type": "university",
+    "state": "Karnataka",
+    "url": "https://www.iitdh.ac.in",
+    "domain": "iitdh.ac.in"
+  },
+  {
+    "source_id": "iitbhilai",
+    "display_name": "Indian Institute of Technology Bhilai",
+    "type": "university",
+    "state": "Chhattisgarh",
+    "url": "https://www.iitbhilai.ac.in",
+    "domain": "iitbhilai.ac.in"
+  },
+  {
+    "source_id": "iitgoa",
+    "display_name": "Indian Institute of Technology Goa",
+    "type": "university",
+    "state": "Goa",
+    "url": "https://iitgoa.ac.in",
+    "domain": "iitgoa.ac.in"
+  },
+  {
+    "source_id": "iitjammu",
+    "display_name": "Indian Institute of Technology Jammu",
+    "type": "university",
+    "state": "Jammu and Kashmir",
+    "url": "https://iitjammu.ac.in",
+    "domain": "iitjammu.ac.in"
+  },
+  {
+    "source_id": "iisc",
+    "display_name": "Indian Institute of Science Bangalore",
+    "type": "university",
+    "state": "Karnataka",
+    "url": "https://iisc.ac.in",
+    "domain": "iisc.ac.in"
+  },
+  {
+    "source_id": "aiims_delhi",
+    "display_name": "All India Institute of Medical Sciences Delhi",
+    "type": "hospital",
+    "state": "Delhi",
+    "url": "https://www.aiims.edu",
+    "domain": "aiims.edu"
+  },
+  {
+    "source_id": "aiims_bhopal",
+    "display_name": "All India Institute of Medical Sciences Bhopal",
+    "type": "hospital",
+    "state": "Madhya Pradesh",
+    "url": "https://www.aiimsbhopal.edu.in",
+    "domain": "aiimsbhopal.edu.in"
+  },
+  {
+    "source_id": "aiims_jodhpur",
+    "display_name": "All India Institute of Medical Sciences Jodhpur",
+    "type": "hospital",
+    "state": "Rajasthan",
+    "url": "https://www.aiimsjodhpur.edu.in",
+    "domain": "aiimsjodhpur.edu.in"
+  },
+  {
+    "source_id": "aiims_rishikesh",
+    "display_name": "All India Institute of Medical Sciences Rishikesh",
+    "type": "hospital",
+    "state": "Uttarakhand",
+    "url": "https://www.aiimsrishikesh.edu.in",
+    "domain": "aiimsrishikesh.edu.in"
+  },
+  {
+    "source_id": "aiims_patna",
+    "display_name": "All India Institute of Medical Sciences Patna",
+    "type": "hospital",
+    "state": "Bihar",
+    "url": "https://www.aiimspatna.edu.in",
+    "domain": "aiimspatna.edu.in"
+  },
+  {
+    "source_id": "aiims_raipur",
+    "display_name": "All India Institute of Medical Sciences Raipur",
+    "type": "hospital",
+    "state": "Chhattisgarh",
+    "url": "https://www.aiimsraipur.edu.in",
+    "domain": "aiimsraipur.edu.in"
+  },
+  {
+    "source_id": "aiims_bhubaneswar",
+    "display_name": "All India Institute of Medical Sciences Bhubaneswar",
+    "type": "hospital",
+    "state": "Odisha",
+    "url": "https://aiimsbhubaneswar.nic.in",
+    "domain": "aiimsbhubaneswar.nic.in"
+  },
+  {
+    "source_id": "nit_trichy",
+    "display_name": "National Institute of Technology Trichy",
+    "type": "university",
+    "state": "Tamil Nadu",
+    "url": "https://www.nitt.edu",
+    "domain": "nitt.edu"
+  },
+  {
+    "source_id": "nit_surathkal",
+    "display_name": "National Institute of Technology Surathkal",
+    "type": "university",
+    "state": "Karnataka",
+    "url": "https://www.nitk.ac.in",
+    "domain": "nitk.ac.in"
+  },
+  {
+    "source_id": "nit_warangal",
+    "display_name": "National Institute of Technology Warangal",
+    "type": "university",
+    "state": "Telangana",
+    "url": "https://www.nitw.ac.in",
+    "domain": "nitw.ac.in"
+  },
+  {
+    "source_id": "du",
+    "display_name": "Delhi University",
+    "type": "university",
+    "state": "Delhi",
+    "url": "http://www.du.ac.in",
+    "domain": "du.ac.in"
+  },
+  {
+    "source_id": "jnu",
+    "display_name": "Jawaharlal Nehru University",
+    "type": "university",
+    "state": "Delhi",
+    "url": "https://www.jnu.ac.in",
+    "domain": "jnu.ac.in"
+  },
+  {
+    "source_id": "bhu",
+    "display_name": "Banaras Hindu University",
+    "type": "university",
+    "state": "Uttar Pradesh",
+    "url": "https://www.bhu.ac.in",
+    "domain": "bhu.ac.in"
+  },
+  {
+    "source_id": "amu",
+    "display_name": "Aligarh Muslim University",
+    "type": "university",
+    "state": "Uttar Pradesh",
+    "url": "https://www.amu.ac.in",
+    "domain": "amu.ac.in"
+  },
+  {
+    "source_id": "uohyd",
+    "display_name": "University of Hyderabad",
+    "type": "university",
+    "state": "Telangana",
+    "url": "https://uohyd.ac.in",
+    "domain": "uohyd.ac.in"
+  },
+  {
+    "source_id": "jnpt",
+    "display_name": "Jawaharlal Nehru Port Authority",
+    "type": "port",
+    "state": "Maharashtra",
+    "url": "https://www.jnport.gov.in",
+    "domain": "jnport.gov.in"
+  },
+  {
+    "source_id": "mpt",
+    "display_name": "Mumbai Port Authority",
+    "type": "port",
+    "state": "Maharashtra",
+    "url": "https://www.mumbaiport.gov.in",
+    "domain": "mumbaiport.gov.in"
+  },
+  {
+    "source_id": "cpt",
+    "display_name": "Chennai Port Authority",
+    "type": "port",
+    "state": "Tamil Nadu",
+    "url": "https://www.chennaiport.gov.in",
+    "domain": "chennaiport.gov.in"
+  },
+  {
+    "source_id": "kopt",
+    "display_name": "Syama Prasad Mookerjee Port Kolkata",
+    "type": "port",
+    "state": "West Bengal",
+    "url": "https://www.kolkataporttrust.gov.in",
+    "domain": "kolkataporttrust.gov.in"
+  },
+  {
+    "source_id": "dpt",
+    "display_name": "Deendayal Port Authority",
+    "type": "port",
+    "state": "Gujarat",
+    "url": "https://www.deendayalport.gov.in",
+    "domain": "deendayalport.gov.in"
+  },
+  {
+    "source_id": "vocpt",
+    "display_name": "V.O. Chidambaranar Port Authority",
+    "type": "port",
+    "state": "Tamil Nadu",
+    "url": "https://www.vocport.gov.in",
+    "domain": "vocport.gov.in"
+  },
+  {
+    "source_id": "nmpa",
+    "display_name": "New Mangalore Port Authority",
+    "type": "port",
+    "state": "Karnataka",
+    "url": "https://www.newmangaloreport.gov.in",
+    "domain": "newmangaloreport.gov.in"
+  },
+  {
+    "source_id": "cochin_port",
+    "display_name": "Cochin Port Authority",
+    "type": "port",
+    "state": "Kerala",
+    "url": "https://cochinport.gov.in",
+    "domain": "cochinport.gov.in"
+  },
+  {
+    "source_id": "ppt",
+    "display_name": "Paradip Port Authority",
+    "type": "port",
+    "state": "Odisha",
+    "url": "https://paradipport.gov.in",
+    "domain": "paradipport.gov.in"
+  },
+  {
+    "source_id": "vpa",
+    "display_name": "Visakhapatnam Port Authority",
+    "type": "port",
+    "state": "Andhra Pradesh",
+    "url": "https://vizagport.com",
+    "domain": "vizagport.com"
+  },
+  {
+    "source_id": "gpa",
+    "display_name": "Mormugao Port Authority",
+    "type": "port",
+    "state": "Goa",
+    "url": "https://mptgoa.gov.in",
+    "domain": "mptgoa.gov.in"
+  }
+]

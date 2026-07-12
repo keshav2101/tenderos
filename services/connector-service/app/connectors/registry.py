@@ -1,16 +1,13 @@
 """
 Connector Registry — discovers and loads all connector plugins automatically.
-
-Phase 14: Extended to discover connectors in subdirectory packages
-(plugins/central_gov/, plugins/state/) in addition to the root plugins/ dir.
-
-Adding a new connector: create a file in any plugins/ subdirectory implementing
-BaseConnector with source_id set. No changes to core code required.
+Phase 14 & 15: Discovers static plugins and generates 200+ dynamic connectors from portals_catalog.json.
 """
 from __future__ import annotations
 import importlib
 import inspect
 import pkgutil
+import os
+import json
 from typing import Dict, Type
 
 import structlog
@@ -48,7 +45,7 @@ def _auto_discover():
 
         for importer, modname, ispkg in pkgutil.iter_modules(pkg.__path__):
             if ispkg:
-                continue  # Don't recurse into sub-packages at this level
+                continue
             full_modname = f"{pkg_name}.{modname}"
             try:
                 module = importlib.import_module(full_modname)
@@ -64,7 +61,6 @@ def _auto_discover():
                     and isinstance(obj.source_id, str)
                     and obj.source_id  # non-empty
                 ):
-                    # Skip abstract intermediate bases (no source_id set at class level)
                     try:
                         _ = obj.source_id
                     except AttributeError:
@@ -72,6 +68,41 @@ def _auto_discover():
                     _register(obj)
                     logger.info("Registered connector", source_id=obj.source_id,
                                 class_name=name, package=pkg_name)
+
+    # Now load catalog-based dynamic connectors to expand coverage to 200+ portals
+    try:
+        from app.connectors.plugins.state.state_base import StateBaseConnector
+        
+        catalog_path = os.path.join(os.path.dirname(__file__), "portals_catalog.json")
+        if os.path.exists(catalog_path):
+            with open(catalog_path, "r") as f:
+                portals = json.load(f)
+            
+            for p in portals:
+                sid = p["source_id"]
+                # Skip if already registered statically
+                if sid in _CONNECTOR_CLASSES:
+                    continue
+                
+                # Dynamic subclass generation
+                class_name = "".join(word.capitalize() for word in sid.split("_")) + "Connector"
+                dyn_class = type(
+                    class_name,
+                    (StateBaseConnector,),
+                    {
+                        "source_id": sid,
+                        "display_name": p["display_name"],
+                        "description": f"Dynamic connector for {p['display_name']}",
+                        "STATE_NAME": p.get("state", "Delhi"),
+                        "PORTAL_URL": p["url"],
+                        "PORTAL_DOMAIN": p["domain"],
+                        "PORTAL_TYPE": p.get("type", "state"),
+                    }
+                )
+                _register(dyn_class)
+                logger.info("Registered dynamic catalog connector", source_id=sid, class_name=class_name)
+    except Exception as e:
+        logger.error("Failed to load dynamic portals catalog", error=str(e))
 
 
 _auto_discover()

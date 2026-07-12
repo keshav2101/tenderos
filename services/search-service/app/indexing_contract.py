@@ -23,6 +23,13 @@ def build_tender_document(tender: Dict[str, Any]) -> Dict[str, Any]:
         "msme_eligible": bool(tender.get("msme_eligible", False)),
         "startup_eligible": bool(tender.get("startup_eligible", False)),
         "ai_summary": tender.get("ai_summary") or "",
+        # Dynamic additions
+        "sector": tender.get("sector") or "General",
+        "cpv": tender.get("cpv") or "99999999-9",
+        "gem": bool(tender.get("gem", False)),
+        "railway": bool(tender.get("railway", False)),
+        "defence": bool(tender.get("defence", False)),
+        "psu": bool(tender.get("psu", False)),
     }
 
 
@@ -35,6 +42,7 @@ def build_embedding_text(tender: Dict[str, Any]) -> str:
         tender.get("department") or "",
         tender.get("organisation") or "",
         tender.get("state") or "",
+        tender.get("sector") or "",
         " ".join(tender.get("categories") or []),
     ]
     return "\n".join(part for part in parts if part).strip()

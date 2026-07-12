@@ -79,14 +79,34 @@ class NormalizedTender(BaseModel):
     corrigenda: List[Dict[str, Any]] = Field(default_factory=list)
     raw_metadata: Dict[str, Any] = Field(default_factory=dict)
 
+    # ── Phase 15 National Platform Metadata Extensions ──
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    sector: Optional[str] = None
+    cpv: Optional[str] = None
+    msme: bool = True
+    startup: bool = True
+    gem: bool = False
+    railway: bool = False
+    defence: bool = False
+    psu: bool = False
+    digital_signature_requirement: bool = True
+    eligibility: Optional[str] = None
+
 
 def normalize_state(raw_state: str) -> str:
-    """Normalize state string to standard list."""
+    """Normalize state string to standard list.
+    Handles both full names and compact forms (e.g. 'TamilNadu' → 'Tamil Nadu').
+    """
     if not raw_state:
         return "Delhi"
     raw_clean = raw_state.strip().title()
+    raw_nospace = raw_clean.replace(" ", "").lower()
     for state in INDIAN_STATES:
         if state.lower() in raw_clean.lower():
+            return state
+        # Handle compact match: 'TamilNadu' vs 'Tamil Nadu'
+        if state.replace(" ", "").lower() == raw_nospace:
             return state
     return "Delhi"
 
@@ -259,6 +279,74 @@ def normalize_tender(raw: RawTender) -> NormalizedTender:
         "embedding_model_version": "all-MiniLM-L6-v2",
     }
 
+    # State coordinates lookup for maps/heatmaps
+    state_coords = {
+        "Andhra Pradesh": (15.9129, 79.7400),
+        "Arunachal Pradesh": (28.2180, 94.7278),
+        "Assam": (26.2006, 92.9376),
+        "Bihar": (25.0961, 85.3131),
+        "Chhattisgarh": (21.2787, 81.8661),
+        "Goa": (15.2993, 74.1240),
+        "Gujarat": (22.2587, 71.1924),
+        "Haryana": (29.0588, 76.0856),
+        "Himachal Pradesh": (31.1048, 77.1734),
+        "Jharkhand": (23.6102, 85.2799),
+        "Karnataka": (15.3173, 75.7139),
+        "Kerala": (10.8505, 76.2711),
+        "Madhya Pradesh": (22.9734, 78.6569),
+        "Maharashtra": (19.7515, 75.7139),
+        "Manipur": (24.6637, 93.9063),
+        "Meghalaya": (25.4670, 91.3662),
+        "Mizoram": (23.1645, 92.9376),
+        "Nagaland": (26.1584, 94.5624),
+        "Odisha": (20.9517, 85.0985),
+        "Punjab": (31.1471, 75.3412),
+        "Rajasthan": (27.0238, 74.2179),
+        "Sikkim": (27.5330, 88.5122),
+        "Tamil Nadu": (11.1271, 78.6569),
+        "Telangana": (18.1124, 79.0193),
+        "Tripura": (23.9408, 91.9882),
+        "Uttar Pradesh": (26.8467, 80.7949),
+        "Uttarakhand": (30.0668, 79.0193),
+        "West Bengal": (22.9868, 87.8550),
+        "Andaman and Nicobar Islands": (11.7401, 92.6586),
+        "Chandigarh": (30.7333, 76.7794),
+        "Dadra and Nagar Haveli and Daman and Diu": (20.3974, 72.8328),
+        "Delhi": (28.6139, 77.2090),
+        "Jammu and Kashmir": (33.7782, 76.5762),
+        "Ladakh": (34.1526, 77.5771),
+        "Lakshadweep": (10.5667, 72.6417),
+        "Puducherry": (11.9416, 79.8083)
+    }
+    lat, lon = state_coords.get(location, (28.6139, 77.2090))
+
+    # Infer domain type flags
+    is_gem = (source_id == "gem")
+    is_railway = (source_id in ["railways", "ireps", "nr", "sr", "wr", "er", "scr", "secr", "swr", "ecor", "ecr", "nfr", "ncr", "ner", "nwr", "wcr", "ser", "cr", "dmrc", "mmrc", "bmrc", "cmrc", "kmrc", "rvnl", "railtel", "rdso", "core", "dfcc"])
+    is_defence = (source_id in ["defence", "drdo", "bel", "hal", "cair"])
+    is_psu = (source_id in ["bhel", "ntpc", "ongc", "npcil", "gail", "coal_india", "sail", "aai", "nhai", "isro", "iocl", "bpcl"])
+
+    # Infer Sector
+    sector = "General"
+    categories_str = "".join(categories).lower()
+    if any(k in categories_str for k in ["civil", "highway", "construction", "building", "road"]):
+        sector = "Infrastructure"
+    elif any(k in categories_str for k in ["medical", "health", "hospital", "surgical"]):
+        sector = "Healthcare"
+    elif any(k in categories_str for k in ["it", "software", "cyber", "cloud", "analytics", "telecom"]):
+        sector = "Technology"
+
+    # CPV code mapping
+    cpv = "99999999-9"
+    if sector == "Technology":
+        cpv = "72200000-7"
+    elif sector == "Infrastructure":
+        cpv = "45200000-9"
+    elif sector == "Healthcare":
+        cpv = "33100000-1"
+    elif is_railway:
+        cpv = "34946120-7"
+
     return NormalizedTender(
         tender_id=raw.source_tender_id,
         title=title,
@@ -285,4 +373,17 @@ def normalize_tender(raw: RawTender) -> NormalizedTender:
         contact_details=contact_details,
         lineage=lineage,
         raw_metadata=raw_data,
+        # Phase 15 additions
+        latitude=lat,
+        longitude=lon,
+        sector=sector,
+        cpv=cpv,
+        msme=True,
+        startup=True,
+        gem=is_gem,
+        railway=is_railway,
+        defence=is_defence,
+        psu=is_psu,
+        digital_signature_requirement=True,
+        eligibility=raw_data.get("eligibility_raw_text", "Must meet minimum turnover and experience requirements.")
     )

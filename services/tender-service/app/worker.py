@@ -115,8 +115,8 @@ async def process_queued_message(payload: dict):
         ministry = raw_data.get("ministry", "Ministry of Electronics and IT")
         dept = raw_data.get("department", "NIC")
         org = raw_data.get("organisation", dept)
-        state = raw_data.get("state", "Delhi")
-        cost_lakhs = float(raw_data.get("estimated_cost_lakhs", 100.0))
+        state = raw_data.get("location") or raw_data.get("state") or "Delhi"
+        cost_lakhs = float(raw_data.get("estimated_cost_lakhs") or 100.0)
         emd = float(raw_data.get("emd_lakhs", 2.0))
         fee = float(raw_data.get("tender_fee", 0.0))
         pbg = float(raw_data.get("performance_guarantee_pct", 5.0))

@@ -73,51 +73,250 @@ class StateBaseConnector(BaseConnector):
         except Exception:
             return False
 
+    PORTAL_TYPE: str = "state"
+
     def _get_state_notices(self) -> List[Dict[str, Any]]:
         """
-        Default fixture data for this state.
-        Subclasses may override for more specific data.
-        Generates 2 representative notices per state.
+        Default fixture data for this state or portal type.
+        Generates 2 representative notices based on the portal type.
         """
         now = datetime.utcnow()
-        return [
-            {
-                "title": f"Construction of State Highway Bypass — {self.STATE_NAME} PWD",
-                "ministry": f"Government of {self.STATE_NAME}",
-                "department": f"{self.STATE_NAME} Public Works Department",
-                "organisation": f"{self.STATE_NAME} PWD",
-                "state": self.STATE_NAME,
-                "estimated_cost_lakhs": 12000.0,
-                "emd_lakhs": 240.0,
-                "tender_fee": 25000.0,
-                "categories": ["Civil Works", "Highways", "Infrastructure"],
-                "procurement_method": "open",
-                "published_at": now.isoformat(),
-                "submission_deadline": (now + timedelta(days=30)).isoformat(),
-                "contact_details": {
-                    "name": f"Chief Engineer PWD {self.STATE_NAME}",
-                    "email": f"ce.pwd@{self.PORTAL_DOMAIN or (self.STATE_NAME.lower().replace(' ','') + '.gov.in')}",
+        ptype = getattr(self, "PORTAL_TYPE", "state")
+
+        if ptype == "railway":
+            return [
+                {
+                    "title": f"Supply and Commissioning of Train Collision Avoidance System (Kavach) — {self.display_name}",
+                    "ministry": "Ministry of Railways",
+                    "department": "Signalling and Telecommunications",
+                    "organisation": self.display_name,
+                    "state": getattr(self, "STATE_NAME", "Delhi"),
+                    "estimated_cost_lakhs": 35000.0,
+                    "emd_lakhs": 700.0,
+                    "tender_fee": 50000.0,
+                    "categories": ["Railway Works", "Signalling", "Electronics"],
+                    "procurement_method": "open",
+                    "published_at": now.isoformat(),
+                    "submission_deadline": (now + timedelta(days=45)).isoformat(),
+                    "contact_details": {
+                        "name": "Chief Signal Engineer",
+                        "email": f"cse@{self.PORTAL_DOMAIN or 'ireps.gov.in'}",
+                    },
                 },
-            },
-            {
-                "title": f"Supply of Medical Equipment for District Hospitals — {self.STATE_NAME} NHM",
-                "ministry": f"Government of {self.STATE_NAME}",
-                "department": f"{self.STATE_NAME} Health and Family Welfare",
-                "organisation": f"National Health Mission {self.STATE_NAME}",
-                "state": self.STATE_NAME,
-                "estimated_cost_lakhs": 4500.0,
-                "emd_lakhs": 90.0,
-                "tender_fee": 10000.0,
-                "categories": ["Medical Equipment", "Health", "NHM"],
-                "procurement_method": "open",
-                "published_at": now.isoformat(),
-                "submission_deadline": (now + timedelta(days=21)).isoformat(),
-                "contact_details": {
-                    "name": f"Mission Director NHM {self.STATE_NAME}",
-                    "email": f"nhm@{self.PORTAL_DOMAIN or (self.STATE_NAME.lower().replace(' ','') + '.gov.in')}",
+                {
+                    "title": f"Track Rehabilitation Works and Ballast Supply — {self.display_name}",
+                    "ministry": "Ministry of Railways",
+                    "department": "Engineering Division",
+                    "organisation": self.display_name,
+                    "state": getattr(self, "STATE_NAME", "Delhi"),
+                    "estimated_cost_lakhs": 8200.0,
+                    "emd_lakhs": 164.0,
+                    "tender_fee": 20000.0,
+                    "categories": ["Civil Works", "Track Maintenance", "Railways"],
+                    "procurement_method": "open",
+                    "published_at": now.isoformat(),
+                    "submission_deadline": (now + timedelta(days=30)).isoformat(),
+                    "contact_details": {
+                        "name": "Senior Divisional Engineer",
+                        "email": f"srden@{self.PORTAL_DOMAIN or 'ireps.gov.in'}",
+                    },
+                }
+            ]
+        elif ptype == "municipal":
+            return [
+                {
+                    "title": f"Development of Integrated Solid Waste Management Facility — {self.display_name}",
+                    "ministry": f"Government of {self.STATE_NAME}",
+                    "department": "Urban Development",
+                    "organisation": self.display_name,
+                    "state": self.STATE_NAME,
+                    "estimated_cost_lakhs": 15000.0,
+                    "emd_lakhs": 300.0,
+                    "tender_fee": 25000.0,
+                    "categories": ["Waste Management", "Urban Development", "Municipal Services"],
+                    "procurement_method": "open",
+                    "published_at": now.isoformat(),
+                    "submission_deadline": (now + timedelta(days=30)).isoformat(),
+                    "contact_details": {
+                        "name": "Municipal Commissioner",
+                        "email": f"commissioner@{self.PORTAL_DOMAIN}",
+                    },
                 },
-            },
-        ]
+                {
+                    "title": f"Supply, Installation and Maintenance of LED Street Lights — {self.display_name}",
+                    "ministry": f"Government of {self.STATE_NAME}",
+                    "department": "Electrical Division",
+                    "organisation": self.display_name,
+                    "state": self.STATE_NAME,
+                    "estimated_cost_lakhs": 4200.0,
+                    "emd_lakhs": 84.0,
+                    "tender_fee": 10000.0,
+                    "categories": ["Electrical Works", "Street Lighting", "Smart City"],
+                    "procurement_method": "open",
+                    "published_at": now.isoformat(),
+                    "submission_deadline": (now + timedelta(days=21)).isoformat(),
+                    "contact_details": {
+                        "name": "Executive Engineer (Electrical)",
+                        "email": f"ee.elec@{self.PORTAL_DOMAIN}",
+                    },
+                }
+            ]
+        elif ptype == "university":
+            return [
+                {
+                    "title": f"Establishment of High-Performance Computing (HPC) Lab — {self.display_name}",
+                    "ministry": "Ministry of Education",
+                    "department": "Computer Science & Engineering",
+                    "organisation": self.display_name,
+                    "state": getattr(self, "STATE_NAME", "Delhi"),
+                    "estimated_cost_lakhs": 850.0,
+                    "emd_lakhs": 17.0,
+                    "tender_fee": 5000.0,
+                    "categories": ["Lab Equipment", "IT Infrastructure", "High-Performance Computing"],
+                    "procurement_method": "open",
+                    "published_at": now.isoformat(),
+                    "submission_deadline": (now + timedelta(days=21)).isoformat(),
+                    "contact_details": {
+                        "name": "Registrar Office",
+                        "email": f"registrar@{self.PORTAL_DOMAIN}",
+                    },
+                },
+                {
+                    "title": f"Construction of Modern Girls Hostel Block — {self.display_name}",
+                    "ministry": "Ministry of Education",
+                    "department": "Estate & Works Division",
+                    "organisation": self.display_name,
+                    "state": getattr(self, "STATE_NAME", "Delhi"),
+                    "estimated_cost_lakhs": 4800.0,
+                    "emd_lakhs": 96.0,
+                    "tender_fee": 15000.0,
+                    "categories": ["Civil Works", "Building Construction", "Education Infrastructure"],
+                    "procurement_method": "open",
+                    "published_at": now.isoformat(),
+                    "submission_deadline": (now + timedelta(days=30)).isoformat(),
+                    "contact_details": {
+                        "name": "Superintending Engineer",
+                        "email": f"se.works@{self.PORTAL_DOMAIN}",
+                    },
+                }
+            ]
+        elif ptype == "port":
+            return [
+                {
+                    "title": f"Capital Dredging in the Outer Channel and Basins — {self.display_name}",
+                    "ministry": "Ministry of Ports, Shipping and Waterways",
+                    "department": "Marine Department",
+                    "organisation": self.display_name,
+                    "state": getattr(self, "STATE_NAME", "Delhi"),
+                    "estimated_cost_lakhs": 22000.0,
+                    "emd_lakhs": 440.0,
+                    "tender_fee": 50000.0,
+                    "categories": ["Marine Works", "Dredging", "Port Infrastructure"],
+                    "procurement_method": "open",
+                    "published_at": now.isoformat(),
+                    "submission_deadline": (now + timedelta(days=30)).isoformat(),
+                    "contact_details": {
+                        "name": "Deputy Conservator",
+                        "email": f"deputyconservator@{self.PORTAL_DOMAIN}",
+                    },
+                },
+                {
+                    "title": f"Procurement of 2 Nos. Mobile Harbour Cranes (MHC) — {self.display_name}",
+                    "ministry": "Ministry of Ports, Shipping and Waterways",
+                    "department": "Mechanical Engineering Division",
+                    "organisation": self.display_name,
+                    "state": getattr(self, "STATE_NAME", "Delhi"),
+                    "estimated_cost_lakhs": 14000.0,
+                    "emd_lakhs": 280.0,
+                    "tender_fee": 25000.0,
+                    "categories": ["Port Equipment", "Cranes", "Mechanical Works"],
+                    "procurement_method": "open",
+                    "published_at": now.isoformat(),
+                    "submission_deadline": (now + timedelta(days=45)).isoformat(),
+                    "contact_details": {
+                        "name": "Chief Mechanical Engineer",
+                        "email": f"cme@{self.PORTAL_DOMAIN}",
+                    },
+                }
+            ]
+        elif ptype == "hospital":
+            return [
+                {
+                    "title": f"Supply, Installation & Commissioning of Multi-Slice CT Scanner — {self.display_name}",
+                    "ministry": "Ministry of Health & Family Welfare",
+                    "department": "Radiology Department",
+                    "organisation": self.display_name,
+                    "state": getattr(self, "STATE_NAME", "Delhi"),
+                    "estimated_cost_lakhs": 1200.0,
+                    "emd_lakhs": 24.0,
+                    "tender_fee": 5000.0,
+                    "categories": ["Medical Equipment", "Radiology", "Healthcare"],
+                    "procurement_method": "open",
+                    "published_at": now.isoformat(),
+                    "submission_deadline": (now + timedelta(days=21)).isoformat(),
+                    "contact_details": {
+                        "name": "Store Officer (Hospital)",
+                        "email": f"store@{self.PORTAL_DOMAIN}",
+                    },
+                },
+                {
+                    "title": f"Supply of Essential Surgical Consumables and Sutures — {self.display_name}",
+                    "ministry": "Ministry of Health & Family Welfare",
+                    "department": "Central Stores Department",
+                    "organisation": self.display_name,
+                    "state": getattr(self, "STATE_NAME", "Delhi"),
+                    "estimated_cost_lakhs": 450.0,
+                    "emd_lakhs": 9.0,
+                    "tender_fee": 2500.0,
+                    "categories": ["Surgical Consumables", "Medical Supplies", "Healthcare"],
+                    "procurement_method": "open",
+                    "published_at": now.isoformat(),
+                    "submission_deadline": (now + timedelta(days=15)).isoformat(),
+                    "contact_details": {
+                        "name": "Procurement Officer",
+                        "email": f"procurement@{self.PORTAL_DOMAIN}",
+                    },
+                }
+            ]
+        else: # state
+            return [
+                {
+                    "title": f"Construction of State Highway Bypass — {self.STATE_NAME} PWD",
+                    "ministry": f"Government of {self.STATE_NAME}",
+                    "department": f"{self.STATE_NAME} Public Works Department",
+                    "organisation": f"{self.STATE_NAME} PWD",
+                    "state": self.STATE_NAME,
+                    "estimated_cost_lakhs": 12000.0,
+                    "emd_lakhs": 240.0,
+                    "tender_fee": 25000.0,
+                    "categories": ["Civil Works", "Highways", "Infrastructure"],
+                    "procurement_method": "open",
+                    "published_at": now.isoformat(),
+                    "submission_deadline": (now + timedelta(days=30)).isoformat(),
+                    "contact_details": {
+                        "name": f"Chief Engineer PWD {self.STATE_NAME}",
+                        "email": f"ce.pwd@{self.PORTAL_DOMAIN or (self.STATE_NAME.lower().replace(' ','') + '.gov.in')}",
+                    },
+                },
+                {
+                    "title": f"Supply of Medical Equipment for District Hospitals — {self.STATE_NAME} NHM",
+                    "ministry": f"Government of {self.STATE_NAME}",
+                    "department": f"{self.STATE_NAME} Health and Family Welfare",
+                    "organisation": f"National Health Mission {self.STATE_NAME}",
+                    "state": self.STATE_NAME,
+                    "estimated_cost_lakhs": 4500.0,
+                    "emd_lakhs": 90.0,
+                    "tender_fee": 10000.0,
+                    "categories": ["Medical Equipment", "Health", "NHM"],
+                    "procurement_method": "open",
+                    "published_at": now.isoformat(),
+                    "submission_deadline": (now + timedelta(days=21)).isoformat(),
+                    "contact_details": {
+                        "name": f"Mission Director NHM {self.STATE_NAME}",
+                        "email": f"nhm@{self.PORTAL_DOMAIN or (self.STATE_NAME.lower().replace(' ','') + '.gov.in')}",
+                    },
+                },
+            ]
 
     async def health_check(self) -> HealthStatus:
         if not self.PORTAL_URL:

@@ -125,6 +125,12 @@ class HybridSearchEngine:
                         "msme_eligible": {"type": "boolean"},
                         "startup_eligible": {"type": "boolean"},
                         "ai_summary": {"type": "text"},
+                        "sector": {"type": "keyword"},
+                        "cpv": {"type": "keyword"},
+                        "gem": {"type": "boolean"},
+                        "railway": {"type": "boolean"},
+                        "defence": {"type": "boolean"},
+                        "psu": {"type": "boolean"},
                     }
                 },
             },
@@ -246,6 +252,20 @@ class HybridSearchEngine:
             if filters.get("deadline_to"):
                 range_q["lte"] = filters["deadline_to"]
             filter_clauses.append({"range": {"submission_deadline": range_q}})
+
+        # Phase 15 dynamic metadata filters
+        if filters.get("sectors"):
+            filter_clauses.append({"terms": {"sector": filters["sectors"]}})
+        if filters.get("cpvs"):
+            filter_clauses.append({"terms": {"cpv": filters["cpvs"]}})
+        if filters.get("gem") is not None:
+            filter_clauses.append({"term": {"gem": filters["gem"]}})
+        if filters.get("railway") is not None:
+            filter_clauses.append({"term": {"railway": filters["railway"]}})
+        if filters.get("defence") is not None:
+            filter_clauses.append({"term": {"defence": filters["defence"]}})
+        if filters.get("psu") is not None:
+            filter_clauses.append({"term": {"psu": filters["psu"]}})
 
         # Only show active tenders by default
         if not filters.get("status"):
