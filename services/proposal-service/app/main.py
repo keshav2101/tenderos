@@ -49,36 +49,40 @@ async def generate_proposal(tender_id: str, user_id: str = "default_user"):
     }
 
     # Fetch company profile from digital-twin-service
-    try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        try:
             resp = await client.get(f"{settings.DIGITAL_TWIN_SERVICE_URL}/profile/{user_id}")
-            if resp.status_code == 200:
-                data = resp.json()
-                company_profile = {
-                    "name": data.get("legal_name") or data.get("name") or "Acme Software India",
-                    "experience_years": float(data.get("total_experience_years") or data.get("experience_years") or 8.5),
-                    "average_turnover_lakhs": float(data.get("avg_turnover_3yr_lakhs") or data.get("average_turnover_lakhs") or 724.0),
-                    "certifications": data.get("certifications") or ["SOC 2 Type II", "ISO 9001"]
-                }
-    except Exception as e:
-        logger.warning("Failed to fetch dynamic company profile for proposal, using fallback mock", error=str(e))
+            if resp.status_code != 200:
+                raise HTTPException(status_code=resp.status_code, detail="Failed to fetch company profile from digital twin service.")
+            data = resp.json()
+            company_profile = {
+                "name": data.get("legal_name") or data.get("company_name", ""),
+                "experience_years": float(data.get("total_experience_years") or data.get("experience_years") or 0.0),
+                "average_turnover_lakhs": float(data.get("avg_turnover_3yr_lakhs") or data.get("average_turnover_lakhs") or 0.0),
+                "certifications": data.get("certifications") or []
+            }
+        except httpx.HTTPError as he:
+            logger.error("Failed to connect to digital twin service", error=str(he))
+            raise HTTPException(status_code=502, detail="Digital twin service is unreachable.")
 
     # Fetch tender details from tender-service
-    try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        try:
             resp = await client.get(f"{settings.TENDER_SERVICE_URL}/tenders/{tender_id}")
-            if resp.status_code == 200:
-                data = resp.json()
-                tender_spec = {
-                    "tender_id": tender_id,
-                    "title": data.get("title") or "AI Cloud Platform Deployment - Ministry of Finance",
-                    "min_experience_required": int(data.get("experience_years") or data.get("min_experience_required") or 5),
-                    "required_certifications": data.get("certifications_required") or ["ISO 27001"],
-                    "min_turnover_lakhs": float(data.get("turnover_min_lakhs") or data.get("min_turnover_lakhs") or 250.0),
-                    "risk_penalty_clause": "Clause 8.2: 1% per week delay penalty" # static descriptor
-                }
-    except Exception as e:
-        logger.warning("Failed to fetch dynamic tender specification for proposal, using fallback mock", error=str(e))
+            if resp.status_code != 200:
+                raise HTTPException(status_code=resp.status_code, detail="Failed to fetch tender details from tender service.")
+            data = resp.json()
+            tender_spec = {
+                "tender_id": tender_id,
+                "title": data.get("title", ""),
+                "min_experience_required": int(data.get("experience_years") or 0),
+                "required_certifications": data.get("certifications_required") or [],
+                "min_turnover_lakhs": float(data.get("turnover_min_lakhs") or 0.0),
+                "risk_penalty_clause": "Clause 8.2: 1% per week delay penalty"
+            }
+        except httpx.HTTPError as he:
+            logger.error("Failed to connect to tender service", error=str(he))
+            raise HTTPException(status_code=502, detail="Tender service is unreachable.")
 
 
     # 2. Run multi-agent proposal assembly

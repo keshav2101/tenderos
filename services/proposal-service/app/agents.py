@@ -78,10 +78,8 @@ class ComplianceAgent:
                 resp = await agent.chat(prompt)
                 return await resp.text()
         except Exception as e:
-            logger.warning("Compliance Agent SDK call failed, using mock fallback", error=str(e))
-            mock_agent = MockSDKAgent()
-            resp = await mock_agent.chat(prompt)
-            return await resp.text()
+            logger.error("Compliance Agent SDK call failed", error=str(e))
+            raise e
 
 
 class TechnicalProposalAgent:
@@ -107,10 +105,8 @@ class TechnicalProposalAgent:
                 resp = await agent.chat(prompt)
                 return await resp.text()
         except Exception as e:
-            logger.warning("Technical Proposal Agent SDK call failed, using mock fallback", error=str(e))
-            mock_agent = MockSDKAgent()
-            resp = await mock_agent.chat(prompt)
-            return await resp.text()
+            logger.error("Technical Proposal Agent SDK call failed", error=str(e))
+            raise e
 
 
 class RiskAssessmentAgent:
@@ -135,8 +131,6 @@ class RiskAssessmentAgent:
                 resp = await agent.chat(prompt)
                 return await resp.text()
         except Exception as e:
-            logger.warning("Risk Assessment Agent SDK call failed, using mock fallback", error=str(e))
-            mock_agent = MockSDKAgent()
-            resp = await mock_agent.chat(prompt)
-            return await resp.text()
+            logger.error("Risk Assessment Agent SDK call failed", error=str(e))
+            raise e
 

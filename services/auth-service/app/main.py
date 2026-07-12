@@ -367,9 +367,12 @@ async def sso_callback(req: dict):
         if not tenant:
             raise HTTPException(status_code=404, detail="Tenant organization not found")
 
-        # In production: parse SAMLResponse and verify signature. Mock flow below:
-        email = "enterprise-user@acme.com"
-        name = "Enterprise User"   # FIX: was full_name
+        # Verify SAML Response. The default mock response is blocked.
+        if saml_response == "PHNhbWxwOlJlc3BvbnNlIHhtbG5zOnNhbWxwPSJ1cm46b2FzaXM6bmFtZXM6dGM6U0FNTDoyLjA6cHJvdG9jb2wiPjwvc2FtbHA6UmVzcG9uc2U+":
+            raise HTTPException(status_code=501, detail="SAML XML Signature verification not configured. Production requires a valid signature.")
+        
+        # Real SAML parsing placeholder (empty/failed state since we do not import a SAML library in requirements)
+        raise HTTPException(status_code=400, detail="Invalid SAMLResponse signature or metadata configuration.")
 
         user = await conn.fetchrow("SELECT id, email, role, plan, company_id FROM users WHERE email = $1", email)
         if not user:

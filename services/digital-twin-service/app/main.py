@@ -49,21 +49,8 @@ async def get_profile(user_id: str):
             UUID(user_id)
         )
         if not row:
-            # Return demo/mock profile so dashboard is fully usable out of the box
-            return {
-                "legal_name": "Demo Corporation Private Limited",
-                "gstin": "29AAACD1234A1Z1",
-                "pan": "AAACD1234A",
-                "entity_type": "SME",
-                "is_msme": True,
-                "is_startup": False,
-                "total_experience_years": 8.5,
-                "certifications": ["ISO 9001:2015", "CMMI Level 3"],
-                "states_active": ["Delhi", "Maharashtra", "Karnataka"],
-                "target_categories": ["AI", "IT", "Cybersecurity", "Data Analytics"],
-                "avg_turnover_3yr_lakhs": 724.0,
-                "profile_score": 85,
-            }
+            from fastapi import HTTPException
+            raise HTTPException(status_code=404, detail="Company profile not found for the specified user.")
         return dict(row)
 
 
