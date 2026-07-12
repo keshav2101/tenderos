@@ -21,39 +21,51 @@ async def get_predictions(
     horizon_days: int = 90,
 ):
     # Returns simulated upcoming tender predictions
-    predictions = [
+    raw_predictions = [
         {
+            "id": "pred_1",
             "ministry": "Ministry of Health and Family Welfare",
             "category": "Medical Equipment",
             "estimated_value_cr": 85.0,
+            "estimated_value_lakhs": 8500.0,
             "expected_release_date": "July 2026",
+            "estimated_publish_month": "July 2026",
             "probability": 88,
             "confidence": "HIGH",
             "details": "Annual procurement of MRI/CT scans for district hospitals in Karnataka. Historically released in late July.",
         },
         {
+            "id": "pred_2",
             "ministry": "Ministry of Finance",
             "category": "AI / Data Analytics",
             "estimated_value_cr": 120.0,
+            "estimated_value_lakhs": 12000.0,
             "expected_release_date": "August 2026",
+            "estimated_publish_month": "August 2026",
             "probability": 72,
             "confidence": "MEDIUM",
             "details": "Upgrade of Tax Processing engines. Expected to include machine learning fraud pattern analysis tools.",
         },
         {
+            "id": "pred_3",
             "ministry": "Ministry of Electronics and Information Technology",
             "category": "Cybersecurity",
             "estimated_value_cr": 45.0,
+            "estimated_value_lakhs": 4500.0,
             "expected_release_date": "September 2026",
+            "estimated_publish_month": "September 2026",
             "probability": 65,
             "confidence": "MEDIUM",
             "details": "National Security Audit contract. Retender due to contract expiration of the current empanelment vendor.",
         },
         {
+            "id": "pred_4",
             "ministry": "Ministry of Urban Development",
             "category": "Smart City / IoT",
             "estimated_value_cr": 210.0,
+            "estimated_value_lakhs": 21000.0,
             "expected_release_date": "October 2026",
+            "estimated_publish_month": "October 2026",
             "probability": 91,
             "confidence": "HIGH",
             "details": "Pune Smart City command center Phase 2. Confirmed budget allocations under AMRUT 2.0 scheme.",
@@ -61,7 +73,7 @@ async def get_predictions(
     ]
 
     # Filter based on query parameters
-    filtered = predictions
+    filtered = raw_predictions
     if ministry:
         filtered = [p for p in filtered if ministry.lower() in p["ministry"].lower()]
     if category:

@@ -433,6 +433,42 @@ async def get_connector_details(source_id: str):
     return {**info, **state}
 
 
+# ─── NEW: Validate Connectors (Live Health Verification) ──────────────────────
+
+@app.get("/connectors/validate")
+async def validate_connectors():
+    """Runs parallel health checks on all connectors and reports their actual crawl status."""
+    all_ids = get_all_source_ids()
+    results = {}
+    
+    async def check_one(source_id: str):
+        try:
+            connector = get_connector(source_id)
+            health = await connector.health_check()
+            return source_id, {
+                "display_name": connector.display_name,
+                "status": health.value,
+                "enabled": connector._state.enabled,
+                "cadence": connector.cadence.cron,
+                "access_limitations": getattr(connector, "access_limitations", ""),
+            }
+        except Exception as e:
+            return source_id, {
+                "display_name": source_id,
+                "status": "FAILED",
+                "enabled": False,
+                "error": str(e)
+            }
+
+    tasks = [check_one(sid) for sid in all_ids]
+    completed = await asyncio.gather(*tasks)
+    
+    for sid, info in completed:
+        results[sid] = info
+        
+    return results
+
+
 # ─── NEW: Run All Connectors ──────────────────────────────────────────────────
 
 @app.post("/connectors/run-all")

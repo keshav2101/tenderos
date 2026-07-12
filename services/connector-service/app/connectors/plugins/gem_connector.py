@@ -1,16 +1,28 @@
 """
-GeM (Government e-Marketplace) Connector
-Uses the official GeM public API endpoints where available.
-Respects rate limits (3 req/sec, enforced with token bucket).
+GeM (Government e-Marketplace) Connector — Phase 14.5.
+
+Uses the official GeM portal bid listing with a full cookie-jar session.
+Strategy:
+  1. GET /all-bids → sets session cookie, extracts CSRF token from JS/HTML
+  2. POST /all-bids-data with cookie jar + CSRF token → receive JSON docs
+  3. Paginate through all available pages
+
+If GeM returns 403/419 (WAF block from non-Indian IP), the connector:
+  - logs BLOCKED_NETWORK
+  - yields 0 results
+  - NEVER falls back to fixture data
+
+Rate limit: 3 req/sec (official GeM API guidance)
 """
 from __future__ import annotations
+
 import asyncio
 import json
+import re
 from datetime import datetime, timedelta
 from typing import AsyncIterator, Optional
 
 import httpx
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from app.connectors.base import (
     BaseConnector, CadenceConfig, HealthStatus,
@@ -21,8 +33,7 @@ from app.connectors.base import (
 class GeMConnector(BaseConnector):
     """
     Connector for Government e-Marketplace (GeM).
-    Uses publicly available GeM endpoints for bid/tender listings.
-    Compliant: official API only, rate-limited to 3 req/sec.
+    Full cookie-jar session implementation. No fixture data fallback.
     """
     source_id = "gem"
     display_name = "Government e-Marketplace (GeM)"
@@ -32,175 +43,249 @@ class GeMConnector(BaseConnector):
         min_interval_seconds=1200,
         description="Every 20 minutes — GeM updates frequently",
     )
-    rate_limit = RateLimitConfig(requests_per_second=3.0, burst=5)
-    retry_policy = RetryPolicy(
-        max_attempts=3,
-        backoff_base=2.0,
-        max_backoff_seconds=120.0,
-    )
+    rate_limit = RateLimitConfig(requests_per_second=2.0, burst=4)
+    retry_policy = RetryPolicy(max_attempts=3, backoff_base=2.0, max_backoff_seconds=120.0)
     timeout_seconds = 30
 
-    GEM_BASE_URL = "https://bidplus.gem.gov.in/bidlists"
-    GEM_API_BASE = "https://gem.gov.in/api/v1"
+    GEM_ALL_BIDS_URL = "https://bidplus.gem.gov.in/all-bids"
+    GEM_BIDS_DATA_URL = "https://bidplus.gem.gov.in/all-bids-data"
+    GEM_BID_DETAIL_URL = "https://bidplus.gem.gov.in/showbidDocument/{bid_id}"
 
-    def __init__(self, config=None):
-        super().__init__(config)
-        self._semaphore = asyncio.Semaphore(3)  # Max 3 concurrent requests
-        self._last_request_time = 0.0
+    HEADERS = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/120.0.0.0 Safari/537.36"
+        ),
+        "Accept": "text/html,application/xhtml+xml,*/*;q=0.8",
+        "Accept-Language": "en-IN,en;q=0.9,hi;q=0.8",
+    }
 
-    async def _rate_limited_get(self, client: httpx.AsyncClient, url: str, **kwargs) -> httpx.Response:
-        """Enforce rate limiting."""
-        async with self._semaphore:
-            now = asyncio.get_event_loop().time()
-            elapsed = now - self._last_request_time
-            min_interval = 1.0 / self.rate_limit.requests_per_second
-            if elapsed < min_interval:
-                await asyncio.sleep(min_interval - elapsed)
-            self._last_request_time = asyncio.get_event_loop().time()
-            return await client.get(url, **kwargs)
+    POST_HEADERS = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/120.0.0.0 Safari/537.36"
+        ),
+        "Accept": "application/json, text/javascript, */*; q=0.01",
+        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+        "X-Requested-With": "XMLHttpRequest",
+        "Origin": "https://bidplus.gem.gov.in",
+        "Referer": "https://bidplus.gem.gov.in/all-bids",
+    }
 
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=2, min=4, max=120),
-        retry=retry_if_exception_type((httpx.TimeoutException, httpx.ConnectError)),
-    )
-    async def _fetch_page(self, client: httpx.AsyncClient, page: int) -> dict:
-        """Fetch a page of GeM bids from the public listing."""
-        # GeM public bid listing endpoint
-        params = {
-            "page_no": page,
-            "bidding_start_date": "",
-            "bidding_end_date": "",
-            "cat_id": "",
-            "ministry_code": "",
-            "bid_num": "",
-            "State": "",
-        }
-        resp = await self._rate_limited_get(
-            client,
-            self.GEM_BASE_URL,
-            params=params,
-            timeout=self.timeout_seconds,
-            headers={
-                "User-Agent": "TenderOS/1.0 (Procurement Intelligence Platform; contact@tenderos.in)",
-                "Accept": "application/json, text/html",
-            },
-        )
-        resp.raise_for_status()
-        return resp.json() if "application/json" in resp.headers.get("content-type", "") else {"html": resp.text}
+    def _extract_csrf(self, html: str) -> Optional[str]:
+        """Extract CSRF token from GeM bid listing HTML."""
+        patterns = [
+            r"csrf_bd_gem_nk'\s*:\s*'([a-f0-9]+)'",
+            r'csrf_bd_gem_nk"\s*:\s*"([a-f0-9]+)"',
+            r"window\.csrf\s*=\s*['\"]([a-f0-9]+)['\"]",
+            r'name="csrf_bd_gem_nk"\s+value="([a-f0-9]+)"',
+            r"csrf_token['\"]?\s*:\s*['\"]([a-f0-9]+)['\"]",
+        ]
+        for pattern in patterns:
+            m = re.search(pattern, html)
+            if m:
+                return m.group(1)
+        return None
 
-    async def _refresh_csrf(self, client: httpx.AsyncClient, headers: dict) -> str:
-        """Fetch/refresh CSRF token and return it."""
+    def _parse_raw_bid(self, raw: dict) -> dict:
+        """Map GeM Solr doc fields to the normalizer's expected schema."""
+        bid_no = (raw.get("b_bid_number") or [""])[0]
+        b_id = raw.get("id", "")
+        org = (raw.get("b_organisation_name") or [""])[0]
+        title = (raw.get("b_title") or [""])[0] or (raw.get("b_bid_description") or [""])[0]
+        category = (raw.get("b_cat_name") or [""])[0]
+        ministry_code = (raw.get("b_ministry_code") or [""])[0]
+        ministry = (raw.get("b_ministry_name") or [""])[0]
+        state_code = (raw.get("b_state") or [""])[0]
+        end_date_str = (raw.get("b_bidding_end_date") or [""])[0]
+        start_date_str = (raw.get("b_bid_start_date") or [""])[0]
+        estimated_value = raw.get("b_est_amount", [None])[0] if isinstance(raw.get("b_est_amount"), list) else raw.get("b_est_amount")
+
+        # Parse dates
+        submission_deadline = None
+        for fmt in ("%d/%m/%Y %H:%M:%S", "%d/%m/%Y %H:%M", "%Y-%m-%dT%H:%M:%S", "%d-%m-%Y"):
+            try:
+                submission_deadline = datetime.strptime(end_date_str, fmt).isoformat()
+                break
+            except (ValueError, TypeError):
+                continue
+
+        published_at = None
+        for fmt in ("%d/%m/%Y %H:%M:%S", "%d/%m/%Y %H:%M", "%Y-%m-%dT%H:%M:%S"):
+            try:
+                published_at = datetime.strptime(start_date_str, fmt).isoformat()
+                break
+            except (ValueError, TypeError):
+                continue
+
+        # Convert estimated value (GeM reports in INR) to Lakhs
+        estimated_cost_lakhs = None
         try:
-            resp = await client.get("https://bidplus.gem.gov.in/all-bids", headers=headers)
-            if resp.status_code == 200:
-                import re
-                csrf_match = re.search(r"csrf_bd_gem_nk'\s*:\s*'([a-f0-9]+)'", resp.text)
-                if csrf_match:
-                    token = csrf_match.group(1)
-                    self.log_info("GeMConnector: parsed fresh CSRF token", token=token)
-                    return token
-        except Exception as e:
-            self.log_warning("GeMConnector: failed to parse fresh CSRF token", error=str(e))
-        return "6430b86994024c845b9cf7b5c8bef1b7"
+            if estimated_value:
+                estimated_cost_lakhs = round(float(estimated_value) / 100000, 2)
+        except (ValueError, TypeError):
+            pass
+
+        return {
+            "title": title or f"GeM Bid {bid_no}",
+            "ministry": ministry,
+            "department": org,
+            "organisation": org,
+            "state": state_code or "Delhi",
+            "estimated_cost_lakhs": estimated_cost_lakhs,
+            "emd_lakhs": None,
+            "categories": [category] if category else ["Goods & Services"],
+            "procurement_method": "gem",
+            "status": "active",
+            "published_at": published_at or datetime.utcnow().isoformat(),
+            "submission_deadline": submission_deadline,
+            "gem_bid_number": bid_no,
+            "gem_id": b_id,
+            "msme_eligible": bool(raw.get("b_msme_exemption")),
+            "startup_eligible": bool(raw.get("b_startup_exemption")),
+            "make_in_india": bool(raw.get("b_mii")),
+        }
 
     async def fetch_tenders(self, since: Optional[datetime] = None) -> AsyncIterator[RawTender]:
         """
-        Fetch tenders from GeM incrementally using live all-bids-data POST API.
+        Fetch live tenders from GeM using full cookie-jar session.
+        Yields 0 results (never fixture) if WAF blocks access.
         """
-        self.log_info("GeMConnector: starting crawl from live GeM Portal", since=since)
-        
-        async with httpx.AsyncClient(timeout=self.timeout_seconds, follow_redirects=True) as client:
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "Referer": self.GEM_BASE_URL,
-            }
-            
-            # 1. Fetch CSRF token
-            csrf_token = await self._refresh_csrf(client, headers)
+        self.log_info("GeMConnector: starting live session crawl", since=since)
+        yielded = 0
 
-            # 2. Fetch live bids
-            page = 1
-            fetched_count = 0
-            max_pages = 2
-            
-            while page <= max_pages:
-                postdata = {
-                    "page": page,
-                    "filter": {
-                        "byEndDate": {"from": "", "to": ""},
-                        "sort": "Bid-Start-Date-Latest",
-                        "searchBid": ""
+        async with httpx.AsyncClient(
+            timeout=self.timeout_seconds,
+            follow_redirects=True,
+            headers=self.HEADERS,
+        ) as client:
+            # ── Step 1: Establish session + extract CSRF ──────────────────────
+            csrf_token: Optional[str] = None
+            try:
+                resp_init = await client.get(self.GEM_ALL_BIDS_URL)
+                if resp_init.status_code != 200:
+                    self.log_warning(
+                        "GeMConnector: initial page non-200 — BLOCKED_NETWORK",
+                        status=resp_init.status_code,
+                    )
+                    return
+
+                csrf_token = self._extract_csrf(resp_init.text)
+                if not csrf_token:
+                    self.log_warning(
+                        "GeMConnector: CSRF token not found in HTML — session may have changed"
+                    )
+            except Exception as init_err:
+                self.log_error("GeMConnector: session init failed", error=str(init_err))
+                return
+
+            # ── Step 2: Paginate through bids ─────────────────────────────────
+            max_pages = 10  # ~200 bids per crawl cycle
+            for page in range(1, max_pages + 1):
+                try:
+                    payload_json = json.dumps({
+                        "page": page,
+                        "filter": {
+                            "byEndDate": {"from": "", "to": ""},
+                            "sort": "Bid-Start-Date-Latest",
+                            "searchBid": "",
+                        },
+                    })
+                    form_data = {
+                        "payload": payload_json,
+                        "csrf_bd_gem_nk": csrf_token or "",
                     }
-                }
-                payload_data = {
-                    "payload": json.dumps(postdata),
-                    "csrf_bd_gem_nk": csrf_token
-                }
-                
-                # Fetch page with retry
-                response_ok = False
-                for attempt in range(self.retry_policy.max_attempts):
-                    try:
-                        resp_post = await client.post(
-                            "https://bidplus.gem.gov.in/all-bids-data",
-                            data=payload_data,
-                            headers=headers
+
+                    resp_data = await client.post(
+                        self.GEM_BIDS_DATA_URL,
+                        data=form_data,
+                        headers=self.POST_HEADERS,
+                    )
+
+                    # Handle WAF/session block
+                    if resp_data.status_code in (403, 419, 429, 503):
+                        self.log_warning(
+                            "GeMConnector: POST blocked — BLOCKED_NETWORK",
+                            status=resp_data.status_code,
+                            page=page,
                         )
-                        
-                        # Handle CSRF expiry / session timeout
-                        if resp_post.status_code in (403, 419):
-                            self.log_warning("GeMConnector: CSRF/Session expired, refreshing...", attempt=attempt)
-                            csrf_token = await self._refresh_csrf(client, headers)
-                            payload_data["csrf_bd_gem_nk"] = csrf_token
-                            continue
-                            
-                        if resp_post.status_code != 200:
-                            self.log_warning("GeMConnector: POST failed with status", status=resp_post.status_code, attempt=attempt)
-                            await asyncio.sleep(self.retry_policy.backoff_base ** attempt)
-                            continue
-                            
-                        data = resp_post.json()
-                        docs = data.get("response", {}).get("response", {}).get("docs", [])
-                        response_ok = True
+                        # Try CSRF refresh once
+                        if csrf_token and resp_data.status_code in (403, 419):
+                            self.log_info("GeMConnector: attempting CSRF refresh")
+                            try:
+                                refresh_resp = await client.get(self.GEM_ALL_BIDS_URL)
+                                new_csrf = self._extract_csrf(refresh_resp.text)
+                                if new_csrf and new_csrf != csrf_token:
+                                    csrf_token = new_csrf
+                                    continue  # retry with new CSRF
+                            except Exception:
+                                pass
+                        break  # Give up — no fixture fallback
+
+                    if resp_data.status_code != 200:
+                        self.log_warning(
+                            "GeMConnector: unexpected status on POST",
+                            status=resp_data.status_code, page=page,
+                        )
                         break
-                        
-                    except Exception as req_err:
-                        self.log_warning("GeMConnector: HTTP post failed", error=str(req_err), attempt=attempt)
-                        await asyncio.sleep(self.retry_policy.backoff_base ** attempt)
-                
-                if not response_ok or not docs:
+
+                    # Parse JSON response
+                    try:
+                        data = resp_data.json()
+                    except Exception:
+                        # Might be HTML login redirect
+                        if "login" in resp_data.text.lower():
+                            self.log_warning("GeMConnector: redirected to login page — BLOCKED_AUTH")
+                        break
+
+                    docs: list = (
+                        data.get("response", {})
+                        .get("response", {})
+                        .get("docs", [])
+                    )
+                    if not docs:
+                        self.log_info("GeMConnector: empty docs on page — stopping", page=page)
+                        break
+
+                    for raw in docs:
+                        bid_id = raw.get("id", f"GEM-{page}-{yielded}")
+                        bid_no = (raw.get("b_bid_number") or [f"GEM-{page}-{yielded}"])[0]
+                        parsed = self._parse_raw_bid(raw)
+                        yield RawTender(
+                            source_id=self.source_id,
+                            source_tender_id=bid_no,
+                            source_url=self.GEM_BID_DETAIL_URL.format(bid_id=bid_id),
+                            raw_json=parsed,
+                            document_urls=[self.GEM_BID_DETAIL_URL.format(bid_id=bid_id)],
+                        )
+                        yielded += 1
+
+                    self.log_info(
+                        "GeMConnector: page scraped",
+                        page=page, page_count=len(docs), total_so_far=yielded,
+                    )
+                    await asyncio.sleep(0.4)  # polite throttle
+
+                except httpx.TimeoutException:
+                    self.log_warning("GeMConnector: timeout on page", page=page)
+                    break
+                except Exception as page_err:
+                    self.log_error("GeMConnector: page error", error=str(page_err), page=page)
                     break
 
-                for raw in docs:
-                    bid_no = raw.get("b_bid_number", [""])[0]
-                    b_id = raw.get("id", f"GEM-{page}-{fetched_count}")
-                    
-                    yield RawTender(
-                        source_id=self.source_id,
-                        source_tender_id=bid_no,
-                        source_url=f"https://bidplus.gem.gov.in/showbidDocument/{b_id}",
-                        raw_json=raw,
-                        document_urls=[f"https://bidplus.gem.gov.in/showbidDocument/{b_id}"],
-                    )
-                    fetched_count += 1
-                    
-                page += 1
-                await asyncio.sleep(0.5)  # Throttling
-
-        self.log_info("GeMConnector: crawl complete", total=fetched_count)
-
+        self.log_info("GeMConnector: crawl complete", total=yielded)
 
     async def health_check(self) -> HealthStatus:
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
+            async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
                 resp = await client.get(
-                    "https://bidplus.gem.gov.in/all-bids",
-                    headers={"User-Agent": "TenderOS/1.0"},
+                    self.GEM_ALL_BIDS_URL,
+                    headers={"User-Agent": self.HEADERS["User-Agent"]},
                 )
-                if resp.status_code == 200:
+                if resp.status_code == 200 and "bid" in resp.text.lower():
                     return HealthStatus.HEALTHY
-                return HealthStatus.FAILED
+                return HealthStatus.DEGRADED
         except Exception:
             return HealthStatus.FAILED
-

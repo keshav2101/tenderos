@@ -24,6 +24,7 @@ _PLUGIN_PACKAGES = [
     "app.connectors.plugins",
     "app.connectors.plugins.central_gov",
     "app.connectors.plugins.state",
+    "app.connectors.plugins.psu",
 ]
 
 

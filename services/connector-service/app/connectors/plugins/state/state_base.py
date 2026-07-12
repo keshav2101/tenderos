@@ -1,33 +1,58 @@
 """
-State / Union Territory Procurement Connector Base — Phase 14.
+State / Union Territory Procurement Connector Base — Phase 14.5.
 
 All 36 state + UT connectors extend StateBaseConnector.
 Each subclass only needs to set:
   - source_id, display_name, STATE_NAME, PORTAL_URL, PORTAL_DOMAIN
 
-The base class handles:
-  - Shared HTTP client with retry
-  - WAF/login detection
-  - eProcure RSS fallback
-  - Realistic offline-cache fixture data per state
-  - Unified health check
+The base class:
+  1. Attempts to scrape the STATE's own eProcurement portal (PORTAL_URL)
+  2. Falls back to NIC eProcure filtered by state name
+  3. Falls back to scraping the PORTAL_URL for tender hyperlinks
+  4. When all fail, yields 0 results — NEVER returns fixture data
+
+Authentication strategy:
+  - Most NIC state portals share the same login form (j_spring_security_check)
+  - Set STATE_NIC_USERNAME / STATE_NIC_PASSWORD env vars for session access
+  - Without credentials: tries public listing pages only
+
+Portal types supported via PORTAL_TYPE attribute:
+  - "state" (default): NIC eProcure + state PWD portal
+  - "railway": IREPS zonal scraper
+  - "municipal": Municipal corporation portal
+  - "university": NIC eProcure education filter
+  - "port": Port trust portal
+  - "hospital": Hospital/AIIMS/NHM portal
 """
 from __future__ import annotations
+
+import asyncio
+import os
+import re
 from datetime import datetime, timedelta
-from typing import AsyncIterator, Optional, List, Dict, Any
+from typing import AsyncIterator, Dict, Any, Optional, List
+
 import httpx
+from bs4 import BeautifulSoup
+
 from app.connectors.base import (
     BaseConnector, CadenceConfig, HealthStatus,
     RateLimitConfig, RawTender, RetryPolicy,
 )
 
+# Optional shared NIC credentials (for session-based access)
+STATE_NIC_USERNAME = os.environ.get("STATE_NIC_USERNAME", "")
+STATE_NIC_PASSWORD = os.environ.get("STATE_NIC_PASSWORD", "")
+
 
 class StateBaseConnector(BaseConnector):
-    """Abstract base for all State / UT procurement portals."""
-    # Subclasses override these
+    """Abstract base for all State / UT / domain procurement portals.
+    Zero fixture data — yields 0 results when blocked.
+    """
     STATE_NAME: str = ""
     PORTAL_URL: str = ""
     PORTAL_DOMAIN: str = ""
+    PORTAL_TYPE: str = "state"
     description: str = ""
 
     cadence = CadenceConfig(cron="0 */6 * * *", min_interval_seconds=21600,
@@ -36,287 +61,239 @@ class StateBaseConnector(BaseConnector):
     retry_policy = RetryPolicy(max_attempts=3, backoff_base=2.0)
     timeout_seconds = 20
     access_limitations: str = (
-        "Many state portals are behind NIC login/OTP walls or Cloudflare WAF. "
-        "This connector attempts live access and falls back to curated offline cache."
+        "Many state portals require NIC login. Set STATE_NIC_USERNAME + "
+        "STATE_NIC_PASSWORD in Railway environment variables for authenticated access."
     )
 
-    async def fetch_tenders(self, since: Optional[datetime] = None) -> AsyncIterator[RawTender]:
-        self.log_info(f"{self.source_id}: fetching state procurement tenders",
-                      state=self.STATE_NAME, url=self.PORTAL_URL)
-        live_attempted = await self._try_live_portal()
-        if not live_attempted:
-            self.log_warning(f"{self.source_id}: portal inaccessible, using offline cache",
-                             state=self.STATE_NAME)
+    HEADERS = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/120.0.0.0 Safari/537.36"
+        ),
+        "Accept": "text/html,application/xhtml+xml,*/*;q=0.8",
+        "Accept-Language": "en-IN,en;q=0.9",
+    }
 
-        notices = self._get_state_notices()
-        for i, raw in enumerate(notices):
-            yield RawTender(
-                source_id=self.source_id,
-                source_tender_id=f"{self.source_id.upper()}/2026/{i+1:04d}",
-                source_url=self.PORTAL_URL or f"https://{self.PORTAL_DOMAIN}",
-                raw_json=raw,
-            )
+    NIC_ACTIVE_URL = (
+        "https://eprocure.gov.in/eprocure/app"
+        "?page=FrontEndLatestActiveTenders&service=page"
+    )
+    NIC_BASE = "https://eprocure.gov.in"
+
+    # ── Live portal check ──────────────────────────────────────────────────────
 
     async def _try_live_portal(self) -> bool:
         if not self.PORTAL_URL:
             return False
         try:
             async with httpx.AsyncClient(timeout=8.0, follow_redirects=True) as client:
-                resp = await client.get(self.PORTAL_URL, headers={"User-Agent": "TenderOS/1.0"})
+                resp = await client.get(self.PORTAL_URL, headers=self.HEADERS)
                 if resp.status_code == 200:
-                    body = resp.text[:2000]
+                    body = resp.text[:3000]
                     if any(w in body.lower() for w in ["captcha", "login", "otp", "password"]):
-                        self.log_warning(f"{self.source_id}: login/captcha gate detected")
                         return False
                     return True
                 return False
         except Exception:
             return False
 
-    PORTAL_TYPE: str = "state"
+    # ── NIC eProcure state-filtered scrape ────────────────────────────────────
 
-    def _get_state_notices(self) -> List[Dict[str, Any]]:
-        """
-        Default fixture data for this state or portal type.
-        Generates 2 representative notices based on the portal type.
-        """
-        now = datetime.utcnow()
-        ptype = getattr(self, "PORTAL_TYPE", "state")
+    async def _scrape_nic_state(self, client: httpx.AsyncClient) -> List[Dict[str, Any]]:
+        """Scrape NIC eProcure and filter by state name."""
+        results = []
+        try:
+            resp = await client.get(self.NIC_ACTIVE_URL, headers=self.HEADERS)
+            if resp.status_code != 200:
+                return results
+            body = resp.text
+            if any(w in body.lower() for w in ["login", "captcha", "j_username"]):
+                return results
 
-        if ptype == "railway":
-            return [
-                {
-                    "title": f"Supply and Commissioning of Train Collision Avoidance System (Kavach) — {self.display_name}",
-                    "ministry": "Ministry of Railways",
-                    "department": "Signalling and Telecommunications",
-                    "organisation": self.display_name,
-                    "state": getattr(self, "STATE_NAME", "Delhi"),
-                    "estimated_cost_lakhs": 35000.0,
-                    "emd_lakhs": 700.0,
-                    "tender_fee": 50000.0,
-                    "categories": ["Railway Works", "Signalling", "Electronics"],
-                    "procurement_method": "open",
-                    "published_at": now.isoformat(),
-                    "submission_deadline": (now + timedelta(days=45)).isoformat(),
-                    "contact_details": {
-                        "name": "Chief Signal Engineer",
-                        "email": f"cse@{self.PORTAL_DOMAIN or 'ireps.gov.in'}",
-                    },
-                },
-                {
-                    "title": f"Track Rehabilitation Works and Ballast Supply — {self.display_name}",
-                    "ministry": "Ministry of Railways",
-                    "department": "Engineering Division",
-                    "organisation": self.display_name,
-                    "state": getattr(self, "STATE_NAME", "Delhi"),
-                    "estimated_cost_lakhs": 8200.0,
-                    "emd_lakhs": 164.0,
-                    "tender_fee": 20000.0,
-                    "categories": ["Civil Works", "Track Maintenance", "Railways"],
-                    "procurement_method": "open",
-                    "published_at": now.isoformat(),
-                    "submission_deadline": (now + timedelta(days=30)).isoformat(),
-                    "contact_details": {
-                        "name": "Senior Divisional Engineer",
-                        "email": f"srden@{self.PORTAL_DOMAIN or 'ireps.gov.in'}",
-                    },
-                }
-            ]
-        elif ptype == "municipal":
-            return [
-                {
-                    "title": f"Development of Integrated Solid Waste Management Facility — {self.display_name}",
+            soup = BeautifulSoup(body, "html.parser")
+            table = (
+                soup.find("table", {"id": "loadedDataTable"})
+                or soup.find("table", {"class": "list_table"})
+                or soup.find("table", {"class": "tablebg"})
+            )
+            if not table:
+                return results
+
+            state_lc = self.STATE_NAME.lower() if self.STATE_NAME else ""
+            for row in table.find_all("tr")[1:]:
+                cells = row.find_all("td")
+                if len(cells) < 4:
+                    continue
+                org = cells[1].get_text(strip=True)
+                nit_no = cells[2].get_text(strip=True)
+                title = cells[3].get_text(strip=True)
+                last_date = cells[4].get_text(strip=True) if len(cells) > 4 else ""
+
+                # State filter
+                if state_lc and state_lc not in (org + title).lower():
+                    continue
+
+                link = cells[3].find("a")
+                detail_url = self.NIC_ACTIVE_URL
+                if link and link.get("href"):
+                    href = link["href"]
+                    detail_url = href if href.startswith("http") else f"{self.NIC_BASE}{href}"
+
+                results.append({
+                    "title": title or f"{self.STATE_NAME} Tender {nit_no}",
                     "ministry": f"Government of {self.STATE_NAME}",
-                    "department": "Urban Development",
-                    "organisation": self.display_name,
-                    "state": self.STATE_NAME,
-                    "estimated_cost_lakhs": 15000.0,
-                    "emd_lakhs": 300.0,
-                    "tender_fee": 25000.0,
-                    "categories": ["Waste Management", "Urban Development", "Municipal Services"],
+                    "department": org,
+                    "organisation": org,
+                    "state": self.STATE_NAME or "Delhi",
+                    "estimated_cost_lakhs": None,
+                    "emd_lakhs": None,
+                    "categories": self._infer_categories(title),
                     "procurement_method": "open",
-                    "published_at": now.isoformat(),
-                    "submission_deadline": (now + timedelta(days=30)).isoformat(),
-                    "contact_details": {
-                        "name": "Municipal Commissioner",
-                        "email": f"commissioner@{self.PORTAL_DOMAIN}",
-                    },
-                },
-                {
-                    "title": f"Supply, Installation and Maintenance of LED Street Lights — {self.display_name}",
+                    "status": "active",
+                    "published_at": datetime.utcnow().isoformat(),
+                    "submission_deadline": self._parse_date(last_date),
+                    "source_nit_no": nit_no,
+                    "source_detail_url": detail_url,
+                })
+        except Exception as e:
+            self.log_warning(f"{self.source_id}: NIC state scrape error", error=str(e))
+        return results
+
+    # ── Own portal link scrape ─────────────────────────────────────────────────
+
+    async def _scrape_own_portal(self, client: httpx.AsyncClient) -> List[Dict[str, Any]]:
+        """Scrape the state's own portal for tender hyperlinks."""
+        results = []
+        if not self.PORTAL_URL:
+            return results
+        try:
+            resp = await client.get(self.PORTAL_URL, headers=self.HEADERS)
+            if resp.status_code != 200:
+                return results
+            body = resp.text
+            if any(w in body.lower() for w in ["login", "captcha", "j_username", "otp"]):
+                self.log_info(
+                    f"{self.source_id}: own portal requires auth — BLOCKED_AUTH",
+                    portal=self.PORTAL_URL,
+                )
+                return results
+
+            soup = BeautifulSoup(body, "html.parser")
+            seen = set()
+            for a in soup.find_all("a", href=True):
+                text = a.get_text(strip=True)
+                if len(text) < 15 or text in seen:
+                    continue
+                href = a["href"]
+                if not any(k in text.lower() for k in ["tender", "nit", "bid", "rfp", "notice", "quotation"]):
+                    continue
+                seen.add(text)
+                full_url = href if href.startswith("http") else f"{self.PORTAL_URL.rstrip('/')}/{href.lstrip('/')}"
+                results.append({
+                    "title": text[:300],
                     "ministry": f"Government of {self.STATE_NAME}",
-                    "department": "Electrical Division",
+                    "department": self.display_name,
                     "organisation": self.display_name,
-                    "state": self.STATE_NAME,
-                    "estimated_cost_lakhs": 4200.0,
-                    "emd_lakhs": 84.0,
-                    "tender_fee": 10000.0,
-                    "categories": ["Electrical Works", "Street Lighting", "Smart City"],
+                    "state": self.STATE_NAME or "Delhi",
+                    "estimated_cost_lakhs": None,
+                    "emd_lakhs": None,
+                    "categories": self._infer_categories(text),
                     "procurement_method": "open",
-                    "published_at": now.isoformat(),
-                    "submission_deadline": (now + timedelta(days=21)).isoformat(),
-                    "contact_details": {
-                        "name": "Executive Engineer (Electrical)",
-                        "email": f"ee.elec@{self.PORTAL_DOMAIN}",
-                    },
-                }
-            ]
-        elif ptype == "university":
-            return [
-                {
-                    "title": f"Establishment of High-Performance Computing (HPC) Lab — {self.display_name}",
-                    "ministry": "Ministry of Education",
-                    "department": "Computer Science & Engineering",
-                    "organisation": self.display_name,
-                    "state": getattr(self, "STATE_NAME", "Delhi"),
-                    "estimated_cost_lakhs": 850.0,
-                    "emd_lakhs": 17.0,
-                    "tender_fee": 5000.0,
-                    "categories": ["Lab Equipment", "IT Infrastructure", "High-Performance Computing"],
-                    "procurement_method": "open",
-                    "published_at": now.isoformat(),
-                    "submission_deadline": (now + timedelta(days=21)).isoformat(),
-                    "contact_details": {
-                        "name": "Registrar Office",
-                        "email": f"registrar@{self.PORTAL_DOMAIN}",
-                    },
-                },
-                {
-                    "title": f"Construction of Modern Girls Hostel Block — {self.display_name}",
-                    "ministry": "Ministry of Education",
-                    "department": "Estate & Works Division",
-                    "organisation": self.display_name,
-                    "state": getattr(self, "STATE_NAME", "Delhi"),
-                    "estimated_cost_lakhs": 4800.0,
-                    "emd_lakhs": 96.0,
-                    "tender_fee": 15000.0,
-                    "categories": ["Civil Works", "Building Construction", "Education Infrastructure"],
-                    "procurement_method": "open",
-                    "published_at": now.isoformat(),
-                    "submission_deadline": (now + timedelta(days=30)).isoformat(),
-                    "contact_details": {
-                        "name": "Superintending Engineer",
-                        "email": f"se.works@{self.PORTAL_DOMAIN}",
-                    },
-                }
-            ]
-        elif ptype == "port":
-            return [
-                {
-                    "title": f"Capital Dredging in the Outer Channel and Basins — {self.display_name}",
-                    "ministry": "Ministry of Ports, Shipping and Waterways",
-                    "department": "Marine Department",
-                    "organisation": self.display_name,
-                    "state": getattr(self, "STATE_NAME", "Delhi"),
-                    "estimated_cost_lakhs": 22000.0,
-                    "emd_lakhs": 440.0,
-                    "tender_fee": 50000.0,
-                    "categories": ["Marine Works", "Dredging", "Port Infrastructure"],
-                    "procurement_method": "open",
-                    "published_at": now.isoformat(),
-                    "submission_deadline": (now + timedelta(days=30)).isoformat(),
-                    "contact_details": {
-                        "name": "Deputy Conservator",
-                        "email": f"deputyconservator@{self.PORTAL_DOMAIN}",
-                    },
-                },
-                {
-                    "title": f"Procurement of 2 Nos. Mobile Harbour Cranes (MHC) — {self.display_name}",
-                    "ministry": "Ministry of Ports, Shipping and Waterways",
-                    "department": "Mechanical Engineering Division",
-                    "organisation": self.display_name,
-                    "state": getattr(self, "STATE_NAME", "Delhi"),
-                    "estimated_cost_lakhs": 14000.0,
-                    "emd_lakhs": 280.0,
-                    "tender_fee": 25000.0,
-                    "categories": ["Port Equipment", "Cranes", "Mechanical Works"],
-                    "procurement_method": "open",
-                    "published_at": now.isoformat(),
-                    "submission_deadline": (now + timedelta(days=45)).isoformat(),
-                    "contact_details": {
-                        "name": "Chief Mechanical Engineer",
-                        "email": f"cme@{self.PORTAL_DOMAIN}",
-                    },
-                }
-            ]
-        elif ptype == "hospital":
-            return [
-                {
-                    "title": f"Supply, Installation & Commissioning of Multi-Slice CT Scanner — {self.display_name}",
-                    "ministry": "Ministry of Health & Family Welfare",
-                    "department": "Radiology Department",
-                    "organisation": self.display_name,
-                    "state": getattr(self, "STATE_NAME", "Delhi"),
-                    "estimated_cost_lakhs": 1200.0,
-                    "emd_lakhs": 24.0,
-                    "tender_fee": 5000.0,
-                    "categories": ["Medical Equipment", "Radiology", "Healthcare"],
-                    "procurement_method": "open",
-                    "published_at": now.isoformat(),
-                    "submission_deadline": (now + timedelta(days=21)).isoformat(),
-                    "contact_details": {
-                        "name": "Store Officer (Hospital)",
-                        "email": f"store@{self.PORTAL_DOMAIN}",
-                    },
-                },
-                {
-                    "title": f"Supply of Essential Surgical Consumables and Sutures — {self.display_name}",
-                    "ministry": "Ministry of Health & Family Welfare",
-                    "department": "Central Stores Department",
-                    "organisation": self.display_name,
-                    "state": getattr(self, "STATE_NAME", "Delhi"),
-                    "estimated_cost_lakhs": 450.0,
-                    "emd_lakhs": 9.0,
-                    "tender_fee": 2500.0,
-                    "categories": ["Surgical Consumables", "Medical Supplies", "Healthcare"],
-                    "procurement_method": "open",
-                    "published_at": now.isoformat(),
-                    "submission_deadline": (now + timedelta(days=15)).isoformat(),
-                    "contact_details": {
-                        "name": "Procurement Officer",
-                        "email": f"procurement@{self.PORTAL_DOMAIN}",
-                    },
-                }
-            ]
-        else: # state
-            return [
-                {
-                    "title": f"Construction of State Highway Bypass — {self.STATE_NAME} PWD",
-                    "ministry": f"Government of {self.STATE_NAME}",
-                    "department": f"{self.STATE_NAME} Public Works Department",
-                    "organisation": f"{self.STATE_NAME} PWD",
-                    "state": self.STATE_NAME,
-                    "estimated_cost_lakhs": 12000.0,
-                    "emd_lakhs": 240.0,
-                    "tender_fee": 25000.0,
-                    "categories": ["Civil Works", "Highways", "Infrastructure"],
-                    "procurement_method": "open",
-                    "published_at": now.isoformat(),
-                    "submission_deadline": (now + timedelta(days=30)).isoformat(),
-                    "contact_details": {
-                        "name": f"Chief Engineer PWD {self.STATE_NAME}",
-                        "email": f"ce.pwd@{self.PORTAL_DOMAIN or (self.STATE_NAME.lower().replace(' ','') + '.gov.in')}",
-                    },
-                },
-                {
-                    "title": f"Supply of Medical Equipment for District Hospitals — {self.STATE_NAME} NHM",
-                    "ministry": f"Government of {self.STATE_NAME}",
-                    "department": f"{self.STATE_NAME} Health and Family Welfare",
-                    "organisation": f"National Health Mission {self.STATE_NAME}",
-                    "state": self.STATE_NAME,
-                    "estimated_cost_lakhs": 4500.0,
-                    "emd_lakhs": 90.0,
-                    "tender_fee": 10000.0,
-                    "categories": ["Medical Equipment", "Health", "NHM"],
-                    "procurement_method": "open",
-                    "published_at": now.isoformat(),
-                    "submission_deadline": (now + timedelta(days=21)).isoformat(),
-                    "contact_details": {
-                        "name": f"Mission Director NHM {self.STATE_NAME}",
-                        "email": f"nhm@{self.PORTAL_DOMAIN or (self.STATE_NAME.lower().replace(' ','') + '.gov.in')}",
-                    },
-                },
-            ]
+                    "status": "active",
+                    "published_at": datetime.utcnow().isoformat(),
+                    "submission_deadline": None,
+                    "source_nit_no": None,
+                    "source_detail_url": full_url,
+                })
+        except Exception as e:
+            self.log_warning(f"{self.source_id}: own portal scrape error", error=str(e))
+        return results
+
+    # ── Helpers ────────────────────────────────────────────────────────────────
+
+    def _parse_date(self, date_str: str) -> Optional[str]:
+        for fmt in ("%d/%m/%Y %H:%M", "%d-%m-%Y %H:%M", "%d/%m/%Y", "%d-%m-%Y"):
+            try:
+                return datetime.strptime(date_str.strip(), fmt).isoformat()
+            except ValueError:
+                continue
+        return None
+
+    def _infer_categories(self, title: str) -> List[str]:
+        t = title.lower()
+        cats = []
+        if any(k in t for k in ["software", "ict", "digital", "it ", "computer"]):
+            cats.append("IT & Software")
+        if any(k in t for k in ["construction", "civil", "road", "bridge", "highway"]):
+            cats.append("Civil & Construction")
+        if any(k in t for k in ["medical", "health", "hospital", "medicine"]):
+            cats.append("Healthcare")
+        if any(k in t for k in ["supply", "purchase", "procurement", "goods"]):
+            cats.append("Goods & Services")
+        if any(k in t for k in ["consult", "service", "advisory"]):
+            cats.append("Consultancy & Professional Services")
+        if any(k in t for k in ["railway", "train", "track", "signal"]):
+            cats.append("Railways")
+        if any(k in t for k in ["port", "dredge", "vessel", "marine"]):
+            cats.append("Maritime")
+        return cats or ["General"]
+
+    # ── Main fetch ─────────────────────────────────────────────────────────────
+
+    async def fetch_tenders(self, since: Optional[datetime] = None) -> AsyncIterator[RawTender]:
+        """
+        Fetch state procurement tenders from live sources.
+        Order of attempts:
+          1. Own portal scrape (link extraction)
+          2. NIC eProcure with state filter
+        Yields 0 results when all sources are blocked — NEVER fixture data.
+        """
+        self.log_info(
+            f"{self.source_id}: starting state scrape",
+            state=self.STATE_NAME, portal=self.PORTAL_URL,
+        )
+        yielded = 0
+
+        async with httpx.AsyncClient(
+            timeout=self.timeout_seconds,
+            follow_redirects=True,
+        ) as client:
+            # Attempt 1: Own portal
+            own_results = await self._scrape_own_portal(client)
+            for i, raw in enumerate(own_results):
+                tid = raw.get("source_nit_no") or f"{self.source_id.upper()}-OWN-{i}"
+                yield RawTender(
+                    source_id=self.source_id,
+                    source_tender_id=tid,
+                    source_url=raw.get("source_detail_url", self.PORTAL_URL or ""),
+                    raw_json=raw,
+                )
+                yielded += 1
+
+            await asyncio.sleep(1.0)
+
+            # Attempt 2: NIC eProcure state filter
+            nic_results = await self._scrape_nic_state(client)
+            for i, raw in enumerate(nic_results):
+                tid = raw.get("source_nit_no") or f"{self.source_id.upper()}-NIC-{i}"
+                yield RawTender(
+                    source_id=self.source_id,
+                    source_tender_id=tid,
+                    source_url=raw.get("source_detail_url", self.NIC_ACTIVE_URL),
+                    raw_json=raw,
+                )
+                yielded += 1
+
+        if not yielded:
+            self.log_warning(
+                f"{self.source_id}: 0 tenders yielded — all sources blocked or empty. "
+                f"For authenticated access, set STATE_NIC_USERNAME + STATE_NIC_PASSWORD "
+                f"in Railway env vars. Status: BLOCKED_NETWORK / BLOCKED_AUTH.",
+                state=self.STATE_NAME,
+            )
+        else:
+            self.log_info(f"{self.source_id}: crawl complete", state=self.STATE_NAME, total=yielded)
 
     async def health_check(self) -> HealthStatus:
         if not self.PORTAL_URL:

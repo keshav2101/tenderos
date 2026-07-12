@@ -117,7 +117,16 @@ async def get_ministries(limit: int = 10, period: str = "12m"):
             )
             return {
                 "period": period,
-                "ministries": [{"name": r["name"], "volume_cr": float(r["volume_cr"]), "tender_count": r["tender_count"]} for r in rows] if rows else []
+                "ministries": [
+                    {
+                        "ministry": r["name"],
+                        "name": r["name"],
+                        "total_value_cr": float(r["volume_cr"]),
+                        "volume_cr": float(r["volume_cr"]),
+                        "tender_count": r["tender_count"]
+                    }
+                    for r in rows
+                ] if rows else []
             }
     except Exception as e:
         logger.error("Ministries query failed, returning empty list", error=str(e))
@@ -147,7 +156,16 @@ async def get_categories(period: str = "12m"):
             )
             return {
                 "period": period,
-                "categories": [{"name": r["name"], "volume_cr": float(r["volume_cr"]), "growth_pct": 15.0} for r in rows] if rows else []
+                "categories": [
+                    {
+                        "category": r["name"],
+                        "name": r["name"],
+                        "tender_count": r["tender_count"],
+                        "volume_cr": float(r["volume_cr"]),
+                        "growth_pct": 15.0
+                    }
+                    for r in rows
+                ] if rows else []
             }
     except Exception as e:
         logger.error("Categories query failed, returning empty list", error=str(e))
