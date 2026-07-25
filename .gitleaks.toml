@@ -1,0 +1,16 @@
+[allowlist]
+description = "Allow example development and template secrets"
+paths = [
+    '''\.env\.production\.template''',
+    '''docs/.*''',
+    '''reports/.*''',
+    '''scripts/.*'''
+]
+regexes = [
+    '''tenderos_minio_secret_dev''',
+    '''tenderos_rabbit_dev''',
+    '''ooetvL9Xr7nVj6c_K_1_eOn-fHaq7zpW''',
+    '''rMsxKNczOeM3OUxgQ8FJRx5moFiIsgzQ''',
+    '''azKATOg_Pwq6qxd1NE5cJ7dlJiq0MZyh''',
+    '''6sNOvAaIBDUF7JVukYTXMsVhY8RsPV0D'''
+]
