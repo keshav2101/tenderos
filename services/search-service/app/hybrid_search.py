@@ -593,7 +593,8 @@ class HybridSearchEngine:
                 fetch_query = f"""
                     SELECT id, title, ministry, department, organisation, state,
                            categories, estimated_cost_lakhs, emd_lakhs,
-                           submission_deadline, status, source, ai_summary
+                           submission_deadline, status, source, ai_summary,
+                           source_url, source_tender_id, msme_eligible, startup_eligible
                     FROM tenders
                     WHERE {where_clause}
                     ORDER BY submission_deadline DESC
@@ -634,6 +635,9 @@ class HybridSearchEngine:
                         ),
                         "status": r["status"],
                         "source": r["source"],
+                        "source_url": r["source_url"],
+                        "msme_eligible": r["msme_eligible"] or False,
+                        "startup_eligible": r["startup_eligible"] or False,
                         "ai_summary": r["ai_summary"],
                         "relevance_score": 100.0,
                         "highlights": {},
@@ -672,7 +676,9 @@ class HybridSearchEngine:
             "submission_deadline": src.get("submission_deadline"),
             "status": src.get("status", "active"),
             "msme_eligible": src.get("msme_eligible", False),
+            "startup_eligible": src.get("startup_eligible", False),
             "source": src.get("source", ""),
+            "source_url": src.get("source_url"),
             "ai_summary": src.get("ai_summary"),
             "relevance_score": round(hit.get("_score", 0) * 10, 2),
             "highlights": highlights,
@@ -693,7 +699,9 @@ class HybridSearchEngine:
             "submission_deadline": hit.get("submission_deadline"),
             "status": hit.get("status", "active"),
             "msme_eligible": hit.get("msme_eligible", False),
+            "startup_eligible": hit.get("startup_eligible", False),
             "source": hit.get("source", ""),
+            "source_url": hit.get("source_url"),
             "ai_summary": hit.get("ai_summary"),
             "relevance_score": round(hit.get("semantic_score", 0) * 100, 2),
             "highlights": {},
