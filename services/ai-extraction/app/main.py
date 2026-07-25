@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import structlog
-from app.extractors.tier1_rules import Tier1Extractor
-from app.extractors.tier3_llm import Tier3LLMExtractor
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+
+from app.extractors.tier1_rules import Tier1Extractor
+from app.extractors.tier3_llm import Tier3LLMExtractor
 
 logger = structlog.get_logger()
 app = FastAPI(title="TenderOS AI Extraction Service")
@@ -60,13 +61,15 @@ async def auto_extraction_loop():
         try:
             pool = await get_pool()
             async with pool.acquire() as conn:
-                rows = await conn.fetch("""
+                rows = await conn.fetch(
+                    """
                     SELECT id, title, description, lineage, category, source
                     FROM tenders
                     WHERE extracted_attributes IS NULL
                     ORDER BY created_at DESC
                     LIMIT 10
-                """)
+                """
+                )
                 for r in rows:
                     t_id = str(r["id"])
                     raw_text = f"{r['title'] or ''}\n{r['description'] or ''}"

@@ -7,10 +7,11 @@ from uuid import UUID
 
 import asyncpg
 import structlog
-from app.config import settings
-from app.qualification_engine import BidQualificationEngine
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+
+from app.config import settings
+from app.qualification_engine import BidQualificationEngine
 
 logger = structlog.get_logger()
 app = FastAPI(title="TenderOS Bid Qualification Service")

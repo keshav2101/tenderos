@@ -1,8 +1,9 @@
 """Governance router proxying downstream requests to governance-service."""
 
+from fastapi import APIRouter, Query, Request
+
 from app.config import settings
 from app.proxy import ServiceProxy
-from fastapi import APIRouter, Query, Request
 
 router = APIRouter()
 # We proxy to governance-service on port 8021

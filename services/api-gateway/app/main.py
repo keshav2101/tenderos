@@ -15,6 +15,12 @@ import time
 from contextlib import asynccontextmanager
 
 import structlog
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import JSONResponse
+from prometheus_fastapi_instrumentator import Instrumentator
+
 from app.config import settings
 from app.middleware.auth import AuthMiddleware
 from app.middleware.rate_limit import RateLimitMiddleware
@@ -38,11 +44,6 @@ from app.routers import (
     search,
     tenders,
 )
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import JSONResponse
-from prometheus_fastapi_instrumentator import Instrumentator
 
 logger = structlog.get_logger()
 
@@ -109,9 +110,9 @@ async def add_process_time_header(request: Request, call_next):
     response.headers["X-TenderOS-Version"] = settings.VERSION
 
     # Production Security Hardening Headers
-    response.headers["Strict-Transport-Security"] = (
-        "max-age=63072000; includeSubDomains; preload"
-    )
+    response.headers[
+        "Strict-Transport-Security"
+    ] = "max-age=63072000; includeSubDomains; preload"
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
         "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "

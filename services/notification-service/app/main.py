@@ -7,11 +7,12 @@ from uuid import UUID, uuid4
 
 import asyncpg
 import structlog
-from app.config import settings
-from app.dispatcher import SlackDispatcher, TwilioDispatcher
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+
+from app.config import settings
+from app.dispatcher import SlackDispatcher, TwilioDispatcher
 
 logger = structlog.get_logger()
 app = FastAPI(title="TenderOS Notification Service")

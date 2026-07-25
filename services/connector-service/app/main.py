@@ -10,12 +10,13 @@ from uuid import uuid4
 import asyncpg
 import httpx
 import structlog
+from fastapi import BackgroundTasks, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+
 from app.config import settings
 from app.connectors.normalization import normalize_tender
 from app.connectors.registry import get_all_source_ids, get_connector, list_connectors
 from app.connectors.validation import validate_tender
-from fastapi import BackgroundTasks, FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
 
 logger = structlog.get_logger()
 app = FastAPI(title="TenderOS Connector Service", version="14.0.0")
@@ -432,9 +433,9 @@ async def get_connectors_status():
             metrics = r_client.hgetall(f"connector_status:{source_id}")
             if metrics:
                 result[source_id] = {
-                    k.decode() if isinstance(k, bytes) else k: (
-                        v.decode() if isinstance(v, bytes) else v
-                    )
+                    k.decode()
+                    if isinstance(k, bytes)
+                    else k: (v.decode() if isinstance(v, bytes) else v)
                     for k, v in metrics.items()
                 }
                 result[source_id]["source_id"] = source_id

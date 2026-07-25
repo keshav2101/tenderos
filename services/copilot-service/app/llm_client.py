@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 
 import structlog
+
 from app.config import settings
 
 logger = structlog.get_logger()
@@ -119,8 +120,14 @@ class LLMClient:
         ai_summary = extract("AI Summary")
 
         # Resolve clean absolute portal URL
-        source_url = raw_source_url if raw_source_url and raw_source_url not in ("N/A", "None", "—") else f"https://{source.lower()}.gov.in"
-        if not source_url.startswith("http://") and not source_url.startswith("https://"):
+        source_url = (
+            raw_source_url
+            if raw_source_url and raw_source_url not in ("N/A", "None", "—")
+            else f"https://{source.lower()}.gov.in"
+        )
+        if not source_url.startswith("http://") and not source_url.startswith(
+            "https://"
+        ):
             source_url = f"https://{source_url}"
 
         # Extract user question
@@ -129,7 +136,19 @@ class LLMClient:
         q_lower = question.lower()
 
         # Intent 1: EMD / Fee / Financial Questions
-        if any(k in q_lower for k in ["emd", "fee", "cost", "financial", "pbg", "deposit", "money", "guarantee"]):
+        if any(
+            k in q_lower
+            for k in [
+                "emd",
+                "fee",
+                "cost",
+                "financial",
+                "pbg",
+                "deposit",
+                "money",
+                "guarantee",
+            ]
+        ):
             ans = f"""### 💰 Financial Terms & EMD Breakdown — {title}
 
 - **Estimated Contract Value:** {cost}
@@ -145,7 +164,18 @@ class LLMClient:
 *(Ref: `{source_tender_id}`)*"""
 
         # Intent 2: Eligibility / Qualification / Documents
-        elif any(k in q_lower for k in ["eligible", "eligibility", "qualification", "document", "turnover", "experience", "certif"]):
+        elif any(
+            k in q_lower
+            for k in [
+                "eligible",
+                "eligibility",
+                "qualification",
+                "document",
+                "turnover",
+                "experience",
+                "certif",
+            ]
+        ):
             ans = f"""### ✅ Qualification & Eligibility Checklist — {title}
 
 - **Minimum Turnover Requirement:** **{turnover}**
@@ -162,7 +192,18 @@ class LLMClient:
 *(Ref: `{source_tender_id}`)*"""
 
         # Intent 3: Deadline / Dates / Timelines
-        elif any(k in q_lower for k in ["deadline", "date", "opening", "time", "validity", "duration", "completion"]):
+        elif any(
+            k in q_lower
+            for k in [
+                "deadline",
+                "date",
+                "opening",
+                "time",
+                "validity",
+                "duration",
+                "completion",
+            ]
+        ):
             ans = f"""### 📅 Critical Procurement Timelines & Deadlines — {title}
 
 - **Submission Deadline:** **{deadline}**
@@ -176,7 +217,10 @@ class LLMClient:
 *(Ref: `{source_tender_id}`)*"""
 
         # Intent 4: Scope / Summary / What is this tender
-        elif any(k in q_lower for k in ["summary", "scope", "what is", "about", "detail", "deliverable"]):
+        elif any(
+            k in q_lower
+            for k in ["summary", "scope", "what is", "about", "detail", "deliverable"]
+        ):
             ans = f"""### 🎯 Executive Procurement Summary — {title}
 
 **Overview:**  

@@ -1,8 +1,9 @@
 """Recommendations router."""
 
+from fastapi import APIRouter, Query, Request
+
 from app.config import settings
 from app.proxy import ServiceProxy
-from fastapi import APIRouter, Query, Request
 
 router = APIRouter()
 _proxy = ServiceProxy(settings.BID_QUAL_SERVICE_URL)

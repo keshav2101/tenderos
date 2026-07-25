@@ -1,8 +1,9 @@
 """Tender routes — proxy to tender-service."""
 
+from fastapi import APIRouter, HTTPException, Path, Query, Request, status
+
 from app.config import settings
 from app.proxy import ServiceProxy
-from fastapi import APIRouter, HTTPException, Path, Query, Request, status
 
 
 def _require_user(request: Request) -> dict:
@@ -28,7 +29,9 @@ _proxy = ServiceProxy(settings.TENDER_SERVICE_URL)
 
 @router.get("/intelligence/buyers", summary="Get buyer profiles")
 async def get_buyer_profiles(request: Request, limit: int = Query(20, ge=1, le=100)):
-    return await _proxy.get("/tenders/intelligence/buyers", params={"limit": limit}, request=request)
+    return await _proxy.get(
+        "/tenders/intelligence/buyers", params={"limit": limit}, request=request
+    )
 
 
 @router.get("/intelligence/market-trends", summary="Get market trends")

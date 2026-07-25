@@ -16,8 +16,9 @@ import re
 from datetime import datetime
 
 import httpx
-from app.connectors.plugins.central_gov.ministry_base import MinistryBaseConnector
 from bs4 import BeautifulSoup
+
+from app.connectors.plugins.central_gov.ministry_base import MinistryBaseConnector
 
 # ─── Helper: generic HTML tender page scraper ────────────────────────────────
 

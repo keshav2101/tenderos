@@ -5,11 +5,12 @@ Validates credentials and attaches the current user context to the request.
 
 import httpx
 import structlog
-from app.config import settings
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from jose import JWTError, jwt
 from starlette.middleware.base import BaseHTTPMiddleware
+
+from app.config import settings
 
 logger = structlog.get_logger()
 

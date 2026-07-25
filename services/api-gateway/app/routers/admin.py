@@ -1,8 +1,9 @@
 """Admin router — requires admin role."""
 
+from fastapi import APIRouter, HTTPException, Request, status
+
 from app.config import settings
 from app.proxy import ServiceProxy
-from fastapi import APIRouter, HTTPException, Request, status
 
 router = APIRouter()
 _proxy = ServiceProxy(settings.ADMIN_SERVICE_URL)

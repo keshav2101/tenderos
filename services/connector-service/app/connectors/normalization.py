@@ -12,8 +12,9 @@ from datetime import datetime, timedelta
 from typing import Any
 
 import structlog
-from app.connectors.base import RawTender
 from pydantic import BaseModel, Field
+
+from app.connectors.base import RawTender
 
 logger = structlog.get_logger()
 

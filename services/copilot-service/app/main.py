@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import httpx
 import structlog
-from app.config import settings
-from app.rag_pipeline import CopilotRAGPipeline
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+
+from app.config import settings
+from app.rag_pipeline import CopilotRAGPipeline
 
 logger = structlog.get_logger()
 

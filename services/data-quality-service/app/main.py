@@ -70,13 +70,15 @@ async def deduplication_worker_loop():
             pool = await get_pool()
             async with pool.acquire() as conn:
                 # Identify duplicate source_tender_ids across sources
-                duplicates = await conn.fetch("""
+                duplicates = await conn.fetch(
+                    """
                     SELECT source_tender_id, COUNT(*) as cnt, ARRAY_AGG(id::text) as ids
                     FROM tenders
                     GROUP BY source_tender_id
                     HAVING COUNT(*) > 1
                     LIMIT 20
-                """)
+                """
+                )
                 if duplicates:
                     logger.info(
                         "Deduplication worker found duplicate tender groups",
@@ -99,11 +101,13 @@ async def get_data_quality_report():
         async with pool.acquire() as conn:
             total_tenders = await conn.fetchval("SELECT COUNT(*) FROM tenders")
             total_docs = await conn.fetchval("SELECT COUNT(*) FROM tender_documents")
-            duplicate_groups = await conn.fetchval("""
+            duplicate_groups = await conn.fetchval(
+                """
                 SELECT COUNT(*) FROM (
                     SELECT source_tender_id FROM tenders GROUP BY source_tender_id HAVING COUNT(*) > 1
                 ) sub
-            """)
+            """
+            )
             extracted_count = await conn.fetchval(
                 "SELECT COUNT(*) FROM tenders WHERE extracted_attributes IS NOT NULL"
             )

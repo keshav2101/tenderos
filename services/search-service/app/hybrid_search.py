@@ -10,11 +10,12 @@ import time
 from typing import Any
 
 import structlog
+from opensearchpy import AsyncOpenSearch
+from qdrant_client import AsyncQdrantClient
+
 from app.config import settings
 from app.indexing_contract import build_embedding_text, build_tender_document
 from app.query_parser import parse_natural_language_query
-from opensearchpy import AsyncOpenSearch
-from qdrant_client import AsyncQdrantClient
 
 logger = structlog.get_logger()
 
@@ -495,7 +496,11 @@ class HybridSearchEngine:
                     password=pg_pwd,
                 )
                 offset = (page - 1) * page_size
-                conditions = ["status = 'active'", "source NOT IN ('mock', 'demo')", "source NOT ILIKE 'mock%'"]
+                conditions = [
+                    "status = 'active'",
+                    "source NOT IN ('mock', 'demo')",
+                    "source NOT ILIKE 'mock%'",
+                ]
                 params = []
                 param_idx = 1
 

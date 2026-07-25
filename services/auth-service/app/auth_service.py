@@ -9,9 +9,10 @@ from uuid import uuid4
 
 import redis.asyncio as aioredis
 import structlog
-from app.config import settings
 from jose import jwt
 from passlib.context import CryptContext
+
+from app.config import settings
 
 logger = structlog.get_logger()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

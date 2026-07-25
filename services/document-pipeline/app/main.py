@@ -83,7 +83,8 @@ async def startup_event():
     # Ensure persistence databases have required state tracking columns
     pool = await get_pool()
     async with pool.acquire() as conn:
-        await conn.execute("""
+        await conn.execute(
+            """
             ALTER TABLE tender_documents ADD COLUMN IF NOT EXISTS document_status VARCHAR(50) DEFAULT 'QUEUED';
             ALTER TABLE tender_documents ADD COLUMN IF NOT EXISTS current_state VARCHAR(50) DEFAULT 'QUEUED';
             ALTER TABLE tender_documents ADD COLUMN IF NOT EXISTS embedding_status VARCHAR(50) DEFAULT 'pending';
@@ -94,7 +95,8 @@ async def startup_event():
             ALTER TABLE tender_documents ADD COLUMN IF NOT EXISTS processing_duration_ms INT;
             ALTER TABLE tender_documents ADD COLUMN IF NOT EXISTS ocr_confidence_score DECIMAL(5,4);
             ALTER TABLE tender_documents ADD COLUMN IF NOT EXISTS embedding_model_version VARCHAR(255);
-        """)
+        """
+        )
 
     # Qdrant Setup
     if not qdrant_client:
@@ -128,14 +130,16 @@ async def auto_fetch_documents_loop():
             pool = await get_pool()
             async with pool.acquire() as conn:
                 # Find tenders that do not yet have a record in tender_documents
-                rows = await conn.fetch("""
+                rows = await conn.fetch(
+                    """
                     SELECT t.id, t.source, t.source_tender_id, t.source_url, t.lineage
                     FROM tenders t
                     LEFT JOIN tender_documents td ON t.id = td.tender_id
                     WHERE td.id IS NULL AND t.source_url IS NOT NULL AND t.source_url != ''
                     ORDER BY t.created_at DESC
                     LIMIT 5
-                """)
+                """
+                )
                 for r in rows:
                     t_id = str(r["id"])
                     doc_url = r["source_url"]

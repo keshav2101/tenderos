@@ -12,6 +12,7 @@ from typing import Any
 
 import redis.asyncio as aioredis
 import structlog
+
 from app.config import settings
 
 logger = structlog.get_logger()

@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import asyncpg
 import structlog
-from app.config import settings
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+
+from app.config import settings
 
 logger = structlog.get_logger()
 app = FastAPI(title="TenderOS Market Intelligence Service")
@@ -163,7 +164,8 @@ async def get_categories(period: str = "12m"):
     try:
         pool = await get_pool()
         async with pool.acquire() as conn:
-            rows = await conn.fetch("""
+            rows = await conn.fetch(
+                """
                 SELECT unnest(categories) as name,
                        COALESCE(SUM(estimated_cost_lakhs) / 100.0, 0.0) as volume_cr,
                        COUNT(id) as tender_count
@@ -172,7 +174,8 @@ async def get_categories(period: str = "12m"):
                 GROUP BY name
                 ORDER BY volume_cr DESC
                 LIMIT 10
-                """)
+                """
+            )
             return {
                 "period": period,
                 "categories": (
@@ -201,7 +204,8 @@ async def get_states(period: str = "12m"):
     try:
         pool = await get_pool()
         async with pool.acquire() as conn:
-            rows = await conn.fetch("""
+            rows = await conn.fetch(
+                """
                 SELECT state as name,
                        COALESCE(SUM(estimated_cost_lakhs) / 100.0, 0.0) as volume_cr,
                        COUNT(id) as tender_count
@@ -210,7 +214,8 @@ async def get_states(period: str = "12m"):
                 GROUP BY state
                 ORDER BY volume_cr DESC
                 LIMIT 10
-                """)
+                """
+            )
             return {
                 "period": period,
                 "states": (
@@ -266,7 +271,8 @@ async def get_overview():
     try:
         pool = await get_pool()
         async with pool.acquire() as conn:
-            stats = await conn.fetchrow("""
+            stats = await conn.fetchrow(
+                """
                 SELECT COUNT(id) as total_active_tenders,
                        COALESCE(SUM(estimated_cost_lakhs) / 100.0, 0.0) as total_value_cr,
                        COUNT(id) FILTER(WHERE created_at >= NOW() - INTERVAL '1 day') as tenders_indexed_today,
@@ -274,7 +280,8 @@ async def get_overview():
                        COUNT(DISTINCT state) as active_states
                 FROM tenders
                 WHERE status = 'active'
-                """)
+                """
+            )
             return {
                 "total_active_tenders": stats["total_active_tenders"] if stats else 0,
                 "total_value_cr": (
@@ -539,7 +546,8 @@ async def get_continuous_buyer_intelligence():
     """Tracks buyer spending shifts, tender frequency anomalies, and annual budget growth."""
     pool = await get_pool()
     async with pool.acquire() as conn:
-        rows = await conn.fetch("""
+        rows = await conn.fetch(
+            """
             SELECT 
                 COALESCE(organisation, ministry, department, 'Central Procurement') as buyer_name,
                 COUNT(*) as active_tenders,
@@ -550,7 +558,8 @@ async def get_continuous_buyer_intelligence():
             GROUP BY COALESCE(organisation, ministry, department, 'Central Procurement')
             ORDER BY active_tenders DESC
             LIMIT 10
-            """)
+            """
+        )
         alerts = [
             {
                 "buyer": "Department of Military Affairs",

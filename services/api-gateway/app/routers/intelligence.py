@@ -1,8 +1,9 @@
 """Market Intelligence and Decision routes — proxy to market-intelligence-service."""
 
+from fastapi import APIRouter, Request
+
 from app.config import settings
 from app.proxy import ServiceProxy
-from fastapi import APIRouter, Request
 
 router = APIRouter()
 _intel = ServiceProxy(settings.MARKET_INTEL_SERVICE_URL, timeout=60.0)

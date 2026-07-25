@@ -60,7 +60,8 @@ async def startup_event():
     # Run migrations for graph tables
     try:
         conn = await get_db_conn()
-        await conn.execute("""
+        await conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS graph_nodes (
                 id VARCHAR(255) PRIMARY KEY,
                 label VARCHAR(100) NOT NULL,
@@ -73,7 +74,8 @@ async def startup_event():
                 relation VARCHAR(100) NOT NULL,
                 UNIQUE(source_id, target_id, relation)
             );
-            """)
+            """
+        )
         await conn.close()
         logger.info("Successfully initialized knowledge-graph schema in PostgreSQL")
     except Exception as e:

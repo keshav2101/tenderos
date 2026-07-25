@@ -8,9 +8,10 @@ Service classification:
 import asyncio
 
 import httpx
-from app.config import settings
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
+
+from app.config import settings
 
 router = APIRouter()
 

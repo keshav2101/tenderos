@@ -24,6 +24,7 @@ from collections.abc import AsyncIterator
 from datetime import datetime
 
 import httpx
+
 from app.connectors.base import (
     BaseConnector,
     CadenceConfig,

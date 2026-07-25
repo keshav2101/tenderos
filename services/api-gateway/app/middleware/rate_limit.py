@@ -7,10 +7,11 @@ import time
 
 import redis.asyncio as aioredis
 import structlog
-from app.config import settings
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+
+from app.config import settings
 
 logger = structlog.get_logger()
 

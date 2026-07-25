@@ -11,10 +11,11 @@ from __future__ import annotations
 from typing import Any
 
 import structlog
-from app.config import settings
-from app.llm_client import LLMClient
 from qdrant_client import AsyncQdrantClient
 from qdrant_client.models import FieldCondition, Filter, MatchValue
+
+from app.config import settings
+from app.llm_client import LLMClient
 
 CHUNK_COLLECTION = "tender_chunks"
 
@@ -269,6 +270,7 @@ class CopilotRAGPipeline:
         and answer using a structured Gemini prompt with the full tender JSON.
         """
         import asyncpg
+
         from app.config import settings as s
 
         tender_data = {}
@@ -281,6 +283,7 @@ class CopilotRAGPipeline:
                 password=s.POSTGRES_PASSWORD,
             )
             from uuid import UUID
+
             row = await conn.fetchrow(
                 """
                 SELECT title, ministry, department, organisation, state, source,
@@ -298,7 +301,11 @@ class CopilotRAGPipeline:
             if row:
                 tender_data = dict(row)
         except Exception as e:
-            logger.warning("Could not fetch live tender data for copilot", tender_id=tender_id, error=str(e))
+            logger.warning(
+                "Could not fetch live tender data for copilot",
+                tender_id=tender_id,
+                error=str(e),
+            )
 
         if not tender_data:
             return {
@@ -312,6 +319,7 @@ class CopilotRAGPipeline:
 
         # Format the prompt with live tender data
         import json
+
         cost_crores = round((tender_data.get("estimated_cost_lakhs") or 0) / 100, 2)
         deadline = tender_data.get("submission_deadline")
         if hasattr(deadline, "strftime"):
@@ -341,10 +349,19 @@ class CopilotRAGPipeline:
             opening_date=opening or "—",
             turnover_min_lakhs=tender_data.get("turnover_min_lakhs") or "Not specified",
             experience_years=tender_data.get("experience_years") or "Not specified",
-            certifications_required=", ".join(tender_data.get("certifications_required") or []) or "None specified",
-            msme_eligible="✅ Yes (Udyam EMD Waiver + 15% Purchase Preference)" if tender_data.get("msme_eligible") else "❌ No",
-            startup_eligible="✅ Yes (DPIIT Startup India — Prior Turnover/Experience Exempt)" if tender_data.get("startup_eligible") else "❌ No",
-            gem_registered_required="✅ Required" if tender_data.get("gem_registered_required") else "Not required",
+            certifications_required=", ".join(
+                tender_data.get("certifications_required") or []
+            )
+            or "None specified",
+            msme_eligible="✅ Yes (Udyam EMD Waiver + 15% Purchase Preference)"
+            if tender_data.get("msme_eligible")
+            else "❌ No",
+            startup_eligible="✅ Yes (DPIIT Startup India — Prior Turnover/Experience Exempt)"
+            if tender_data.get("startup_eligible")
+            else "❌ No",
+            gem_registered_required="✅ Required"
+            if tender_data.get("gem_registered_required")
+            else "Not required",
             categories=", ".join(tender_data.get("categories") or ["General"]),
             procurement_method=tender_data.get("procurement_method") or "e-tendering",
             ai_summary=tender_data.get("ai_summary") or "—",
@@ -360,7 +377,14 @@ class CopilotRAGPipeline:
 
         return {
             "answer": answer_text,
-            "sources": [{"document_name": "Live DB Record", "page": "N/A", "section": "Tender Master Data", "relevance_score": 1.0}],
+            "sources": [
+                {
+                    "document_name": "Live DB Record",
+                    "page": "N/A",
+                    "section": "Tender Master Data",
+                    "relevance_score": 1.0,
+                }
+            ],
             "chunks_used": 1,
             "confidence": 0.85,
             "evidence_details": [],
@@ -387,9 +411,11 @@ class CopilotRAGPipeline:
 
         if not chunks:
             # Fallback: answer from live structured tender data
-            logger.info("No RAG chunks found, falling back to live tender data", tender_id=tender_id)
+            logger.info(
+                "No RAG chunks found, falling back to live tender data",
+                tender_id=tender_id,
+            )
             return await self._answer_from_live_tender(tender_id, question)
-
 
         context = self._build_context(chunks)
 

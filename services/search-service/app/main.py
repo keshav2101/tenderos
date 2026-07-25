@@ -5,10 +5,11 @@ from __future__ import annotations
 from typing import Any
 
 import structlog
-from app.hybrid_search import HybridSearchEngine
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+
+from app.hybrid_search import HybridSearchEngine
 
 logger = structlog.get_logger()
 

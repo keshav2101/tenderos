@@ -27,6 +27,8 @@ from collections.abc import AsyncIterator
 from datetime import datetime
 
 import httpx
+from bs4 import BeautifulSoup
+
 from app.connectors.base import (
     BaseConnector,
     CadenceConfig,
@@ -35,7 +37,6 @@ from app.connectors.base import (
     RawTender,
     RetryPolicy,
 )
-from bs4 import BeautifulSoup
 
 IREPS_USERNAME = os.environ.get("IREPS_USERNAME", "")
 IREPS_PASSWORD = os.environ.get("IREPS_PASSWORD", "")

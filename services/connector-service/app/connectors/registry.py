@@ -12,6 +12,7 @@ import os
 import pkgutil
 
 import structlog
+
 from app.connectors.base import BaseConnector
 
 logger = structlog.get_logger()

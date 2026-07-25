@@ -8,6 +8,7 @@ from __future__ import annotations
 import os
 
 import structlog
+
 from app.connectors.normalization import NormalizedTender
 
 logger = structlog.get_logger()

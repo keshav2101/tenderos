@@ -2,6 +2,7 @@
 import asyncio
 import os
 from datetime import datetime, timedelta
+
 import asyncpg
 
 PG_DSN = os.environ.get(
@@ -9,10 +10,11 @@ PG_DSN = os.environ.get(
     "postgresql://postgres:hMftELunyqDbdAjJlHsKStplLhgrPOgG@tramway.proxy.rlwy.net:40786/railway",
 )
 
+
 async def main():
-    print(f"Connecting to database to insert copilot demo tender...")
+    print("Connecting to database to insert copilot demo tender...")
     conn = await asyncpg.connect(PG_DSN)
-    
+
     tender_id = "e864a9ca-dd09-476b-95f1-04ecfdb3e868"
     title = "Design, Development, and Maintenance of Smart City GIS Platform and Citizen Portal"
     source = "gem"
@@ -24,35 +26,35 @@ async def main():
     state = "Delhi"
     categories = ["AI", "IT", "GIS", "Smart City"]
     cost = 750.0  # ₹7.5 Crore
-    emd = 0.0     # MSME exempt
+    emd = 0.0  # MSME exempt
     fee = 0.0
     pg_pct = 3.0  # 3% PBG
     procurement_method = "gem"
     status = "active"
-    
+
     now = datetime.utcnow()
     published = now - timedelta(days=2)
     deadline = now + timedelta(days=28)
     opening = deadline + timedelta(days=1)
-    
+
     turnover = 1500.0  # Required turnover
     exp_years = 5
     certs = ["ISO 9001:2015", "ISO 27001:2022", "CMMI Level 3"]
     msme = True
     startup = True
-    
+
     ai_summary = (
         "Design, Development, and Maintenance of Smart City GIS Platform and Citizen Portal. "
         "Includes real-time data visualization, citizen dashboard, and GIS-mapped land records. "
         "MSME and Startup bidders are exempt from EMD and prior experience criteria. "
         "Submissions are due via GeM portal by 22 Aug 2026."
     )
-    
+
     print("Upserting copilot demo tender...")
     try:
         # Delete existing if any
         await conn.execute("DELETE FROM tenders WHERE id = $1", tender_id)
-        
+
         await conn.execute(
             """
             INSERT INTO tenders (
@@ -70,19 +72,40 @@ async def main():
                 $21, $22, $23, $24, $25, $26, $27, 1, 0.98
             )
             """,
-            tender_id, title, source, source_tender_id, source_url,
-            ministry, department, organisation, state, categories,
-            cost, emd, fee, pg_pct,
-            procurement_method, status, published, deadline,
-            opening, 180, 365,
-            turnover, exp_years, certs,
-            msme, startup, ai_summary
+            tender_id,
+            title,
+            source,
+            source_tender_id,
+            source_url,
+            ministry,
+            department,
+            organisation,
+            state,
+            categories,
+            cost,
+            emd,
+            fee,
+            pg_pct,
+            procurement_method,
+            status,
+            published,
+            deadline,
+            opening,
+            180,
+            365,
+            turnover,
+            exp_years,
+            certs,
+            msme,
+            startup,
+            ai_summary,
         )
         print(f"Successfully upserted copilot demo tender {tender_id}.")
     except Exception as e:
         print(f"Error: {e}")
     finally:
         await conn.close()
+
 
 if __name__ == "__main__":
     asyncio.run(main())

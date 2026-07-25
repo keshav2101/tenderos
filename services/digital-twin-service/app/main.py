@@ -7,9 +7,10 @@ from uuid import UUID, uuid4
 
 import asyncpg
 import structlog
-from app.config import settings
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+
+from app.config import settings
 
 logger = structlog.get_logger()
 app = FastAPI(title="TenderOS Digital Twin Service")
@@ -44,7 +45,8 @@ async def startup_event():
     try:
         pool = await get_pool()
         async with pool.acquire() as conn:
-            await conn.execute("""
+            await conn.execute(
+                """
                 ALTER TABLE companies ADD COLUMN IF NOT EXISTS udyam_no VARCHAR(255);
                 ALTER TABLE companies ADD COLUMN IF NOT EXISTS dpiit_no VARCHAR(255);
                 ALTER TABLE companies ADD COLUMN IF NOT EXISTS gem_seller_id VARCHAR(255);
@@ -52,7 +54,8 @@ async def startup_event():
                 ALTER TABLE companies ADD COLUMN IF NOT EXISTS avg_turnover_3yr_lakhs DECIMAL(15,2) DEFAULT 0;
                 ALTER TABLE companies ADD COLUMN IF NOT EXISTS total_experience_years INT DEFAULT 0;
                 ALTER TABLE companies ADD COLUMN IF NOT EXISTS certifications TEXT[] DEFAULT '{}';
-            """)
+            """
+            )
             logger.info("Ensured company profile schema columns exist")
     except Exception as e:
         logger.warning("Failed ensuring company profile columns", error=str(e))
@@ -102,13 +105,22 @@ async def upsert_profile(body: dict):
         if entity_type in ("SME", "sme", "sme_plan", ""):
             entity_type = "MSME_Medium"
 
-        legal_name = body.get("legal_name") or body.get("company_name") or body.get("name") or "New Company"
+        legal_name = (
+            body.get("legal_name")
+            or body.get("company_name")
+            or body.get("name")
+            or "New Company"
+        )
         udyam_no = body.get("udyam_no") or body.get("udyam_registration_no") or ""
         dpiit_no = body.get("dpiit_no") or ""
         gem_seller_id = body.get("gem_seller_id") or ""
         dsc_available = bool(body.get("dsc_available", False))
-        avg_turnover = float(body.get("avg_turnover_3yr_lakhs") or body.get("annual_turnover_lakhs") or 0)
-        total_exp = int(body.get("total_experience_years") or body.get("experience_years") or 0)
+        avg_turnover = float(
+            body.get("avg_turnover_3yr_lakhs") or body.get("annual_turnover_lakhs") or 0
+        )
+        total_exp = int(
+            body.get("total_experience_years") or body.get("experience_years") or 0
+        )
         certifications = body.get("certifications") or []
 
         if not company_id:

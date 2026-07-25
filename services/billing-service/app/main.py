@@ -9,10 +9,11 @@ from uuid import UUID
 import asyncpg
 import stripe
 import structlog
-from app.config import settings
 from fastapi import FastAPI, Header, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+
+from app.config import settings
 
 logger = structlog.get_logger()
 app = FastAPI(title="TenderOS Billing Service", version=settings.VERSION)

@@ -4,7 +4,7 @@
     "url": "https://tenderos-neon.vercel.app/",
     "status": "PASS",
     "http_code": 200,
-    "latency_ms": 125.9,
+    "latency_ms": 610.6,
     "payload_kb": 29.59
   },
   {
@@ -12,7 +12,7 @@
     "url": "https://tenderos-neon.vercel.app/login",
     "status": "PASS",
     "http_code": 200,
-    "latency_ms": 111.6,
+    "latency_ms": 585.8,
     "payload_kb": 9.85
   },
   {
@@ -20,7 +20,7 @@
     "url": "https://tenderos-neon.vercel.app/register",
     "status": "PASS",
     "http_code": 200,
-    "latency_ms": 133.7,
+    "latency_ms": 697.9,
     "payload_kb": 9.85
   },
   {
@@ -28,7 +28,7 @@
     "url": "https://tenderos-neon.vercel.app/dashboard",
     "status": "PASS",
     "http_code": 200,
-    "latency_ms": 123.9,
+    "latency_ms": 105.8,
     "payload_kb": 10.85
   },
   {
@@ -36,7 +36,7 @@
     "url": "https://tenderos-neon.vercel.app/dashboard/search",
     "status": "PASS",
     "http_code": 200,
-    "latency_ms": 114.9,
+    "latency_ms": 576.9,
     "payload_kb": 11.31
   },
   {
@@ -44,7 +44,7 @@
     "url": "https://tenderos-neon.vercel.app/dashboard/intelligence",
     "status": "PASS",
     "http_code": 200,
-    "latency_ms": 108.4,
+    "latency_ms": 595.3,
     "payload_kb": 11.33
   },
   {
@@ -52,7 +52,7 @@
     "url": "https://tenderos-neon.vercel.app/dashboard/connectors",
     "status": "PASS",
     "http_code": 200,
-    "latency_ms": 105.7,
+    "latency_ms": 567.3,
     "payload_kb": 11.32
   },
   {
@@ -60,7 +60,7 @@
     "url": "https://tenderos-neon.vercel.app/dashboard/analytics",
     "status": "PASS",
     "http_code": 200,
-    "latency_ms": 113.2,
+    "latency_ms": 588.4,
     "payload_kb": 11.32
   },
   {
@@ -68,7 +68,7 @@
     "url": "https://tenderos-neon.vercel.app/dashboard/admin",
     "status": "PASS",
     "http_code": 200,
-    "latency_ms": 108.8,
+    "latency_ms": 813.0,
     "payload_kb": 11.31
   },
   {
@@ -76,7 +76,7 @@
     "url": "https://tenderos-neon.vercel.app/dashboard/watchlist",
     "status": "PASS",
     "http_code": 200,
-    "latency_ms": 111.3,
+    "latency_ms": 609.1,
     "payload_kb": 11.32
   },
   {
@@ -84,7 +84,7 @@
     "url": "https://tenderos-neon.vercel.app/dashboard/compare",
     "status": "PASS",
     "http_code": 200,
-    "latency_ms": 121.7,
+    "latency_ms": 578.1,
     "payload_kb": 11.32
   },
   {
@@ -92,7 +92,7 @@
     "url": "https://tenderos-neon.vercel.app/dashboard/profile",
     "status": "PASS",
     "http_code": 200,
-    "latency_ms": 108.4,
+    "latency_ms": 554.0,
     "payload_kb": 11.32
   },
   {
@@ -100,7 +100,7 @@
     "url": "https://tenderos-neon.vercel.app/dashboard/settings",
     "status": "PASS",
     "http_code": 200,
-    "latency_ms": 104.9,
+    "latency_ms": 635.0,
     "payload_kb": 11.32
   },
   {
@@ -108,7 +108,7 @@
     "url": "https://tenderos-neon.vercel.app/dashboard/notifications",
     "status": "PASS",
     "http_code": 200,
-    "latency_ms": 110.9,
+    "latency_ms": 626.6,
     "payload_kb": 11.33
   },
   {
@@ -116,7 +116,7 @@
     "url": "https://backend-production-4aa8.up.railway.app/health",
     "status": "PASS",
     "http_code": 200,
-    "latency_ms": 381.8,
+    "latency_ms": 382.7,
     "payload_kb": 0.06
   },
   {
@@ -124,7 +124,7 @@
     "url": "https://backend-production-4aa8.up.railway.app/docs",
     "status": "PASS",
     "http_code": 200,
-    "latency_ms": 394.3,
+    "latency_ms": 381.4,
     "payload_kb": 0.99
   },
   {
@@ -132,21 +132,21 @@
     "url": "https://backend-production-4aa8.up.railway.app/api/v1/tenders?limit=5",
     "status": "PASS",
     "http_code": 200,
-    "latency_ms": 402.3,
-    "payload_kb": 0.06
+    "latency_ms": 400.5,
+    "payload_kb": 13.01
   },
   {
     "feature": "Live Ministries API",
     "url": "https://backend-production-4aa8.up.railway.app/api/v1/analytics/ministries",
     "status": "FAIL",
     "http_code": 401,
-    "latency_ms": 383.1
+    "latency_ms": 371.2
   },
   {
     "feature": "Protected Connector API (Auth Guarded)",
     "url": "https://backend-production-4aa8.up.railway.app/api/v1/connectors/status",
     "status": "PASS",
     "http_code": 401,
-    "latency_ms": 425.9
+    "latency_ms": 384.8
   }
 ]

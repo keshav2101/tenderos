@@ -16,6 +16,8 @@ from collections.abc import AsyncIterator
 from datetime import datetime, timedelta
 
 import httpx
+from bs4 import BeautifulSoup
+
 from app.connectors.base import (
     BaseConnector,
     CadenceConfig,
@@ -24,7 +26,6 @@ from app.connectors.base import (
     RawTender,
     RetryPolicy,
 )
-from bs4 import BeautifulSoup
 
 
 class CPPPConnector(BaseConnector):

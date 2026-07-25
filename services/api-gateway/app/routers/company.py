@@ -1,9 +1,10 @@
 """Company Digital Twin routes."""
 
 import httpx
+from fastapi import APIRouter, Request
+
 from app.config import settings
 from app.proxy import ServiceProxy
-from fastapi import APIRouter, Request
 
 router = APIRouter()
 _proxy = ServiceProxy(settings.DIGITAL_TWIN_SERVICE_URL)
@@ -35,7 +36,9 @@ async def get_profile_score(request: Request):
     return await _proxy.get(f"/profile/{user['user_id']}/score")
 
 
-@router.get("/profile/{user_id}/score", summary="Get profile completeness score by user ID")
+@router.get(
+    "/profile/{user_id}/score", summary="Get profile completeness score by user ID"
+)
 async def get_profile_score_by_user(request: Request, user_id: str):
     return await _proxy.get(f"/profile/{user_id}/score")
 

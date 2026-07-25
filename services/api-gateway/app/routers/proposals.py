@@ -1,8 +1,9 @@
 """Proposals, Notifications, Auth, and Admin routers."""
 
+from fastapi import APIRouter, Path, Request
+
 from app.config import settings
 from app.proxy import ServiceProxy
-from fastapi import APIRouter, Path, Request
 
 # ─── Proposals ───────────────────────────────────────────────────────────────
 router = APIRouter()

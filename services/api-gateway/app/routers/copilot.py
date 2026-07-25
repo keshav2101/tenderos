@@ -1,8 +1,9 @@
 """Copilot Orchestration routes."""
 
+from fastapi import APIRouter, Request
+
 from app.config import settings
 from app.proxy import ServiceProxy
-from fastapi import APIRouter, Request
 
 router = APIRouter()
 _proxy = ServiceProxy(settings.COPILOT_SERVICE_URL, timeout=60.0)

@@ -1,8 +1,9 @@
 """Billing routes — proxy to billing-service."""
 
+from fastapi import APIRouter, Request
+
 from app.config import settings
 from app.proxy import ServiceProxy
-from fastapi import APIRouter, Request
 
 router = APIRouter()
 _proxy = ServiceProxy(settings.BILLING_SERVICE_URL)

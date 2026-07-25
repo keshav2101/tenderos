@@ -1,8 +1,9 @@
 """Notifications router."""
 
+from fastapi import APIRouter, Request
+
 from app.config import settings
 from app.proxy import ServiceProxy
-from fastapi import APIRouter, Request
 
 router = APIRouter()
 _proxy = ServiceProxy(settings.NOTIFICATION_SERVICE_URL)

@@ -7,11 +7,12 @@ from uuid import UUID, uuid4
 
 import asyncpg
 import structlog
-from app.auth_service import AuthService
-from app.config import settings
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
+
+from app.auth_service import AuthService
+from app.config import settings
 
 logger = structlog.get_logger()
 app = FastAPI(title="TenderOS Auth Service", version=settings.VERSION)

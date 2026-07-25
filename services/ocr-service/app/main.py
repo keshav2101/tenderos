@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import structlog
-from app.pdf_processor import PDFProcessor
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+
+from app.pdf_processor import PDFProcessor
 
 logger = structlog.get_logger()
 app = FastAPI(title="TenderOS OCR Service")

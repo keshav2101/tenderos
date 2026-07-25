@@ -1,8 +1,9 @@
 """Knowledge Graph routes — proxy to knowledge-graph-service."""
 
+from fastapi import APIRouter, Query, Request
+
 from app.config import settings
 from app.proxy import ServiceProxy
-from fastapi import APIRouter, Query, Request
 
 router = APIRouter()
 # We target the knowledge-graph-service URL (we assume KNOWLEDGE_GRAPH_SERVICE_URL config var exists or can map to port 8009)

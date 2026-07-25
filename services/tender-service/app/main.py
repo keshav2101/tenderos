@@ -7,9 +7,10 @@ from uuid import UUID
 
 import asyncpg
 import structlog
-from app.config import settings
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+
+from app.config import settings
 
 logger = structlog.get_logger()
 app = FastAPI(title="TenderOS Tender Service", version=settings.VERSION)
@@ -44,12 +45,15 @@ async def startup_event():
     pool = await get_pool()
     try:
         async with pool.acquire() as conn:
-            await conn.execute("DELETE FROM tenders WHERE source IN ('mock', 'demo') OR source ILIKE 'mock%'")
+            await conn.execute(
+                "DELETE FROM tenders WHERE source IN ('mock', 'demo') OR source ILIKE 'mock%'"
+            )
             logger.info("Purged mock tenders from database")
     except Exception as e:
         logger.warning("Could not purge mock tenders on startup", error=str(e))
-        
+
     import asyncio
+
     from app.worker import start_queue_worker
 
     asyncio.create_task(start_queue_worker())
@@ -233,19 +237,23 @@ async def get_market_trends():
     """Aggregated market intelligence, state distribution, and spending breakdowns."""
     pool = await get_pool()
     async with pool.acquire() as conn:
-        state_rows = await conn.fetch("""
+        state_rows = await conn.fetch(
+            """
             SELECT COALESCE(state, 'Pan-India') as state_name, COUNT(*) as tender_count
             FROM tenders
             GROUP BY COALESCE(state, 'Pan-India')
             ORDER BY tender_count DESC
             LIMIT 15
-            """)
-        source_rows = await conn.fetch("""
+            """
+        )
+        source_rows = await conn.fetch(
+            """
             SELECT source, COUNT(*) as tender_count
             FROM tenders
             GROUP BY source
             ORDER BY tender_count DESC
-            """)
+            """
+        )
         msme_count = await conn.fetchval(
             "SELECT COUNT(*) FROM tenders WHERE msme_eligible = true"
         )

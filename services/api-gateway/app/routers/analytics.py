@@ -1,8 +1,9 @@
 """Analytics, Predictions, and Competitor Intelligence routes."""
 
+from fastapi import APIRouter, Query
+
 from app.config import settings
 from app.proxy import ServiceProxy
-from fastapi import APIRouter, Query
 
 router = APIRouter()
 _market = ServiceProxy(settings.MARKET_INTEL_SERVICE_URL)

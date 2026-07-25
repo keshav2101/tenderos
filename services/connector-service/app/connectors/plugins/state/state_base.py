@@ -30,6 +30,8 @@ from datetime import datetime
 from typing import Any
 
 import httpx
+from bs4 import BeautifulSoup
+
 from app.connectors.base import (
     BaseConnector,
     CadenceConfig,
@@ -38,7 +40,6 @@ from app.connectors.base import (
     RawTender,
     RetryPolicy,
 )
-from bs4 import BeautifulSoup
 
 # Optional shared NIC credentials (for session-based access)
 STATE_NIC_USERNAME = os.environ.get("STATE_NIC_USERNAME", "")

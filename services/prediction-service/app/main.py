@@ -6,9 +6,10 @@ from datetime import datetime
 
 import asyncpg
 import structlog
-from app.config import settings
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+
+from app.config import settings
 
 logger = structlog.get_logger()
 app = FastAPI(title="TenderOS Prediction Service")

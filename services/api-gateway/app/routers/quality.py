@@ -1,8 +1,9 @@
 """Data Quality router proxying downstream requests to data-quality-service."""
 
+from fastapi import APIRouter, Request
+
 from app.config import settings
 from app.proxy import ServiceProxy
-from fastapi import APIRouter, Request
 
 router = APIRouter()
 # We proxy to data-quality-service on port 8022

@@ -1,9 +1,10 @@
 """Chat (Tender Copilot) routes."""
 
-from app.config import settings
-from app.proxy import ServiceProxy
 from fastapi import APIRouter, Path, Request
 from pydantic import BaseModel
+
+from app.config import settings
+from app.proxy import ServiceProxy
 
 router = APIRouter()
 _proxy = ServiceProxy(settings.COPILOT_SERVICE_URL, timeout=60.0)
