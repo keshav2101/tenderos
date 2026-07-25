@@ -1,0 +1,152 @@
+[
+  {
+    "feature": "Landing Page",
+    "url": "https://tenderos-neon.vercel.app/",
+    "status": "PASS",
+    "http_code": 200,
+    "latency_ms": 125.9,
+    "payload_kb": 29.59
+  },
+  {
+    "feature": "Login Interface",
+    "url": "https://tenderos-neon.vercel.app/login",
+    "status": "PASS",
+    "http_code": 200,
+    "latency_ms": 111.6,
+    "payload_kb": 9.85
+  },
+  {
+    "feature": "Registration Interface",
+    "url": "https://tenderos-neon.vercel.app/register",
+    "status": "PASS",
+    "http_code": 200,
+    "latency_ms": 133.7,
+    "payload_kb": 9.85
+  },
+  {
+    "feature": "Main Dashboard Overview",
+    "url": "https://tenderos-neon.vercel.app/dashboard",
+    "status": "PASS",
+    "http_code": 200,
+    "latency_ms": 123.9,
+    "payload_kb": 10.85
+  },
+  {
+    "feature": "Tender Search & Filtering",
+    "url": "https://tenderos-neon.vercel.app/dashboard/search",
+    "status": "PASS",
+    "http_code": 200,
+    "latency_ms": 114.9,
+    "payload_kb": 11.31
+  },
+  {
+    "feature": "AI Intelligence Engine",
+    "url": "https://tenderos-neon.vercel.app/dashboard/intelligence",
+    "status": "PASS",
+    "http_code": 200,
+    "latency_ms": 108.4,
+    "payload_kb": 11.33
+  },
+  {
+    "feature": "Procurement Connectors",
+    "url": "https://tenderos-neon.vercel.app/dashboard/connectors",
+    "status": "PASS",
+    "http_code": 200,
+    "latency_ms": 105.7,
+    "payload_kb": 11.32
+  },
+  {
+    "feature": "Analytics & CPWD Scoring",
+    "url": "https://tenderos-neon.vercel.app/dashboard/analytics",
+    "status": "PASS",
+    "http_code": 200,
+    "latency_ms": 113.2,
+    "payload_kb": 11.32
+  },
+  {
+    "feature": "Admin & Digital Twin Check",
+    "url": "https://tenderos-neon.vercel.app/dashboard/admin",
+    "status": "PASS",
+    "http_code": 200,
+    "latency_ms": 108.8,
+    "payload_kb": 11.31
+  },
+  {
+    "feature": "Watchlist & Alerts",
+    "url": "https://tenderos-neon.vercel.app/dashboard/watchlist",
+    "status": "PASS",
+    "http_code": 200,
+    "latency_ms": 111.3,
+    "payload_kb": 11.32
+  },
+  {
+    "feature": "Tender Comparison Tool",
+    "url": "https://tenderos-neon.vercel.app/dashboard/compare",
+    "status": "PASS",
+    "http_code": 200,
+    "latency_ms": 121.7,
+    "payload_kb": 11.32
+  },
+  {
+    "feature": "User Profile Management",
+    "url": "https://tenderos-neon.vercel.app/dashboard/profile",
+    "status": "PASS",
+    "http_code": 200,
+    "latency_ms": 108.4,
+    "payload_kb": 11.32
+  },
+  {
+    "feature": "System Settings",
+    "url": "https://tenderos-neon.vercel.app/dashboard/settings",
+    "status": "PASS",
+    "http_code": 200,
+    "latency_ms": 104.9,
+    "payload_kb": 11.32
+  },
+  {
+    "feature": "Notifications Center",
+    "url": "https://tenderos-neon.vercel.app/dashboard/notifications",
+    "status": "PASS",
+    "http_code": 200,
+    "latency_ms": 110.9,
+    "payload_kb": 11.33
+  },
+  {
+    "feature": "Backend System Health Check",
+    "url": "https://backend-production-4aa8.up.railway.app/health",
+    "status": "PASS",
+    "http_code": 200,
+    "latency_ms": 381.8,
+    "payload_kb": 0.06
+  },
+  {
+    "feature": "Backend Open API Specs",
+    "url": "https://backend-production-4aa8.up.railway.app/docs",
+    "status": "PASS",
+    "http_code": 200,
+    "latency_ms": 394.3,
+    "payload_kb": 0.99
+  },
+  {
+    "feature": "Live Tender Search API",
+    "url": "https://backend-production-4aa8.up.railway.app/api/v1/tenders?limit=5",
+    "status": "PASS",
+    "http_code": 200,
+    "latency_ms": 402.3,
+    "payload_kb": 0.06
+  },
+  {
+    "feature": "Live Ministries API",
+    "url": "https://backend-production-4aa8.up.railway.app/api/v1/analytics/ministries",
+    "status": "FAIL",
+    "http_code": 401,
+    "latency_ms": 383.1
+  },
+  {
+    "feature": "Protected Connector API (Auth Guarded)",
+    "url": "https://backend-production-4aa8.up.railway.app/api/v1/connectors/status",
+    "status": "PASS",
+    "http_code": 401,
+    "latency_ms": 425.9
+  }
+]

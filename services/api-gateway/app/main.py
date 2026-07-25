@@ -25,6 +25,7 @@ from app.routers import (
     billing,
     chat,
     company,
+    copilot,
     eligibility,
     governance,
     graph,
@@ -172,6 +173,9 @@ app.include_router(
     eligibility.router, prefix=f"{API_V1}/eligibility", tags=["Eligibility"]
 )
 app.include_router(chat.router, prefix=f"{API_V1}/chat", tags=["Tender Copilot"])
+app.include_router(
+    copilot.router, prefix=f"{API_V1}/copilot", tags=["Copilot Orchestrator"]
+)
 app.include_router(company.router, prefix=f"{API_V1}/company", tags=["Company Profile"])
 app.include_router(proposals.router, prefix=f"{API_V1}/proposals", tags=["Proposals"])
 app.include_router(

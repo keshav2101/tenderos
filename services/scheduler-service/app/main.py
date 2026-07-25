@@ -21,7 +21,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-CONNECTOR_REGISTRY_URL = "http://connector-service:8003/connectors"
+CONNECTOR_REGISTRY_URL = os.getenv("CONNECTOR_SERVICE_URL", "http://connector-service:8003").rstrip("/") + "/connectors"
 scheduler_running = False
 _pool = None
 

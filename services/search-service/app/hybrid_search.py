@@ -609,6 +609,7 @@ class HybridSearchEngine:
 
                 for r in rows:
                     hit = {
+                        "id": str(r["id"]),
                         "tender_id": str(r["id"]),
                         "title": r["title"],
                         "ministry": r["ministry"],
@@ -658,6 +659,7 @@ class HybridSearchEngine:
         src = hit.get("_source", {})
         highlights = {k: v for k, v in hit.get("highlight", {}).items()}
         return {
+            "id": hit["_id"],
             "tender_id": hit["_id"],
             "title": src.get("title", ""),
             "ministry": src.get("ministry"),
@@ -678,6 +680,7 @@ class HybridSearchEngine:
 
     def _format_qdrant_hit(self, hit: dict) -> dict:
         return {
+            "id": hit.get("id") or hit.get("tender_id", ""),
             "tender_id": hit.get("id") or hit.get("tender_id", ""),
             "title": hit.get("title", ""),
             "ministry": hit.get("ministry"),

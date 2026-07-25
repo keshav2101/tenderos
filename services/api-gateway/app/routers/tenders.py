@@ -26,6 +26,16 @@ router = APIRouter()
 _proxy = ServiceProxy(settings.TENDER_SERVICE_URL)
 
 
+@router.get("/intelligence/buyers", summary="Get buyer profiles")
+async def get_buyer_profiles(request: Request, limit: int = Query(20, ge=1, le=100)):
+    return await _proxy.get("/tenders/intelligence/buyers", params={"limit": limit}, request=request)
+
+
+@router.get("/intelligence/market-trends", summary="Get market trends")
+async def get_market_trends(request: Request):
+    return await _proxy.get("/tenders/intelligence/market-trends", request=request)
+
+
 @router.get("", summary="List tenders with filters and pagination")
 async def list_tenders(
     request: Request,

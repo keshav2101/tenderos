@@ -35,6 +35,8 @@ export NOTIFICATION_SERVICE_URL="http://127.0.0.1:8018"
 export ADMIN_SERVICE_URL="http://127.0.0.1:8019"
 export MARKET_INTEL_SERVICE_URL="http://127.0.0.1:8014"
 export PREDICTION_SERVICE_URL="http://127.0.0.1:8015"
+export COMPETITOR_SERVICE_URL="http://127.0.0.1:8016"
+export BID_QUAL_SERVICE_URL="http://127.0.0.1:8002"
 
 # Core services list to start
 CORE_SERVICES=(
@@ -50,17 +52,19 @@ CORE_SERVICES=(
     "admin-service:8019"
     "market-intelligence-service:8014"
     "prediction-service:8015"
+    "competitor-service:8016"
 )
 
 # Start core services in the background with staggered 2s delays
 # to prevent OOM spike on memory-constrained Railway instances
+mkdir -p /app/logs
 for svc_info in "${CORE_SERVICES[@]}"; do
     svc="${svc_info%%:*}"
     port="${svc_info##*:}"
 
     echo "Starting $svc on port $port..."
     cd "/app/services/$svc"
-    uvicorn app.main:app --host 0.0.0.0 --port "$port" --workers 1 2>&1 &
+    uvicorn app.main:app --host 0.0.0.0 --port "$port" --workers 1 > "/app/logs/${svc}.log" 2>&1 &
     sleep 2
 done
 

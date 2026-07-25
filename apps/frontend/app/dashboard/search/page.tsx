@@ -30,8 +30,23 @@ interface Tender {
   recommendation?: string;
 }
 
-const STATES_LIST = ["Delhi", "Maharashtra", "Karnataka", "Uttar Pradesh", "Tamil Nadu", "Gujarat", "Haryana"];
-const MINISTRIES_LIST = ["Ministry of Defence", "Ministry of Finance", "Ministry of Electronics and IT", "Ministry of Railways", "Ministry of Health"];
+const STATES_LIST = [
+  "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", 
+  "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", 
+  "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", 
+  "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal", 
+  "Delhi", "Jammu and Kashmir", "Ladakh", "Puducherry", "Andaman and Nicobar Islands", 
+  "Chandigarh", "Dadra and Nagar Haveli and Daman and Diu", "Lakshadweep"
+];
+
+const MINISTRIES_LIST = [
+  "Ministry of Defence", "Ministry of Railways", "Ministry of Road Transport and Highways", 
+  "Ministry of Power", "Ministry of Electronics and IT", "Ministry of Health and Family Welfare", 
+  "Ministry of Finance", "Ministry of Education", "Ministry of Housing and Urban Affairs", 
+  "Ministry of Jal Shakti", "Ministry of Petroleum and Natural Gas", "Ministry of Home Affairs", 
+  "Ministry of Agriculture and Farmers Welfare", "Ministry of Civil Aviation", "Ministry of Communications",
+  "Ministry of New and Renewable Energy", "Ministry of Ports, Shipping and Waterways"
+];
 
 function SearchContent() {
   const { user } = useAuth();
