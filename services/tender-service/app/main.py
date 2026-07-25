@@ -150,6 +150,7 @@ async def list_tenders(
             SELECT t.id, t.title, t.ministry, t.department, t.organisation,
                    t.state, t.categories, t.estimated_cost_lakhs, t.emd_lakhs,
                    t.submission_deadline, t.status, t.source, t.msme_eligible,
+                   t.startup_eligible, t.source_url, t.source_tender_id,
                    t.ai_summary, t.published_at, t.procurement_method
             FROM tenders t
             WHERE {where_clause}
@@ -414,6 +415,7 @@ async def list_watchlist(user_id: str):
             SELECT t.id, t.title, t.ministry, t.department, t.organisation,
                    t.state, t.categories, t.estimated_cost_lakhs, t.emd_lakhs,
                    t.submission_deadline, t.status, t.source, t.msme_eligible,
+                   t.startup_eligible, t.source_url, t.source_tender_id,
                    t.ai_summary, t.published_at, t.procurement_method
             FROM watchlists w
             JOIN tenders t ON w.tender_id = t.id

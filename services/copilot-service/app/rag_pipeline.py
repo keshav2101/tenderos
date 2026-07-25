@@ -33,6 +33,54 @@ You must:
 
 Format: Provide a clear, structured answer. Use bullet points for lists. Always cite sources."""
 
+LIVE_TENDER_SYSTEM_PROMPT = """You are TenderOS Copilot, an expert Indian government procurement AI assistant.
+
+You have been given structured data for a live tender from the TenderOS database (sourced from GeM, CPPP, IREPS, Defence, and state portals).
+Answer the user's question using ONLY this data. 
+Rules:
+- Be precise, use Indian procurement terminology (EMD, NIT, PBG, LOA, MSME, Udyam, Make in India, L1, etc.)
+- Always mention values in ₹ (Lakhs/Crores), dates in DD-MMM-YYYY format
+- For MSME: mention Udyam EMD exemption + 15% purchase preference if eligible
+- For Startups: mention DPIIT Startup India prior experience/turnover exemption if eligible
+- If the user asks about eligibility, provide a clear checklist: Turnover, Experience, Certifications, EMD, GeM Registration, PBG
+- Be structured: use bullet points and bold headers
+- End with: "🔗 Source: {source_portal} Portal | Tender Reference: {source_tender_id}"
+"""
+
+LIVE_TENDER_USER_PROMPT = """Live Tender Data:
+---
+Title: {title}
+Ministry: {ministry}
+Department: {department}
+Organisation: {organisation}
+State: {state}
+Source Portal: {source}
+Source Tender ID: {source_tender_id}
+Source URL: {source_url}
+Status: {status}
+Estimated Cost: ₹{estimated_cost_lakhs} Lakhs (₹{cost_crores} Crore)
+EMD: ₹{emd_lakhs} Lakhs
+Tender Fee: ₹{tender_fee}
+Performance Guarantee: {performance_guarantee_pct}%
+Bid Validity: {bid_validity_days} days
+Work Completion: {work_completion_days} days
+Submission Deadline: {submission_deadline}
+Bid Opening Date: {opening_date}
+Minimum Turnover Required: ₹{turnover_min_lakhs} Lakhs
+Prior Experience Required: {experience_years} years
+Certifications Required: {certifications_required}
+MSME Eligible (Udyam EMD Exempt): {msme_eligible}
+Startup Eligible (DPIIT Exemption): {startup_eligible}
+GeM Registration Required: {gem_registered_required}
+Categories: {categories}
+Procurement Method: {procurement_method}
+AI Summary: {ai_summary}
+---
+
+User Question: {question}
+
+Provide a comprehensive answer using the tender data above:"""
+
 COPILOT_USER_PROMPT = """Tender: {tender_title}
 Ministry: {ministry}
 
@@ -211,6 +259,114 @@ class CopilotRAGPipeline:
             parts.append(f"Excerpt {i} {ref}:\n{chunk['text']}")
         return "\n\n---\n\n".join(parts)
 
+    async def _answer_from_live_tender(
+        self,
+        tender_id: str,
+        question: str,
+    ) -> dict:
+        """
+        Fallback: When no RAG chunks exist, fetch live tender data from the DB
+        and answer using a structured Gemini prompt with the full tender JSON.
+        """
+        import asyncpg
+        from app.config import settings as s
+
+        tender_data = {}
+        try:
+            conn = await asyncpg.connect(
+                host=s.POSTGRES_HOST,
+                port=s.POSTGRES_PORT,
+                database=s.POSTGRES_DB,
+                user=s.POSTGRES_USER,
+                password=s.POSTGRES_PASSWORD,
+            )
+            from uuid import UUID
+            row = await conn.fetchrow(
+                """
+                SELECT title, ministry, department, organisation, state, source,
+                       source_tender_id, source_url, status, estimated_cost_lakhs,
+                       emd_lakhs, tender_fee, performance_guarantee_pct, bid_validity_days,
+                       work_completion_days, submission_deadline, opening_date,
+                       turnover_min_lakhs, experience_years, certifications_required,
+                       msme_eligible, startup_eligible, gem_registered_required,
+                       categories, procurement_method, ai_summary
+                FROM tenders WHERE id = $1
+                """,
+                UUID(tender_id),
+            )
+            await conn.close()
+            if row:
+                tender_data = dict(row)
+        except Exception as e:
+            logger.warning("Could not fetch live tender data for copilot", tender_id=tender_id, error=str(e))
+
+        if not tender_data:
+            return {
+                "answer": "I could not retrieve data for this tender. Please check the tender ID is valid and try again.",
+                "sources": [],
+                "chunks_used": 0,
+                "confidence": 0.0,
+                "evidence_details": [],
+                "data_source": "error",
+            }
+
+        # Format the prompt with live tender data
+        import json
+        cost_crores = round((tender_data.get("estimated_cost_lakhs") or 0) / 100, 2)
+        deadline = tender_data.get("submission_deadline")
+        if hasattr(deadline, "strftime"):
+            deadline = deadline.strftime("%d-%b-%Y")
+        opening = tender_data.get("opening_date")
+        if hasattr(opening, "strftime"):
+            opening = opening.strftime("%d-%b-%Y")
+
+        user_content = LIVE_TENDER_USER_PROMPT.format(
+            title=tender_data.get("title", "—"),
+            ministry=tender_data.get("ministry") or "Central Government",
+            department=tender_data.get("department") or "—",
+            organisation=tender_data.get("organisation") or "—",
+            state=tender_data.get("state") or "Pan India",
+            source=(tender_data.get("source") or "cppp").upper(),
+            source_tender_id=tender_data.get("source_tender_id") or "—",
+            source_url=tender_data.get("source_url") or "N/A",
+            status=(tender_data.get("status") or "active").capitalize(),
+            estimated_cost_lakhs=tender_data.get("estimated_cost_lakhs") or 0,
+            cost_crores=cost_crores,
+            emd_lakhs=tender_data.get("emd_lakhs") or "Exempt",
+            tender_fee=f"{tender_data.get('tender_fee') or 0:,.0f}",
+            performance_guarantee_pct=tender_data.get("performance_guarantee_pct") or 5,
+            bid_validity_days=tender_data.get("bid_validity_days") or 90,
+            work_completion_days=tender_data.get("work_completion_days") or 365,
+            submission_deadline=deadline or "—",
+            opening_date=opening or "—",
+            turnover_min_lakhs=tender_data.get("turnover_min_lakhs") or "Not specified",
+            experience_years=tender_data.get("experience_years") or "Not specified",
+            certifications_required=", ".join(tender_data.get("certifications_required") or []) or "None specified",
+            msme_eligible="✅ Yes (Udyam EMD Waiver + 15% Purchase Preference)" if tender_data.get("msme_eligible") else "❌ No",
+            startup_eligible="✅ Yes (DPIIT Startup India — Prior Turnover/Experience Exempt)" if tender_data.get("startup_eligible") else "❌ No",
+            gem_registered_required="✅ Required" if tender_data.get("gem_registered_required") else "Not required",
+            categories=", ".join(tender_data.get("categories") or ["General"]),
+            procurement_method=tender_data.get("procurement_method") or "e-tendering",
+            ai_summary=tender_data.get("ai_summary") or "—",
+            question=question,
+        )
+
+        messages = [
+            {"role": "system", "content": LIVE_TENDER_SYSTEM_PROMPT},
+            {"role": "user", "content": user_content},
+        ]
+
+        answer_text = await self._llm.chat(messages)
+
+        return {
+            "answer": answer_text,
+            "sources": [{"document_name": "Live DB Record", "page": "N/A", "section": "Tender Master Data", "relevance_score": 1.0}],
+            "chunks_used": 1,
+            "confidence": 0.85,
+            "evidence_details": [],
+            "data_source": "live_db",
+        }
+
     async def answer(
         self,
         tender_id: str,
@@ -222,6 +378,7 @@ class CopilotRAGPipeline:
         """
         Answer a user question about a tender using RAG.
         Returns the answer text, source citations, and retrieved chunks.
+        Falls back to live tender DB data if no RAG chunks are indexed.
         """
         # Retrieve relevant chunks
         chunks = await self.retrieve_chunks(
@@ -229,13 +386,10 @@ class CopilotRAGPipeline:
         )
 
         if not chunks:
-            return {
-                "answer": "I could not verify this from available procurement data.",
-                "sources": [],
-                "chunks_used": 0,
-                "confidence": 0.0,
-                "evidence_details": [],
-            }
+            # Fallback: answer from live structured tender data
+            logger.info("No RAG chunks found, falling back to live tender data", tender_id=tender_id)
+            return await self._answer_from_live_tender(tender_id, question)
+
 
         context = self._build_context(chunks)
 

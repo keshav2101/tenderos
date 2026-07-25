@@ -6,7 +6,7 @@ import Link from "next/link";
 import {
   Search, IndianRupee, MapPin, Building2, Clock,
   BookmarkPlus, BookmarkCheck, RefreshCw,
-  TrendingUp, AlertCircle, Loader2, GitCompare, X
+  TrendingUp, AlertCircle, Loader2, GitCompare, X, ExternalLink
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { tendersApi, eligibilityApi } from "@/lib/api";
@@ -28,6 +28,8 @@ interface Tender {
   msme_eligible: boolean;
   startup_eligible: boolean;
   source: string;
+  source_url: string | null;
+  source_tender_id: string | null;
   status: string;
   ai_summary: string | null;
   match_score?: number;
@@ -36,7 +38,23 @@ interface Tender {
   sector?: string;
 }
 
-// ─── Sector options ───────────────────────────────────────────────────────────
+// ─── Portal config ─────────────────────────────────────────────────────────────
+const PORTAL_CONFIG: Record<string, { label: string; color: string; bg: string; url?: string }> = {
+  gem:       { label: "GeM",      color: "#4ade80", bg: "rgba(34,197,94,0.12)" },
+  cppp:      { label: "CPPP",     color: "#60a5fa", bg: "rgba(96,165,250,0.12)" },
+  defence:   { label: "Defence",  color: "#f87171", bg: "rgba(239,68,68,0.12)" },
+  railways:  { label: "IREPS",    color: "#fb923c", bg: "rgba(251,146,60,0.12)" },
+  ireps:     { label: "IREPS",    color: "#fb923c", bg: "rgba(251,146,60,0.12)" },
+  maharashtra: { label: "Maha eProcure", color: "#a78bfa", bg: "rgba(167,139,250,0.12)" },
+  karnataka: { label: "Karnataka", color: "#a78bfa", bg: "rgba(167,139,250,0.12)" },
+  mock:      { label: "Demo",     color: "#94a3b8", bg: "rgba(148,163,184,0.12)" },
+};
+
+function getPortal(source: string) {
+  return PORTAL_CONFIG[source?.toLowerCase()] || { label: source?.toUpperCase() || "GOV", color: "#94a3b8", bg: "rgba(148,163,184,0.12)" };
+}
+
+// ─── Sector options ────────────────────────────────────────────────────────────
 const SECTORS = [
   "All Sectors", "Infrastructure", "Technology", "Healthcare",
   "Defence", "Railways", "Education", "Agriculture", "General",
@@ -144,6 +162,16 @@ function TenderCard({
               {tender.title}
             </Link>
             <div className="flex items-center gap-2 flex-shrink-0">
+              {/* Portal badge */}
+              {(() => {
+                const p = getPortal(tender.source);
+                return (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md"
+                    style={{ color: p.color, background: p.bg }}>
+                    {p.label}
+                  </span>
+                );
+              })()}
               {tender.recommendation && <RecBadge rec={tender.recommendation} />}
               <button
                 onClick={handleWatchlist}
@@ -198,6 +226,23 @@ function TenderCard({
           {/* AI Summary */}
           {tender.ai_summary && (
             <p className="text-xs text-muted line-clamp-1">{tender.ai_summary}</p>
+          )}
+
+          {/* View on Portal */}
+          {tender.source_url && (
+            <div className="mt-2 pt-2 border-t border-white/5">
+              <a
+                href={tender.source_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={e => e.stopPropagation()}
+                className="inline-flex items-center gap-1.5 text-[11px] font-medium hover:underline transition-colors"
+                style={{ color: getPortal(tender.source).color }}
+              >
+                <ExternalLink className="w-3 h-3" />
+                View on {getPortal(tender.source).label} Portal
+              </a>
+            </div>
           )}
         </div>
       </div>

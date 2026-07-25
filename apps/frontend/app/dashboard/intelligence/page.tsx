@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { 
   Zap, TrendingUp, ShieldCheck, AlertTriangle, Building2, MapPin, 
-  IndianRupee, Award, Bot, FileText, CheckCircle2, ArrowRight
+  IndianRupee, Award, Bot, FileText, CheckCircle2, ArrowRight, Database, Loader2
 } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
 
 export default function IntelligenceDashboardPage() {
+  const { user } = useAuth();
   const [buyers, setBuyers] = useState<any[]>([]);
   const [trends, setTrends] = useState<any>(null);
   const [alerts, setAlerts] = useState<any[]>([]);
@@ -16,6 +18,10 @@ export default function IntelligenceDashboardPage() {
   const [query, setQuery] = useState("");
   const [copilotResponse, setCopilotResponse] = useState<any>(null);
   const [asking, setAsking] = useState(false);
+  const [copilotError, setCopilotError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const getToken = () => typeof window !== "undefined" ? localStorage.getItem("tenderos_access_token") : null;
 
   useEffect(() => {
     async function fetchData() {
@@ -42,27 +48,36 @@ export default function IntelligenceDashboardPage() {
     fetchData();
   }, []);
 
-  const handleCopilotQuery = async (e: React.FormEvent) => {
+  const handleCopilotQuery = async (e: React.FormEvent, overrideQuery?: string) => {
     e.preventDefault();
-    if (!query.trim()) return;
+    const q = overrideQuery ?? query;
+    if (!q.trim()) return;
+    if (overrideQuery) setQuery(overrideQuery);
     setAsking(true);
     setCopilotResponse(null);
+    setCopilotError(null);
     const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
     try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      const tok = getToken();
+      if (tok) headers["Authorization"] = `Bearer ${tok}`;
       const res = await fetch(`${baseUrl}/api/v1/copilot/orchestrate`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
-          query: query,
+          query: q,
           tender_id: "e864a9ca-dd09-476b-95f1-04ecfdb3e868"
         })
       });
       if (res.ok) {
         const data = await res.json();
         setCopilotResponse(data);
+      } else {
+        setCopilotError(`Server returned ${res.status}. Please try again.`);
       }
     } catch (err) {
       console.error("Copilot orchestration failed", err);
+      setCopilotError("Could not reach the AI engine. Please check your connection.");
     } finally {
       setAsking(false);
     }
@@ -160,55 +175,80 @@ export default function IntelligenceDashboardPage() {
 
             <form onSubmit={handleCopilotQuery} className="flex gap-2">
               <input
+                ref={inputRef}
                 type="text"
-                placeholder="e.g. Find tenders I can win in defence with MSME EMD waiver..."
+                placeholder="e.g. Find MSME-eligible defence tenders... or What is the EMD for this tender?"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 className="flex-1 input text-sm"
               />
-              <button type="submit" disabled={asking} className="btn btn-primary text-xs px-4 flex items-center gap-2">
-                {asking ? "Thinking..." : "Ask Copilot"}
-                <ArrowRight className="w-3.5 h-3.5" />
+              <button type="submit" disabled={asking} className="btn btn-primary text-xs px-4 flex items-center gap-2 min-w-[120px] justify-center">
+                {asking ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Thinking...</> : <>Ask Copilot <ArrowRight className="w-3.5 h-3.5" /></>}
               </button>
             </form>
 
             {/* Quick Prompts */}
             <div className="flex flex-wrap gap-2 pt-2">
               {[
-                "Explain eligibility criteria for this tender",
-                "What documents are missing for compliance?",
-                "Analyze commercial and legal risks",
+                "What is the eligibility checklist for this tender?",
+                "Is this tender MSME/Udyam exempt?",
+                "What documents are needed for compliance?",
                 "Estimate win probability & Go/No-Go decision"
               ].map((p) => (
                 <button
                   key={p}
-                  onClick={() => setQuery(p)}
-                  className="btn-ghost text-[11px] px-2.5 py-1 rounded-lg border border-subtle text-secondary hover:text-primary"
+                  type="button"
+                  onClick={(e) => handleCopilotQuery(e as any, p)}
+                  className="btn-ghost text-[11px] px-2.5 py-1 rounded-lg border border-subtle text-secondary hover:text-primary hover:border-indigo-500/40 transition-colors"
                 >
                   {p}
                 </button>
               ))}
             </div>
 
+            {/* Error State */}
+            {copilotError && (
+              <div className="p-3 rounded-lg bg-red-950/30 border border-red-500/20 text-xs text-red-300">
+                ⚠ {copilotError}
+              </div>
+            )}
+
             {/* Copilot Response Card */}
             {copilotResponse && (
               <div className="card p-5 bg-slate-900/60 border-indigo-500/40 space-y-3 animate-fade-in">
-                <div className="flex items-center justify-between">
-                  <span className="badge badge-blue text-[10px]">
-                    Active Agent: {copilotResponse.active_agent}
-                  </span>
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="badge badge-blue text-[10px]">
+                      Agent: {copilotResponse.active_agent}
+                    </span>
+                    {copilotResponse.rag_response?.data_source === "live_db" && (
+                      <span className="badge badge-green text-[10px] flex items-center gap-1">
+                        <Database className="w-2.5 h-2.5" /> Live DB
+                      </span>
+                    )}
+                  </div>
                   <span className="text-xs text-emerald-400 font-semibold">
-                    Confidence: {((copilotResponse.confidence_score || 0.92) * 100).toFixed(0)}%
+                    Confidence: {Math.round(((copilotResponse.rag_response?.confidence || copilotResponse.confidence_score || 0.85) * 100))}%
                   </span>
                 </div>
 
-                <p className="text-xs text-primary font-medium">
-                  Query: &quot;{copilotResponse.query}&quot;
-                </p>
-
                 {copilotResponse.rag_response?.answer ? (
-                  <div className="text-xs text-secondary whitespace-pre-wrap font-mono p-3 bg-black/40 rounded-lg">
-                    {copilotResponse.rag_response.answer}
+                  <div className="text-xs text-secondary leading-relaxed space-y-1.5 max-h-80 overflow-y-auto pr-1">
+                    {copilotResponse.rag_response.answer.split("\n").map((line: string, i: number) => {
+                      if (!line.trim()) return <div key={i} className="h-1" />;
+                      // Bold **text**
+                      const formatted = line.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+                      if (line.startsWith("- ") || line.startsWith("• ")) {
+                        return <div key={i} className="flex gap-2 pl-2"><span className="text-indigo-400 flex-shrink-0">•</span><span dangerouslySetInnerHTML={{ __html: formatted.replace(/^[-•] /, "") }} /></div>;
+                      }
+                      if (line.startsWith("##") || line.startsWith("**")) {
+                        return <div key={i} className="font-semibold text-primary mt-2" dangerouslySetInnerHTML={{ __html: formatted.replace(/^#+\s*/, "") }} />;
+                      }
+                      if (line.startsWith("🔗") || line.startsWith("Source:")) {
+                        return <div key={i} className="text-indigo-300 text-[11px] pt-2 border-t border-white/5" dangerouslySetInnerHTML={{ __html: formatted }} />;
+                      }
+                      return <div key={i} dangerouslySetInnerHTML={{ __html: formatted }} />;
+                    })}
                   </div>
                 ) : (
                   <div className="text-xs text-secondary p-3 bg-black/40 rounded-lg">

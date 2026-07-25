@@ -211,6 +211,17 @@ export default function TenderDetailPage({ params }: { params: { id: string } })
               <button className="btn btn-primary text-sm">
                 <Target className="w-4 h-4" /> Start Bid
               </button>
+              {tender.source_url && (
+                <a
+                  href={tender.source_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-secondary text-sm flex items-center gap-1.5 justify-center"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  View on {(tender.source || "portal").toUpperCase()} Portal
+                </a>
+              )}
               <div className="flex gap-2">
                 <button 
                   onClick={toggleWatchlist} 

@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   Search, IndianRupee, MapPin, Building2, Clock, Filter,
-  RotateCcw, SlidersHorizontal, ArrowUpDown, ChevronRight, AlertCircle, Loader2
+  RotateCcw, SlidersHorizontal, ArrowUpDown, ChevronRight, AlertCircle, Loader2, ExternalLink
 } from "lucide-react";
 import { searchApi, tendersApi, eligibilityApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
@@ -23,12 +23,27 @@ interface Tender {
   msme_eligible: boolean;
   startup_eligible: boolean;
   source: string;
+  source_url: string | null;
   status: string;
   ai_summary: string | null;
   match_score?: number;
   winning_probability?: number;
   recommendation?: string;
 }
+
+const PORTAL_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+  gem:       { label: "GeM",         color: "#4ade80", bg: "rgba(34,197,94,0.12)" },
+  cppp:      { label: "CPPP",        color: "#60a5fa", bg: "rgba(96,165,250,0.12)" },
+  defence:   { label: "Defence",     color: "#f87171", bg: "rgba(239,68,68,0.12)" },
+  railways:  { label: "IREPS",       color: "#fb923c", bg: "rgba(251,146,60,0.12)" },
+  ireps:     { label: "IREPS",       color: "#fb923c", bg: "rgba(251,146,60,0.12)" },
+  maharashtra:{ label: "Maha eProcure",color:"#a78bfa", bg: "rgba(167,139,250,0.12)" },
+  mock:      { label: "Demo",        color: "#94a3b8", bg: "rgba(148,163,184,0.12)" },
+};
+function getPortal(source: string) {
+  return PORTAL_CONFIG[source?.toLowerCase()] || { label: source?.toUpperCase() || "GOV", color: "#94a3b8", bg: "rgba(148,163,184,0.12)" };
+}
+
 
 const STATES_LIST = [
   "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", 
@@ -159,8 +174,12 @@ function SearchContent() {
     }
   }, [query, selectedState, selectedMinistry, costMin, costMax, msmeOnly, startupOnly, page, sortBy, recentSearches, user?.id]);
 
+  // Only auto-search when filters change and we already have a query or active filter
   useEffect(() => {
-    executeSearch();
+    const hasActiveFilters = selectedState || selectedMinistry || msmeOnly || startupOnly;
+    if (query.trim() || hasActiveFilters) {
+      executeSearch();
+    }
   }, [page, sortBy, selectedState, selectedMinistry, msmeOnly, startupOnly]);
 
   const resetFilters = () => {
@@ -355,7 +374,9 @@ function SearchContent() {
           </div>
         ) : tenders.length === 0 ? (
           <div className="card p-12 text-center text-secondary">
-            No tenders found matching your query and filters. Try widening your criteria.
+            <Search className="w-8 h-8 text-muted mx-auto mb-3 opacity-40" />
+            <p className="font-medium">No tenders found</p>
+            <p className="text-sm text-muted mt-1">Try different keywords, or clear the state/ministry filters.</p>
           </div>
         ) : (
           <>
@@ -373,7 +394,17 @@ function SearchContent() {
                         <Link href={`/dashboard/tenders/${tender.id}`} className="text-sm font-semibold text-primary hover:text-indigo-300 leading-tight line-clamp-1">
                           {tender.title}
                         </Link>
-                        <span className="badge badge-gray text-[9px] flex-shrink-0">{tender.source}</span>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {(() => {
+                            const p = getPortal(tender.source);
+                            return (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md"
+                                style={{ color: p.color, background: p.bg }}>
+                                {p.label}
+                              </span>
+                            );
+                          })()}
+                        </div>
                       </div>
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-secondary mb-2">
                         <span>{tender.ministry || "Ministry"}</span>
@@ -384,11 +415,25 @@ function SearchContent() {
                           <span className="font-semibold text-primary">₹{(tender.estimated_cost_lakhs / 100).toFixed(2)} Cr</span>
                         )}
                         {tender.submission_deadline && (
-                          <span>· {new Date(tender.submission_deadline).toLocaleDateString()}</span>
+                          <span>· {new Date(tender.submission_deadline).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</span>
                         )}
+                        {tender.msme_eligible && <span className="text-emerald-400 font-medium">· MSME Exempt</span>}
                       </div>
                       {tender.ai_summary && (
-                        <p className="text-xs text-muted line-clamp-2">{tender.ai_summary}</p>
+                        <p className="text-xs text-muted line-clamp-2 mb-2">{tender.ai_summary}</p>
+                      )}
+                      {tender.source_url && (
+                        <a
+                          href={tender.source_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={e => e.stopPropagation()}
+                          className="inline-flex items-center gap-1 text-[11px] font-medium hover:underline"
+                          style={{ color: getPortal(tender.source).color }}
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          View on {getPortal(tender.source).label} Portal
+                        </a>
                       )}
                     </div>
                   </div>
