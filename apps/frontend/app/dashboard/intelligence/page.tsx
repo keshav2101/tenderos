@@ -6,6 +6,7 @@ import {
   IndianRupee, Award, Bot, FileText, CheckCircle2, ArrowRight, Database, Loader2
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+import { api } from "@/lib/api";
 
 export default function IntelligenceDashboardPage() {
   const { user } = useAuth();
@@ -21,23 +22,18 @@ export default function IntelligenceDashboardPage() {
   const [copilotError, setCopilotError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const getToken = () => typeof window !== "undefined" ? localStorage.getItem("tenderos_access_token") : null;
-
   useEffect(() => {
     async function fetchData() {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
       try {
         const [buyerRes, trendRes] = await Promise.all([
-          fetch(`${baseUrl}/api/v1/tenders/intelligence/buyers`),
-          fetch(`${baseUrl}/api/v1/tenders/intelligence/market-trends`)
+          api.get("/tenders/intelligence/buyers"),
+          api.get("/tenders/intelligence/market-trends")
         ]);
-        if (buyerRes.ok) {
-          const bData = await buyerRes.json();
-          setBuyers(bData.buyer_profiles || []);
+        if (buyerRes.data) {
+          setBuyers(buyerRes.data.buyer_profiles || []);
         }
-        if (trendRes.ok) {
-          const tData = await trendRes.json();
-          setTrends(tData);
+        if (trendRes.data) {
+          setTrends(trendRes.data);
         }
       } catch (err) {
         console.error("Failed to load intelligence data", err);
@@ -56,28 +52,21 @@ export default function IntelligenceDashboardPage() {
     setAsking(true);
     setCopilotResponse(null);
     setCopilotError(null);
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
     try {
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      const tok = getToken();
-      if (tok) headers["Authorization"] = `Bearer ${tok}`;
-      const res = await fetch(`${baseUrl}/api/v1/copilot/orchestrate`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          query: q,
-          tender_id: "e864a9ca-dd09-476b-95f1-04ecfdb3e868"
-        })
+      const res = await api.post("/copilot/orchestrate", {
+        query: q,
+        tender_id: "e864a9ca-dd09-476b-95f1-04ecfdb3e868"
       });
-      if (res.ok) {
-        const data = await res.json();
-        setCopilotResponse(data);
+      if (res.data) {
+        setCopilotResponse(res.data);
       } else {
-        setCopilotError(`Server returned ${res.status}. Please try again.`);
+        setCopilotError("Server returned invalid response. Please try again.");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Copilot orchestration failed", err);
-      setCopilotError("Could not reach the AI engine. Please check your connection.");
+      const msg = err.response?.data?.detail || err.message || "Could not reach the AI engine. Please check your connection.";
+      setCopilotError(typeof msg === "string" ? msg : "Could not reach the AI engine. Please check your connection.");
     } finally {
       setAsking(false);
     }
