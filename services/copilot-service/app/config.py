@@ -26,6 +26,13 @@ class Settings(BaseSettings):
     # Upstream services
     TENDER_SERVICE_URL: str = "http://tender-service:8002"
 
+    # PostgreSQL (shared DB — same env vars as other services)
+    POSTGRES_HOST: str = "localhost"
+    POSTGRES_PORT: int = 5432
+    POSTGRES_DB: str = "tenderos"
+    POSTGRES_USER: str = "tenderos_user"
+    POSTGRES_PASSWORD: str = "tenderos_pass"
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     @property
