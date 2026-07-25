@@ -45,3 +45,4 @@ Thumbs.db
 # Local scratch directory
 scratch/
 
+.env*
