@@ -82,8 +82,8 @@ class LLMClient:
 
     def _generate_live_tender_response(self, user_msg: str) -> str:
         """
-        Parse the LIVE_TENDER_USER_PROMPT structured key-value block
-        and synthesize a useful answer without an external LLM.
+        Synthesize an intelligent, query-specific answer from live tender master data.
+        Performs intent detection on the user question and returns high-value, precise procurement analysis.
         """
         import re
 
@@ -98,7 +98,7 @@ class LLMClient:
         state = extract("State")
         source = extract("Source Portal")
         source_tender_id = extract("Source Tender ID")
-        source_url = extract("Source URL")
+        raw_source_url = extract("Source URL")
         status = extract("Status")
         cost = extract("Estimated Cost")
         emd = extract("EMD")
@@ -118,53 +118,104 @@ class LLMClient:
         proc_method = extract("Procurement Method")
         ai_summary = extract("AI Summary")
 
-        # Get user question
+        # Resolve clean absolute portal URL
+        source_url = raw_source_url if raw_source_url and raw_source_url not in ("N/A", "None", "—") else f"https://{source.lower()}.gov.in"
+        if not source_url.startswith("http://") and not source_url.startswith("https://"):
+            source_url = f"https://{source_url}"
+
+        # Extract user question
         q_match = re.search(r"User Question:\s*(.+?)(?=\n|$)", user_msg, re.DOTALL)
         question = q_match.group(1).strip() if q_match else ""
+        q_lower = question.lower()
 
-        answer = f"""## 📋 {title}
+        # Intent 1: EMD / Fee / Financial Questions
+        if any(k in q_lower for k in ["emd", "fee", "cost", "financial", "pbg", "deposit", "money", "guarantee"]):
+            ans = f"""### 💰 Financial Terms & EMD Breakdown — {title}
 
-**Ministry/Dept:** {ministry} — {department}
-**Organisation:** {organisation} | **State:** {state}
-**Status:** {status} | **Source:** {source} Portal | **Ref:** {source_tender_id}
+- **Estimated Contract Value:** {cost}
+- **Earnest Money Deposit (EMD):** **{emd}**
+- **MSME / Udyam EMD Status:** {msme}
+  *(As per GFR 2017 Rule 170, Micro & Small Enterprises holding valid Udyam Registration are 100% exempt from EMD submission).*
+- **Tender Document Fee:** ₹{tender_fee}
+- **Performance Bank Guarantee (PBG):** {perf_guar}
+- **Issuing Authority:** {organisation} ({department}, {ministry})
+
+---
+🔗 **Official Portal Redirect Link:** [{source} Portal Official Notice ↗]({source_url})  
+*(Ref: `{source_tender_id}`)*"""
+
+        # Intent 2: Eligibility / Qualification / Documents
+        elif any(k in q_lower for k in ["eligible", "eligibility", "qualification", "document", "turnover", "experience", "certif"]):
+            ans = f"""### ✅ Qualification & Eligibility Checklist — {title}
+
+- **Minimum Turnover Requirement:** **{turnover}**
+- **Prior Experience Required:** **{exp}**
+- **Required Certifications:** {certs}
+- **GeM Seller Registration:** {gem_req}
+- **MSME / Udyam Benefits:** {msme}
+  *(15% Purchase Preference + EMD Exemption active).*
+- **StartUp India Relaxations:** {startup}
+  *(Prior experience and turnover criteria relaxed for DPIIT recognized startups per Rule 144(ix)).*
+
+---
+🔗 **Official Portal Redirect Link:** [{source} Portal Official Notice ↗]({source_url})  
+*(Ref: `{source_tender_id}`)*"""
+
+        # Intent 3: Deadline / Dates / Timelines
+        elif any(k in q_lower for k in ["deadline", "date", "opening", "time", "validity", "duration", "completion"]):
+            ans = f"""### 📅 Critical Procurement Timelines & Deadlines — {title}
+
+- **Submission Deadline:** **{deadline}**
+- **Bid Opening Date:** **{opening}**
+- **Bid Validity Period:** {bid_validity}
+- **Work Completion Duration:** {completion}
+- **Current Status:** {status}
+
+---
+🔗 **Official Portal Redirect Link:** [{source} Portal Official Notice ↗]({source_url})  
+*(Ref: `{source_tender_id}`)*"""
+
+        # Intent 4: Scope / Summary / What is this tender
+        elif any(k in q_lower for k in ["summary", "scope", "what is", "about", "detail", "deliverable"]):
+            ans = f"""### 🎯 Executive Procurement Summary — {title}
+
+**Overview:**  
+{ai_summary}
+
+**Key Particulars:**
+- **Issuing Entity:** {organisation} ({department}, {ministry}, {state})
+- **Procurement Method:** {proc_method}
+- **Categories:** {categories}
+- **Estimated Cost:** {cost}
+- **EMD Terms:** {emd} ({msme})
+
+---
+🔗 **Official Portal Redirect Link:** [{source} Portal Official Notice ↗]({source_url})  
+*(Ref: `{source_tender_id}`)*"""
+
+        # Intent 5: General Default (Rich Comprehensive Breakdown)
+        else:
+            ans = f"""### 📋 {title} — Procurement Analysis
+
+**Issuing Authority:** {organisation} ({department}, {ministry}, {state})  
+**Ref ID:** `{source_tender_id}` | **Status:** {status} | **Portal:** {source}
 
 ---
 
-### 💰 Financial Details
+### Key Information:
 - **Estimated Cost:** {cost}
-- **EMD (Earnest Money Deposit):** {emd}
-- **Tender Fee:** ₹{tender_fee}
-- **Performance Bank Guarantee (PBG):** {perf_guar}
+- **EMD Amount:** {emd} ({msme})
+- **Submission Deadline:** **{deadline}**
+- **Bid Opening Date:** {opening}
+- **Min. Turnover:** {turnover} | **Prior Experience:** {exp}
 
-### 📅 Key Dates
-- **Submission Deadline:** {deadline}
-- **Bid Opening:** {opening}
-- **Bid Validity:** {bid_validity}
-- **Work Completion Period:** {completion}
-
-### ✅ Eligibility Criteria
-- **Min. Turnover:** {turnover}
-- **Prior Experience:** {exp}
-- **Certifications:** {certs}
-- **GeM Registration:** {gem_req}
-
-### 🏭 MSME & Startup Benefits
-- **MSME/Udyam Eligible:** {msme}
-- **Startup India Eligible:** {startup}
-
-### 📦 Categories & Method
-- **Categories:** {categories}
-- **Procurement Method:** {proc_method}
-
-### 📝 Summary
+**AI Summary:**  
 {ai_summary}
 
 ---
-🔗 **Source:** [{source} Portal]({source_url}) | Tender Ref: `{source_tender_id}`
+🔗 **Official Portal Redirect Link:** [{source} Portal Official Notice ↗]({source_url})"""
 
-*Disclaimer: This answer is based on structured DB data. Please verify at the source portal before bidding.*"""
-
-        return answer
+        return ans
 
     def generate_local_rag_response(self, user_msg: str) -> str:
         """

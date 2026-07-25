@@ -225,8 +225,13 @@ export default function IntelligenceDashboardPage() {
                   <div className="text-xs text-secondary leading-relaxed space-y-1.5 max-h-80 overflow-y-auto pr-1">
                     {copilotResponse.rag_response.answer.split("\n").map((line: string, i: number) => {
                       if (!line.trim()) return <div key={i} className="h-1" />;
-                      // Bold **text**
-                      const formatted = line.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+                      // Convert markdown links & bold text
+                      const formatted = line
+                        .replace(
+                          /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+                          '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-emerald-400 font-bold underline hover:text-emerald-300 transition-colors inline-flex items-center gap-0.5">$1 ↗</a>'
+                        )
+                        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
                       if (line.startsWith("- ") || line.startsWith("• ")) {
                         return <div key={i} className="flex gap-2 pl-2"><span className="text-indigo-400 flex-shrink-0">•</span><span dangerouslySetInnerHTML={{ __html: formatted.replace(/^[-•] /, "") }} /></div>;
                       }

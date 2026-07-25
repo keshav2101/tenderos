@@ -100,14 +100,18 @@ function MessageBubble({ message }: { message: Message }) {
               : { background: "var(--color-bg-elevated)", border: "1px solid var(--color-border)" }
           }
         >
-          {/* Render markdown-lite: bold, citation tags, newlines */}
+          {/* Render markdown-lite: bold, links, citation tags, newlines */}
           <div
             className="whitespace-pre-wrap"
             dangerouslySetInnerHTML={{
               __html: message.content
+                .replace(
+                  /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+                  '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-emerald-400 font-bold underline hover:text-emerald-300 transition-colors inline-flex items-center gap-0.5">$1 ↗</a>'
+                )
                 .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
                 .replace(
-                  /\[([^\]]+)\]/g,
+                  /(?<!href=")(?<!">)\[(Page [^\]]+|Section [^\]]+|Clause [^\]]+|Doc: [^\]]+)\]/g,
                   '<em style="color:#818cf8;font-size:0.75em">[$1]</em>'
                 )
                 .replace(/\n/g, "<br/>"),
