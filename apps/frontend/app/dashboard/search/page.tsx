@@ -405,16 +405,18 @@ function SearchContent() {
                 const portal = getPortal(tender.source);
                 const portalUrl = ensureAbsoluteUrl(tender.source_url, portal.defaultUrl);
 
-                const handlePortalRedirect = (e: React.MouseEvent) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  window.open(portalUrl, "_blank", "noopener,noreferrer");
-                };
+                function handleCardClick(e: React.MouseEvent) {
+                  const target = e.target as HTMLElement;
+                  if (target.closest("a") || target.closest("button")) {
+                    return;
+                  }
+                  router.push(`/dashboard/tenders/${tender.id}`);
+                }
 
                 return (
                   <div
                     key={tender.id}
-                    onClick={() => router.push(`/dashboard/tenders/${tender.id}`)}
+                    onClick={handleCardClick}
                     className="card p-5 hover:-translate-y-0.5 transition-all duration-200 group cursor-pointer"
                   >
                     <div className="flex gap-4">
@@ -427,21 +429,23 @@ function SearchContent() {
                         <div className="flex items-start justify-between gap-3 mb-1">
                           <Link
                             href={`/dashboard/tenders/${tender.id}`}
-                            onClick={e => e.stopPropagation()}
                             className="text-sm font-semibold text-primary hover:text-indigo-300 transition-colors leading-tight line-clamp-1 flex-1"
                           >
                             {tender.title}
                           </Link>
                           <div className="flex items-center gap-2 flex-shrink-0" onClick={e => e.stopPropagation()}>
-                            <button
-                              onClick={handlePortalRedirect}
+                            <a
+                              href={portalUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={e => e.stopPropagation()}
                               title={`Open official ${portal.label} tender portal`}
-                              className="text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 hover:opacity-90 transition-opacity"
+                              className="text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 hover:opacity-90 transition-opacity cursor-pointer"
                               style={{ color: portal.color, background: portal.bg }}
                             >
                               {portal.label}
                               <ExternalLink className="w-2.5 h-2.5" />
-                            </button>
+                            </a>
                           </div>
                         </div>
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-secondary mb-2">
@@ -461,14 +465,17 @@ function SearchContent() {
                           <p className="text-xs text-muted line-clamp-2 mb-2">{tender.ai_summary}</p>
                         )}
                         <div className="mt-2 pt-2 border-t border-white/5 flex items-center justify-between" onClick={e => e.stopPropagation()}>
-                          <button
-                            onClick={handlePortalRedirect}
+                          <a
+                            href={portalUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={e => e.stopPropagation()}
                             className="inline-flex items-center gap-1.5 text-[11px] font-semibold hover:underline transition-colors cursor-pointer"
                             style={{ color: portal.color }}
                           >
                             <ExternalLink className="w-3.5 h-3.5" />
                             Open Official {portal.label} Portal Website →
-                          </button>
+                          </a>
                           {tender.source_tender_id && (
                             <span className="text-[10px] text-muted font-mono">{tender.source_tender_id}</span>
                           )}

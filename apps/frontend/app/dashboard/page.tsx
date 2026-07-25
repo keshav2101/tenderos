@@ -146,12 +146,6 @@ function TenderCard({
   const portal = getPortal(tender.source);
   const portalUrl = ensureAbsoluteUrl(tender.source_url, portal.defaultUrl);
 
-  const handlePortalRedirect = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    window.open(portalUrl, "_blank", "noopener,noreferrer");
-  };
-
   function handleWatchlist(e: React.MouseEvent) {
     e.stopPropagation();
     e.preventDefault();
@@ -159,7 +153,11 @@ function TenderCard({
     onWatchlist(tender.id);
   }
 
-  function handleCardClick() {
+  function handleCardClick(e: React.MouseEvent) {
+    const target = e.target as HTMLElement;
+    if (target.closest("a") || target.closest("button")) {
+      return;
+    }
     router.push(`/dashboard/tenders/${tender.id}`);
   }
 
@@ -192,22 +190,23 @@ function TenderCard({
           <div className="flex items-start justify-between gap-3 mb-2">
             <Link
               href={`/dashboard/tenders/${tender.id}`}
-              onClick={e => e.stopPropagation()}
               className="text-sm font-semibold text-primary hover:text-indigo-300 transition-colors leading-tight line-clamp-2 flex-1"
             >
               {tender.title}
             </Link>
             <div className="flex items-center gap-2 flex-shrink-0" onClick={e => e.stopPropagation()}>
               {/* Direct Portal Redirect badge */}
-              <button
-                onClick={handlePortalRedirect}
+              <a
+                href={portalUrl}
+                target="_blank"
+                rel="noopener noreferrer"
                 title={`Open official ${portal.label} tender portal`}
-                className="text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 hover:opacity-90 transition-opacity"
+                className="text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 hover:opacity-90 transition-opacity cursor-pointer"
                 style={{ color: portal.color, background: portal.bg }}
               >
                 {portal.label}
                 <ExternalLink className="w-2.5 h-2.5" />
-              </button>
+              </a>
               {tender.recommendation && <RecBadge rec={tender.recommendation} />}
               <button
                 onClick={handleWatchlist}
@@ -266,8 +265,10 @@ function TenderCard({
 
           {/* View on Portal */}
           <div className="mt-2 pt-2 border-t border-white/5 flex items-center justify-between" onClick={e => e.stopPropagation()}>
-            <button
-              onClick={handlePortalRedirect}
+            <a
+              href={portalUrl}
+              target="_blank"
+              rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 text-[11px] font-semibold hover:underline transition-colors cursor-pointer"
               style={{ color: portal.color }}
             >

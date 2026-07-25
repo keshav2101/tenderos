@@ -256,16 +256,15 @@ export default function TenderDetailPage({ params }: { params: { id: string } })
               </div>
             </div>
             <div className="flex flex-col gap-2 flex-shrink-0">
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  window.open(portalInfo.url, "_blank", "noopener,noreferrer");
-                }}
+              <a
+                href={portalInfo.url}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="btn text-sm flex items-center gap-1.5 justify-center bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-4 rounded-xl shadow-lg shadow-emerald-950/40 transition-all hover:scale-105 cursor-pointer"
               >
                 <ExternalLink className="w-4 h-4" />
                 Open Official {portalInfo.label} Portal Website →
-              </button>
+              </a>
               <div className="flex gap-2">
                 <button 
                   onClick={toggleWatchlist} 
@@ -312,15 +311,14 @@ export default function TenderDetailPage({ params }: { params: { id: string } })
                     </p>
                   </div>
                 </div>
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    window.open(portalInfo.url, "_blank", "noopener,noreferrer");
-                  }}
+                <a
+                  href={portalInfo.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="btn btn-secondary text-xs px-3 py-2 flex items-center gap-1.5 text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/10 flex-shrink-0 font-bold cursor-pointer"
                 >
                   Redirect to Official Website ↗
-                </button>
+                </a>
               </div>
             </div>
 
