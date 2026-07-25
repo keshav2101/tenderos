@@ -50,9 +50,9 @@ class Settings(BaseSettings):
     BILLING_SERVICE_URL: str = "http://billing-service:8020"
 
     # Rate limit defaults (requests per minute)
-    RATE_LIMIT_FREE: int = 10
-    RATE_LIMIT_SME: int = 200
-    RATE_LIMIT_ENTERPRISE: int = 2000
+    RATE_LIMIT_FREE: int = 300
+    RATE_LIMIT_SME: int = 1000
+    RATE_LIMIT_ENTERPRISE: int = 5000
     RATE_LIMIT_API: int = 10000
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
