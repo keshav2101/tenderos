@@ -48,6 +48,25 @@ function ScoreRing({ score }: { score: number }) {
   );
 }
 
+const PORTAL_URL_MAP: Record<string, { label: string; url: string }> = {
+  gem:         { label: "GeM",          url: "https://gem.gov.in" },
+  cppp:        { label: "CPPP",         url: "https://eprocure.gov.in/eprocure/app" },
+  defence:     { label: "Defence",      url: "https://defproc.gov.in" },
+  railways:    { label: "IREPS",        url: "https://ireps.gov.in" },
+  ireps:       { label: "IREPS",        url: "https://ireps.gov.in" },
+  maharashtra: { label: "Maha eProcure", url: "https://mahatenders.gov.in" },
+  karnataka:   { label: "Karnataka",    url: "https://eproc.karnataka.gov.in" },
+};
+
+function getPortalInfo(source?: string, sourceUrl?: string) {
+  const key = (source || "").toLowerCase();
+  const info = PORTAL_URL_MAP[key] || { label: (source || "GOV").toUpperCase(), url: "https://eprocure.gov.in/eprocure/app" };
+  return {
+    label: info.label,
+    url: sourceUrl || info.url
+  };
+}
+
 export default function TenderDetailPage({ params }: { params: { id: string } }) {
   const { user } = useAuth();
   const [showFullEligibility, setShowFullEligibility] = useState(false);
@@ -167,6 +186,7 @@ export default function TenderDetailPage({ params }: { params: { id: string } })
 
   const daysLeft = Math.ceil((new Date(tender.submission_deadline).getTime() - Date.now()) / 86400000);
   const costCrores = ((tender.estimated_cost_lakhs || 0) / 100).toFixed(2);
+  const portalInfo = getPortalInfo(tender.source, tender.source_url);
 
   // Safely map checks
   const checksList = qualification?.checks || [
@@ -190,17 +210,18 @@ export default function TenderDetailPage({ params }: { params: { id: string } })
             <ScoreRing score={qualification?.match_score || 90} />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
-                <span className="badge badge-gray text-[10px]">{tender.source?.toUpperCase() || "CPPP"}</span>
-                <span className="badge badge-gray text-[10px]">{tender.tender_no || "TENDER-REF"}</span>
+                <span className="badge badge-gray text-[10px] uppercase font-bold">{portalInfo.label}</span>
+                <span className="badge badge-gray text-[10px] font-mono">{tender.source_tender_id || tender.tender_no || "TENDER-REF"}</span>
                 <span className="badge badge-green text-[10px]">Active</span>
                 {tender.msme_eligible && <span className="badge badge-blue text-[10px]">MSME Exempt</span>}
+                {tender.startup_eligible && <span className="badge badge-purple text-[10px]">Startup Recognized</span>}
               </div>
               <h1 className="text-xl font-bold text-primary mb-2 leading-tight">{tender.title}</h1>
               <div className="flex flex-wrap items-center gap-4 text-sm text-secondary">
-                <span className="flex items-center gap-1"><Building2 className="w-3.5 h-3.5" />{tender.department || "Public Department"}</span>
+                <span className="flex items-center gap-1"><Building2 className="w-3.5 h-3.5" />{tender.organisation || tender.department || "Public Body"}</span>
                 <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{tender.state || "India"}</span>
                 <span className="flex items-center gap-1 font-medium text-primary">
-                  <IndianRupee className="w-3.5 h-3.5" />₹{costCrores} Crore
+                  <IndianRupee className="w-3.5 h-3.5" />₹{costCrores} Crore (₹{tender.estimated_cost_lakhs}L)
                 </span>
                 <span className={`flex items-center gap-1 font-medium ${daysLeft <= 7 ? "text-red-400" : "text-amber-400"}`}>
                   <Clock className="w-3.5 h-3.5" />{daysLeft > 0 ? `${daysLeft} days left` : "Expired"}
@@ -208,26 +229,22 @@ export default function TenderDetailPage({ params }: { params: { id: string } })
               </div>
             </div>
             <div className="flex flex-col gap-2 flex-shrink-0">
-              <button className="btn btn-primary text-sm">
-                <Target className="w-4 h-4" /> Start Bid
-              </button>
-              {tender.source_url && (
-                <a
-                  href={tender.source_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn btn-secondary text-sm flex items-center gap-1.5 justify-center"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                  View on {(tender.source || "portal").toUpperCase()} Portal
-                </a>
-              )}
+              <a
+                href={portalInfo.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn text-sm flex items-center gap-1.5 justify-center bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-4 rounded-xl shadow-lg shadow-emerald-950/40 transition-all hover:scale-105"
+              >
+                <ExternalLink className="w-4 h-4" />
+                Open Official {portalInfo.label} Portal Website →
+              </a>
               <div className="flex gap-2">
                 <button 
                   onClick={toggleWatchlist} 
-                  className={`btn text-xs p-2 ${isBookmarked ? "btn-primary" : "btn-secondary"}`}
+                  className={`btn text-xs p-2 flex-1 flex items-center justify-center gap-1 ${isBookmarked ? "btn-primary" : "btn-secondary"}`}
                 >
                   <Bookmark className="w-4 h-4" />
+                  {isBookmarked ? "Saved" : "Save"}
                 </button>
                 <button className="btn btn-secondary text-xs p-2"><Share2 className="w-4 h-4" /></button>
               </div>
@@ -253,45 +270,100 @@ export default function TenderDetailPage({ params }: { params: { id: string } })
 
         {activeTab === "overview" && (
           <div className="space-y-4 animate-fade-in">
+            {/* Official Source Banner */}
+            <div className="card p-5 border-emerald-500/30 bg-emerald-500/5">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0">
+                    <ExternalLink className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-primary">Original Tender Notice & Portal Link</h3>
+                    <p className="text-xs text-secondary mt-0.5">
+                      Fetched directly from <span className="font-semibold text-emerald-400">{portalInfo.label} Portal</span> (Ref: <code className="text-indigo-300 font-mono">{tender.source_tender_id || "TENDER-REF"}</code>)
+                    </p>
+                  </div>
+                </div>
+                <a
+                  href={portalInfo.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-secondary text-xs px-3 py-2 flex items-center gap-1.5 text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/10 flex-shrink-0 font-bold"
+                >
+                  Redirect to Official Website ↗
+                </a>
+              </div>
+            </div>
+
             {/* AI Summary */}
             <div className="card p-5">
               <div className="flex items-center gap-2 mb-3">
-                <Zap className="w-4 h-4" style={{ color: "#818cf8" }} />
-                <h2 className="text-sm font-semibold text-primary">AI Summary</h2>
+                <Zap className="w-4 h-4 text-indigo-400" />
+                <h2 className="text-sm font-semibold text-primary">AI Procurement Summary & Analysis</h2>
               </div>
-              <p className="text-sm text-secondary leading-relaxed">{tender.ai_summary}</p>
+              <p className="text-sm text-secondary leading-relaxed mb-4">{tender.ai_summary}</p>
+              
+              {/* Detailed Breakdown Subsections */}
+              <div className="grid grid-cols-2 gap-4 pt-3 border-t border-white/5">
+                <div className="space-y-1">
+                  <div className="text-xs font-semibold text-indigo-300">🎯 Key Scope & Deliverables</div>
+                  <p className="text-xs text-muted leading-normal">
+                    Execution of {tender.title.toLowerCase()} for {tender.department || "the department"} in {tender.state || "India"}. Includes end-to-end supply, installation, testing, and maintenance.
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-xs font-semibold text-emerald-300">🛡️ MSME & StartUp Relaxations</div>
+                  <p className="text-xs text-muted leading-normal">
+                    {tender.msme_eligible 
+                      ? "Classified as MSME Exempt: Earnest Money Deposit (EMD) and prior turnover criteria are waived per Udyam rules."
+                      : "Standard EMD requirements apply. Bidders may request DPIIT startup turnover relaxation if eligible."}
+                  </p>
+                </div>
+              </div>
             </div>
 
             {/* Key Details Grid */}
             <div className="grid grid-cols-2 gap-3">
               {[
-                { label: "Estimated Cost", value: `₹${costCrores} Crore (₹${tender.estimated_cost_lakhs}L)` },
-                { label: "EMD", value: tender.msme_eligible ? "Exempt (MSME)" : `₹${tender.emd_lakhs}L` },
-                { label: "Tender Fee", value: `₹${(tender.tender_fee || 0).toLocaleString()}` },
-                { label: "Performance Guarantee", value: `${tender.performance_guarantee_pct || 5}%` },
-                { label: "Bid Validity", value: `${tender.bid_validity_days || 90} days` },
-                { label: "Work Completion", value: `${tender.work_completion_days || 365} days` },
-                { label: "Submission Deadline", value: new Date(tender.submission_deadline).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) },
-                { label: "Bid Opening", value: new Date(tender.opening_date || tender.submission_deadline).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) },
+                { label: "Estimated Cost", value: `₹${costCrores} Crore (₹${tender.estimated_cost_lakhs} Lakhs)` },
+                { label: "EMD Amount", value: tender.msme_eligible ? "Exempt (Udyam Waiver)" : `₹${tender.emd_lakhs || 0} Lakhs` },
+                { label: "Tender Document Fee", value: tender.tender_fee ? `₹${Number(tender.tender_fee).toLocaleString("en-IN")}` : "Free / Nil" },
+                { label: "Performance Security (PBG)", value: `${tender.performance_guarantee_pct || 5}% of Contract Value` },
+                { label: "Bid Validity Period", value: `${tender.bid_validity_days || 90} Days` },
+                { label: "Work Completion Days", value: `${tender.work_completion_days || 365} Days` },
+                { label: "Submission Deadline", value: new Date(tender.submission_deadline).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) },
+                { label: "Bid Opening Date", value: new Date(tender.opening_date || tender.submission_deadline).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) },
               ].map(item => (
                 <div key={item.label} className="card p-4">
-                  <div className="text-[10px] text-muted mb-1">{item.label}</div>
+                  <div className="text-[10px] text-muted mb-1 uppercase tracking-wider">{item.label}</div>
                   <div className="text-sm font-medium text-primary">{item.value}</div>
                 </div>
               ))}
             </div>
 
-            {/* Contact */}
+            {/* Organization & Contact */}
             <div className="card p-5">
-              <h2 className="text-sm font-semibold text-primary mb-3">Contact</h2>
-              <div className="space-y-1.5 text-sm text-secondary">
-                <p>{tender.contact_name || "Procurement Officer"}</p>
-                <p>
-                  <a href={`mailto:${tender.contact_email || "procurement@india.gov.in"}`} className="text-indigo-400 hover:underline">
-                    {tender.contact_email || "procurement@india.gov.in"}
-                  </a>
-                </p>
-                <p>{tender.contact_phone || "+91-11-XXXX-XXXX"}</p>
+              <h2 className="text-sm font-semibold text-primary mb-3">Issuing Authority & Contact Details</h2>
+              <div className="grid grid-cols-2 gap-4 text-xs text-secondary">
+                <div>
+                  <div className="text-[10px] text-muted uppercase mb-0.5">Ministry / Union Dept</div>
+                  <div className="font-medium text-primary">{tender.ministry || "Ministry of Electronics and IT"}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-muted uppercase mb-0.5">Issuing Organization</div>
+                  <div className="font-medium text-primary">{tender.organisation || tender.department || "Central Procurement Authority"}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-muted uppercase mb-0.5">Procurement Portal</div>
+                  <div className="font-medium text-emerald-400 flex items-center gap-1">
+                    {portalInfo.label} Portal Notice
+                    <ExternalLink className="w-3 h-3" />
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-muted uppercase mb-0.5">Tender Method</div>
+                  <div className="font-medium text-primary uppercase">{tender.procurement_method || "OPEN TENDERING"}</div>
+                </div>
               </div>
             </div>
           </div>
