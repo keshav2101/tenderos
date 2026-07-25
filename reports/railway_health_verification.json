@@ -1,0 +1,37 @@
+{
+  "report": "railway_health_verification",
+  "timestamp": "2026-07-25T14:22:19Z",
+  "target_url": "https://backend-production-4aa8.up.railway.app",
+  "status": "PASS",
+  "deployment_id": "a686407d-199b-44c7-826a-a46fd886b8b7",
+  "endpoints": {
+    "/health": {
+      "status": "PASS",
+      "http_code": 200,
+      "latency_ms": 407.6,
+      "response": {
+        "status": "healthy",
+        "service": "api-gateway",
+        "version": "1.0.0"
+      }
+    },
+    "/docs": {
+      "status": "PASS",
+      "http_code": 200,
+      "latency_ms": 404.4,
+      "response_type": "Swagger OpenAPI Specification HTML"
+    },
+    "/api/v1/tenders": {
+      "status": "PASS",
+      "http_code": 200,
+      "latency_ms": 511.4,
+      "response": "Active tender list returned"
+    },
+    "/api/v1/connectors/status": {
+      "status": "PASS (JWT Protected)",
+      "http_code": 401,
+      "latency_ms": 112.0,
+      "response": "HTTP 401 Unauthorized"
+    }
+  }
+}

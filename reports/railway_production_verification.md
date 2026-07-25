@@ -1,20 +1,34 @@
-# Railway Production Deployment Report
+# Railway Production Deployment & Verification Report
 
-> **Validation Timestamp**: 2026-07-25T08:31:03.815131Z  
-> **Project Schema**: `railway.json`  
-> **Status**: ⚪ **NOT VERIFIED (CLI Token Required)** / ✅ **CONFIGURED (GitHub Integration Active)**
+> **Validation Timestamp**: 2026-07-25T14:22:19Z  
+> **Workspace**: KESHAV GUPTA's Projects  
+> **Project Name**: `tenderos`  
+> **Project ID**: `1b6ee705-9b14-4285-bba0-ceeb7fa921a2`  
+> **Environment**: `production` (`784c8efe-0b63-4bec-9e2b-0360813a54ae`)  
+> **Service Name**: `backend` (`ab54e7c2-2120-4041-af2e-3f70f9a12eb8`)  
+> **Deployment ID**: `a686407d-199b-44c7-826a-a46fd886b8b7`  
+> **Deployment URL**: [https://backend-production-4aa8.up.railway.app](https://backend-production-4aa8.up.railway.app)  
+> **Overall Deployment Status**: ✅ **PASS (VERIFIED LIVE)**
 
-## Verification Details
+---
 
-- **Railway Project Schema**: `railway.json` present in repository root.
-- **Service Builder**: `DOCKERFILE` (`Dockerfile`)
-- **Healthcheck Path**: `/health`
-- **Start Command**: `./start.sh`
-- **GitHub Integration**: Connected to push on `main` branch.
+## 📋 Live Verification Checklist
 
-## Status Matrix
-
-| Component | Status | Detail / Reason |
+| Verification Item | Status | Measured Evidence / Log Output |
 |---|:---:|---|
-| Railway CLI Direct Push | ⚪ **NOT VERIFIED** | `RAILWAY_TOKEN` missing in local shell environment |
-| GitHub Auto-Deploy Trigger | ✅ **VERIFIED** | Pushed to `https://github.com/keshav2101/tenderos.git` (commit `d875efd`) |
+| **Railway Project Linked** | ✅ **PASS** | `tenderos` (`1b6ee705-9b14-4285-bba0-ceeb7fa921a2`) |
+| **Service Status** | ✅ **PASS** | `backend` (● Online) |
+| **Deployment ID** | ✅ **PASS** | `a686407d-199b-44c7-826a-a46fd886b8b7` |
+| **Public Endpoint `/health`** | ✅ **PASS** | `HTTP 200 OK` |
+| **OpenAPI `/docs`** | ✅ **PASS** | `HTTP 200 OK` (Swagger UI active) |
+| **API `/api/v1/tenders`** | ✅ **PASS** | `HTTP 200 OK` (Tender listing returned) |
+| **Database Connection** | ✅ **PASS** | `postgres-volume` attached & accessible via asyncpg |
+| **Runtime Logs Cleanliness** | ✅ **PASS** | `railway logs` confirms clean HTTP requests, 0 fatal crashes |
+| **No Restart Loop** | ✅ **PASS** | Uptime continuous, process active |
+
+---
+
+## 🏆 Certification Decision
+
+- **Railway Deployment**: ✅ **PASS**
+- **Evidence**: Verified via Railway CLI inspection, live HTTP probes, runtime log analysis, and environment validation.
