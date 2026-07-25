@@ -10,40 +10,21 @@ Central entry point for all client requests. Handles:
 - OpenAPI documentation aggregation
 - LINTER_REFRESH: Active interpreter libraries indexed.
 """
-from contextlib import asynccontextmanager
+
 import time
-from typing import Optional
+from contextlib import asynccontextmanager
 
 import structlog
-from fastapi import FastAPI, Request, Response, HTTPException, status, Depends
+from app.config import settings
+from app.middleware.auth import AuthMiddleware
+from app.middleware.rate_limit import RateLimitMiddleware
+from app.routers import (admin, analytics, auth, billing, chat, company, eligibility, governance, graph, health,
+                         intelligence, notifications, proposals, quality, recommendations, search, tenders)
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from prometheus_fastapi_instrumentator import Instrumentator
-
-from app.config import settings
-from app.middleware.auth import AuthMiddleware
-from app.middleware.rate_limit import RateLimitMiddleware
-from app.routers import (
-    tenders,
-    search,
-    analytics,
-    recommendations,
-    eligibility,
-    chat,
-    company,
-    proposals,
-    notifications,
-    admin,
-    auth,
-    health,
-    billing,
-    graph,
-    intelligence,
-    governance,
-    quality,
-)
-
 
 logger = structlog.get_logger()
 
@@ -100,6 +81,7 @@ Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 
 # ─── Request timing ──────────────────────────────────────────────────────────
 
+
 @app.middleware("http")
 async def add_process_time_header(request: Request, call_next):
     start = time.perf_counter()
@@ -107,9 +89,11 @@ async def add_process_time_header(request: Request, call_next):
     duration_ms = (time.perf_counter() - start) * 1000
     response.headers["X-Process-Time-Ms"] = str(round(duration_ms, 2))
     response.headers["X-TenderOS-Version"] = settings.VERSION
-    
+
     # Production Security Hardening Headers
-    response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains; preload"
+    response.headers["Strict-Transport-Security"] = (
+        "max-age=63072000; includeSubDomains; preload"
+    )
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
         "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
@@ -122,11 +106,12 @@ async def add_process_time_header(request: Request, call_next):
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    
+
     return response
 
 
 # ─── Exception handlers ──────────────────────────────────────────────────────
+
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
@@ -180,6 +165,10 @@ app.include_router(
 app.include_router(admin.router, prefix=f"{API_V1}/admin", tags=["Admin"])
 app.include_router(billing.router, prefix=f"{API_V1}/billing", tags=["Billing"])
 app.include_router(graph.router, prefix=f"{API_V1}/graph", tags=["Knowledge Graph"])
-app.include_router(intelligence.router, prefix=f"{API_V1}/intelligence", tags=["Market Intelligence"])
-app.include_router(governance.router, prefix=f"{API_V1}/governance", tags=["AI Governance"])
+app.include_router(
+    intelligence.router, prefix=f"{API_V1}/intelligence", tags=["Market Intelligence"]
+)
+app.include_router(
+    governance.router, prefix=f"{API_V1}/governance", tags=["AI Governance"]
+)
 app.include_router(quality.router, prefix=f"{API_V1}/quality", tags=["Data Quality"])

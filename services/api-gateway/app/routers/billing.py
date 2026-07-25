@@ -1,7 +1,8 @@
 """Billing routes — proxy to billing-service."""
-from fastapi import APIRouter, Request
-from app.proxy import ServiceProxy
+
 from app.config import settings
+from app.proxy import ServiceProxy
+from fastapi import APIRouter, Request
 
 router = APIRouter()
 _proxy = ServiceProxy(settings.BILLING_SERVICE_URL)
@@ -29,6 +30,7 @@ async def stripe_webhook(request: Request):
     body = await request.body()
     # In a gateway, we want to forward the raw bytes to preserve signature verification.
     import httpx
+
     async with httpx.AsyncClient(timeout=30.0) as client:
         # Forward Stripe-Signature
         fwd_headers = {"stripe-signature": headers.get("stripe-signature", "")}
@@ -39,5 +41,6 @@ async def stripe_webhook(request: Request):
         )
         if resp.status_code >= 400:
             from fastapi import HTTPException
+
             raise HTTPException(status_code=resp.status_code, detail=resp.text)
         return resp.json()

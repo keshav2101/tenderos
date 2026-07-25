@@ -1,8 +1,9 @@
 """Chat (Tender Copilot) routes."""
-from fastapi import APIRouter, Request, Path
-from pydantic import BaseModel
-from app.proxy import ServiceProxy
+
 from app.config import settings
+from app.proxy import ServiceProxy
+from fastapi import APIRouter, Path, Request
+from pydantic import BaseModel
 
 router = APIRouter()
 _proxy = ServiceProxy(settings.COPILOT_SERVICE_URL, timeout=60.0)
@@ -52,6 +53,4 @@ async def clear_history(request: Request, tender_id: str = Path(...)):
     user = request.state.user
     if not user:
         return {"status": "success"}
-    return await _proxy.delete(
-        f"/chat/{tender_id}/history?user_id={user['user_id']}"
-    )
+    return await _proxy.delete(f"/chat/{tender_id}/history?user_id={user['user_id']}")

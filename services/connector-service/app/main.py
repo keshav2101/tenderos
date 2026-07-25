@@ -1,40 +1,46 @@
 """Connector service FastAPI application and Ingestion Pipeline — Phase 14."""
+
 from __future__ import annotations
+
 import asyncio
 import json
 from datetime import datetime, timedelta
-from typing import Optional, List, Dict
-from uuid import UUID, uuid4
+from uuid import uuid4
 
-import httpx
 import asyncpg
+import httpx
 import structlog
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Query
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-
 from app.config import settings
-from app.connectors.registry import get_connector, list_connectors, get_all_source_ids
-from app.connectors.base import RawTender
 from app.connectors.normalization import normalize_tender
+from app.connectors.registry import get_all_source_ids, get_connector, list_connectors
 from app.connectors.validation import validate_tender
-
+from fastapi import BackgroundTasks, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 
 logger = structlog.get_logger()
 app = FastAPI(title="TenderOS Connector Service", version="14.0.0")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
-                   allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-_pool: Optional[asyncpg.Pool] = None
+_pool: asyncpg.Pool | None = None
 
 
 async def get_pool() -> asyncpg.Pool:
     global _pool
     if _pool is None:
         _pool = await asyncpg.create_pool(
-            host=settings.POSTGRES_HOST, port=settings.POSTGRES_PORT,
-            database=settings.POSTGRES_DB, user=settings.POSTGRES_USER,
-            password=settings.POSTGRES_PASSWORD, min_size=2, max_size=10,
+            host=settings.POSTGRES_HOST,
+            port=settings.POSTGRES_PORT,
+            database=settings.POSTGRES_DB,
+            user=settings.POSTGRES_USER,
+            password=settings.POSTGRES_PASSWORD,
+            min_size=2,
+            max_size=10,
         )
     return _pool
 
@@ -44,14 +50,19 @@ async def startup_event():
     pool = await get_pool()
     try:
         async with pool.acquire() as conn:
-            await conn.execute("ALTER TABLE tenders ADD COLUMN IF NOT EXISTS lineage JSONB;")
-        logger.info("Connector service started and database pool initialized with lineage column")
+            await conn.execute(
+                "ALTER TABLE tenders ADD COLUMN IF NOT EXISTS lineage JSONB;"
+            )
+        logger.info(
+            "Connector service started and database pool initialized with lineage column"
+        )
     except Exception as e:
         logger.error("Failed to run startup migrations", error=str(e))
 
     # Start scheduler
     try:
         from app.scheduler import start_scheduler
+
         start_scheduler()
         logger.info("APScheduler connector scheduler started")
     except Exception as e:
@@ -66,6 +77,7 @@ async def shutdown_event():
         logger.info("Database pool closed")
     try:
         from app.scheduler import stop_scheduler
+
         stop_scheduler()
     except Exception:
         pass
@@ -83,11 +95,16 @@ async def run_ingestion_pipeline(source_id: str):
         logger.error("Failed to load connector", source=source_id, error=str(e))
         return
 
-    from app.connectors.quality_engine import (
-        compute_quality_score, ConnectorQualityReport, is_quality_acceptable
-    )
+    from app.connectors.quality_engine import ConnectorQualityReport, compute_quality_score, is_quality_acceptable
 
-    stats = {"fetched": 0, "inserted": 0, "updated": 0, "skipped": 0, "failures": 0, "queued": 0}
+    stats = {
+        "fetched": 0,
+        "inserted": 0,
+        "updated": 0,
+        "skipped": 0,
+        "failures": 0,
+        "queued": 0,
+    }
     pool = await get_pool()
     sync_start = datetime.utcnow()
     status_state = "RUNNING"
@@ -103,7 +120,11 @@ async def run_ingestion_pipeline(source_id: str):
             try:
                 normalized = normalize_tender(raw_tender)
             except Exception as norm_err:
-                logger.error("Failed to normalize raw tender", source_id=source_id, error=str(norm_err))
+                logger.error(
+                    "Failed to normalize raw tender",
+                    source_id=source_id,
+                    error=str(norm_err),
+                )
                 stats["failures"] += 1
                 continue
 
@@ -113,16 +134,22 @@ async def run_ingestion_pipeline(source_id: str):
             acceptable = is_quality_acceptable(quality_score)
             quality_report.record(quality_score, acceptable)
             if not acceptable:
-                logger.warning("Tender below quality threshold — rejected",
-                               tender_id=normalized.tender_id, score=quality_score)
+                logger.warning(
+                    "Tender below quality threshold — rejected",
+                    tender_id=normalized.tender_id,
+                    score=quality_score,
+                )
                 stats["failures"] += 1
                 continue
 
             # 3. Validation Layer (dead-letter logging)
             is_valid, validation_errors = validate_tender(normalized)
             if not is_valid:
-                logger.warning("Tender failed data quality validation, rejected.",
-                               tender_id=normalized.tender_id, errors=validation_errors)
+                logger.warning(
+                    "Tender failed data quality validation, rejected.",
+                    tender_id=normalized.tender_id,
+                    errors=validation_errors,
+                )
                 stats["failures"] += 1
                 continue
 
@@ -134,18 +161,21 @@ async def run_ingestion_pipeline(source_id: str):
             # 4. Attempt publishing to Redis Queue
             try:
                 from app.queue import publish_tender_event
+
                 publish_tender_event(
                     source_id=source_id,
                     raw_tender_data=normalized.model_dump(mode="json"),
                     source_url=source_url,
                     source_tender_id=tender_id,
-                    document_urls=document_urls
+                    document_urls=document_urls,
                 )
                 stats["queued"] += 1
                 continue
             except Exception as queue_err:
-                logger.warning("Queue publishing failed, falling back to direct DB insert",
-                               error=str(queue_err))
+                logger.warning(
+                    "Queue publishing failed, falling back to direct DB insert",
+                    error=str(queue_err),
+                )
 
             # 5. Fallback DB Insert/Update
             try:
@@ -170,7 +200,8 @@ async def run_ingestion_pipeline(source_id: str):
                 async with pool.acquire() as conn:
                     row = await conn.fetchrow(
                         "SELECT id, dedup_hash FROM tenders WHERE source = $1 AND source_tender_id = $2",
-                        source_id, tender_id
+                        source_id,
+                        tender_id,
                     )
                     new_hash = raw_tender.content_hash()
 
@@ -194,15 +225,36 @@ async def run_ingestion_pipeline(source_id: str):
                                 $20, $21, $22, $23, $24, $25, $26, 1, 0.95, $27, $28, $29, $30
                             )
                             """,
-                            new_id, source_id, tender_id, source_url, title,
-                            ministry, dept, org, state, cost_lakhs,
-                            emd, fee, 5.0, categories,
-                            method, status, published, deadline,
-                            opening, cost_lakhs * 0.3 if cost_lakhs else 10.0, 3, ["ISO 9001"],
-                            True, True,
-                            f"Ingested {normalized.source_portal} Tender: {title}", new_hash,
-                            contact_name, contact_email, contact_phone,
-                            json.dumps(normalized.lineage)
+                            new_id,
+                            source_id,
+                            tender_id,
+                            source_url,
+                            title,
+                            ministry,
+                            dept,
+                            org,
+                            state,
+                            cost_lakhs,
+                            emd,
+                            fee,
+                            5.0,
+                            categories,
+                            method,
+                            status,
+                            published,
+                            deadline,
+                            opening,
+                            cost_lakhs * 0.3 if cost_lakhs else 10.0,
+                            3,
+                            ["ISO 9001"],
+                            True,
+                            True,
+                            f"Ingested {normalized.source_portal} Tender: {title}",
+                            new_hash,
+                            contact_name,
+                            contact_email,
+                            contact_phone,
+                            json.dumps(normalized.lineage),
                         )
                         stats["inserted"] += 1
 
@@ -214,13 +266,15 @@ async def run_ingestion_pipeline(source_id: str):
                                         json={
                                             "tender_id": str(new_id),
                                             "document_url": document_urls[0],
-                                            "document_name": f"{tender_id.replace('/', '_')}_spec.pdf"
+                                            "document_name": f"{tender_id.replace('/', '_')}_spec.pdf",
                                         },
-                                        timeout=5.0
+                                        timeout=5.0,
                                     )
                                 except Exception as doc_err:
-                                    logger.warning("Failed to trigger document-pipeline",
-                                                   error=str(doc_err))
+                                    logger.warning(
+                                        "Failed to trigger document-pipeline",
+                                        error=str(doc_err),
+                                    )
                     else:
                         existing_id = row["id"]
                         existing_hash = row["dedup_hash"]
@@ -232,15 +286,21 @@ async def run_ingestion_pipeline(source_id: str):
                                     dedup_hash = $4, updated_at = NOW(), lineage = $5
                                 WHERE id = $6
                                 """,
-                                title, cost_lakhs, deadline, new_hash,
-                                json.dumps(normalized.lineage), existing_id
+                                title,
+                                cost_lakhs,
+                                deadline,
+                                new_hash,
+                                json.dumps(normalized.lineage),
+                                existing_id,
                             )
                             stats["updated"] += 1
                         else:
                             stats["skipped"] += 1
 
             except Exception as db_err:
-                logger.error("Database write failure", source_id=source_id, error=str(db_err))
+                logger.error(
+                    "Database write failure", source_id=source_id, error=str(db_err)
+                )
                 stats["failures"] += 1
 
         status_state = "SUCCESS"
@@ -268,6 +328,7 @@ async def run_ingestion_pipeline(source_id: str):
     # Store connector health status metrics in Redis
     try:
         from app.queue import get_redis_client
+
         r_client = get_redis_client()
         metrics = {
             "portal": source_id,
@@ -284,13 +345,20 @@ async def run_ingestion_pipeline(source_id: str):
         }
         r_client.hset(f"connector_status:{source_id}", mapping=metrics)
     except Exception as metric_err:
-        logger.warning("Failed to store connector health metrics", error=str(metric_err))
+        logger.warning(
+            "Failed to store connector health metrics", error=str(metric_err)
+        )
 
-    logger.info("Ingestion pipeline run complete", source=source_id, stats=stats,
-                quality=quality_report.to_dict())
+    logger.info(
+        "Ingestion pipeline run complete",
+        source=source_id,
+        stats=stats,
+        quality=quality_report.to_dict(),
+    )
 
 
 # ─── Health ───────────────────────────────────────────────────────────────────
+
 
 @app.get("/health")
 async def health():
@@ -299,39 +367,53 @@ async def health():
 
 # ─── Connector Listing ────────────────────────────────────────────────────────
 
+
 @app.get("/connectors")
 async def get_connectors():
     static_list = list_connectors()
     try:
         from app.queue import get_redis_client
+
         r_client = get_redis_client()
         for source_id, info in static_list.items():
             metrics = r_client.hgetall(f"connector_status:{source_id}")
             if metrics:
-                info.update({
-                    "health": metrics.get("health", "UP"),
-                    "last_sync": metrics.get("last_sync", ""),
-                    "fetched": int(metrics.get("fetched", 0)),
-                    "inserted": int(metrics.get("inserted", 0)),
-                    "updated": int(metrics.get("updated", 0)),
-                    "skipped": int(metrics.get("skipped", 0)),
-                    "failed": int(metrics.get("failed", 0)),
-                    "avg_sync_time": float(metrics.get("avg_sync_time_seconds", 0.0)),
-                    "quality_score": float(metrics.get("quality_score", 0.0)),
-                })
+                info.update(
+                    {
+                        "health": metrics.get("health", "UP"),
+                        "last_sync": metrics.get("last_sync", ""),
+                        "fetched": int(metrics.get("fetched", 0)),
+                        "inserted": int(metrics.get("inserted", 0)),
+                        "updated": int(metrics.get("updated", 0)),
+                        "skipped": int(metrics.get("skipped", 0)),
+                        "failed": int(metrics.get("failed", 0)),
+                        "avg_sync_time": float(
+                            metrics.get("avg_sync_time_seconds", 0.0)
+                        ),
+                        "quality_score": float(metrics.get("quality_score", 0.0)),
+                    }
+                )
             else:
-                info.update({
-                    "health": "UNKNOWN", "last_sync": None,
-                    "fetched": 0, "inserted": 0, "updated": 0,
-                    "skipped": 0, "failed": 0, "avg_sync_time": 0.0,
-                    "quality_score": 0.0,
-                })
+                info.update(
+                    {
+                        "health": "UNKNOWN",
+                        "last_sync": None,
+                        "fetched": 0,
+                        "inserted": 0,
+                        "updated": 0,
+                        "skipped": 0,
+                        "failed": 0,
+                        "avg_sync_time": 0.0,
+                        "quality_score": 0.0,
+                    }
+                )
     except Exception as e:
         logger.warning("Failed to fetch connector status from Redis", error=str(e))
     return static_list
 
 
 # ─── NEW: Connector Status (per-connector health) ─────────────────────────────
+
 
 @app.get("/connectors/status")
 async def get_connectors_status():
@@ -340,18 +422,25 @@ async def get_connectors_status():
     result = {}
     try:
         from app.queue import get_redis_client
+
         r_client = get_redis_client()
         for source_id in all_ids:
             metrics = r_client.hgetall(f"connector_status:{source_id}")
             if metrics:
-                result[source_id] = {k.decode() if isinstance(k, bytes) else k:
-                                      v.decode() if isinstance(v, bytes) else v
-                                      for k, v in metrics.items()}
+                result[source_id] = {
+                    k.decode() if isinstance(k, bytes) else k: v.decode()
+                    if isinstance(v, bytes)
+                    else v
+                    for k, v in metrics.items()
+                }
                 result[source_id]["source_id"] = source_id
             else:
                 result[source_id] = {
-                    "source_id": source_id, "health": "UNKNOWN",
-                    "last_sync": None, "fetched": 0, "inserted": 0,
+                    "source_id": source_id,
+                    "health": "UNKNOWN",
+                    "last_sync": None,
+                    "fetched": 0,
+                    "inserted": 0,
                     "quality_score": 0.0,
                 }
     except Exception as e:
@@ -363,6 +452,7 @@ async def get_connectors_status():
 
 # ─── NEW: Aggregated Stats ────────────────────────────────────────────────────
 
+
 @app.get("/connectors/stats")
 async def get_connectors_stats():
     """Return aggregated metrics across all connectors."""
@@ -373,6 +463,7 @@ async def get_connectors_stats():
 
     try:
         from app.queue import get_redis_client
+
         r_client = get_redis_client()
         for source_id in all_ids:
             metrics = r_client.hgetall(f"connector_status:{source_id}")
@@ -408,6 +499,7 @@ async def get_connectors_stats():
 
 # ─── NEW: Single Connector Details ────────────────────────────────────────────
 
+
 @app.get("/connectors/{source_id}/details")
 async def get_connector_details(source_id: str):
     """Return detailed metadata for a single connector."""
@@ -421,6 +513,7 @@ async def get_connector_details(source_id: str):
 
     try:
         from app.queue import get_redis_client
+
         r_client = get_redis_client()
         redis_metrics = r_client.hgetall(f"connector_status:{source_id}")
         if redis_metrics:
@@ -435,12 +528,13 @@ async def get_connector_details(source_id: str):
 
 # ─── NEW: Validate Connectors (Live Health Verification) ──────────────────────
 
+
 @app.get("/connectors/validate")
 async def validate_connectors():
     """Runs parallel health checks on all connectors and reports their actual crawl status."""
     all_ids = get_all_source_ids()
     results = {}
-    
+
     async def check_one(source_id: str):
         try:
             connector = get_connector(source_id)
@@ -457,19 +551,20 @@ async def validate_connectors():
                 "display_name": source_id,
                 "status": "FAILED",
                 "enabled": False,
-                "error": str(e)
+                "error": str(e),
             }
 
     tasks = [check_one(sid) for sid in all_ids]
     completed = await asyncio.gather(*tasks)
-    
+
     for sid, info in completed:
         results[sid] = info
-        
+
     return results
 
 
 # ─── NEW: Run All Connectors ──────────────────────────────────────────────────
+
 
 @app.post("/connectors/run-all")
 async def trigger_all_sync(background_tasks: BackgroundTasks):
@@ -489,6 +584,7 @@ async def trigger_all_sync(background_tasks: BackgroundTasks):
 
 # ─── NEW: Disable Connector ───────────────────────────────────────────────────
 
+
 @app.post("/connectors/{source_id}/disable")
 async def disable_connector(source_id: str):
     """Disable a connector from scheduled sync."""
@@ -499,6 +595,7 @@ async def disable_connector(source_id: str):
     connector.disable()
     try:
         from app.scheduler import disable_connector_schedule
+
         disable_connector_schedule(source_id)
     except Exception:
         pass
@@ -506,6 +603,7 @@ async def disable_connector(source_id: str):
 
 
 # ─── NEW: Enable Connector ────────────────────────────────────────────────────
+
 
 @app.post("/connectors/{source_id}/enable")
 async def enable_connector(source_id: str):
@@ -517,6 +615,7 @@ async def enable_connector(source_id: str):
     connector.enable()
     try:
         from app.scheduler import enable_connector_schedule
+
         enable_connector_schedule(source_id)
     except Exception:
         pass
@@ -525,17 +624,20 @@ async def enable_connector(source_id: str):
 
 # ─── NEW: Scheduler Status ────────────────────────────────────────────────────
 
+
 @app.get("/connectors/scheduler/status")
 async def get_scheduler_status():
     """Return APScheduler status and all job schedules."""
     try:
         from app.scheduler import get_scheduler_status as _status
+
         return _status()
     except Exception as e:
         return {"running": False, "error": str(e)}
 
 
 # ─── Existing: Sync Specific Connector ───────────────────────────────────────
+
 
 @app.post("/connectors/{source_id}/sync")
 async def trigger_sync(source_id: str, background_tasks: BackgroundTasks):

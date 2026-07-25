@@ -1,4 +1,5 @@
 """Competitor service configuration."""
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 

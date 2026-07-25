@@ -8,29 +8,31 @@ APScheduler-based cron engine that:
   - Persists checkpoints to Redis
   - Skips disabled connectors
 """
+
 from __future__ import annotations
+
 import asyncio
 from datetime import datetime
-from typing import Dict, Optional
+
 import structlog
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 logger = structlog.get_logger()
 
-_scheduler: Optional[AsyncIOScheduler] = None
+_scheduler: AsyncIOScheduler | None = None
 
 # Backoff state: source_id -> consecutive failure count
-_failure_counts: Dict[str, int] = {}
+_failure_counts: dict[str, int] = {}
 _MAX_BACKOFF_SECONDS = 300.0
 _BACKOFF_BASE = 2.0
 
 
 async def _run_connector_safe(source_id: str):
     """Wrapper that runs the ingestion pipeline with error tracking."""
-    from app.main import run_ingestion_pipeline
-    from app.connectors.registry import get_connector
     from app.connectors.incremental import set_last_crawl
+    from app.connectors.registry import get_connector
+    from app.main import run_ingestion_pipeline
 
     try:
         connector = get_connector(source_id)
@@ -41,13 +43,20 @@ async def _run_connector_safe(source_id: str):
         # Check backoff
         failures = _failure_counts.get(source_id, 0)
         if failures > 0:
-            backoff = min(_BACKOFF_BASE ** failures, _MAX_BACKOFF_SECONDS)
-            logger.info("Applying backoff before retry", source=source_id,
-                        failures=failures, backoff_seconds=backoff)
+            backoff = min(_BACKOFF_BASE**failures, _MAX_BACKOFF_SECONDS)
+            logger.info(
+                "Applying backoff before retry",
+                source=source_id,
+                failures=failures,
+                backoff_seconds=backoff,
+            )
             await asyncio.sleep(backoff)
 
-        logger.info("Scheduler: triggering sync", source=source_id,
-                    scheduled_at=datetime.utcnow().isoformat())
+        logger.info(
+            "Scheduler: triggering sync",
+            source=source_id,
+            scheduled_at=datetime.utcnow().isoformat(),
+        )
         await run_ingestion_pipeline(source_id)
 
         # Success — reset failure count and store checkpoint
@@ -56,9 +65,12 @@ async def _run_connector_safe(source_id: str):
 
     except Exception as e:
         _failure_counts[source_id] = _failure_counts.get(source_id, 0) + 1
-        logger.error("Scheduled connector run failed",
-                     source=source_id, error=str(e),
-                     consecutive_failures=_failure_counts[source_id])
+        logger.error(
+            "Scheduled connector run failed",
+            source=source_id,
+            error=str(e),
+            consecutive_failures=_failure_counts[source_id],
+        )
 
 
 def start_scheduler():
@@ -68,7 +80,7 @@ def start_scheduler():
         logger.warning("Scheduler already running")
         return
 
-    from app.connectors.registry import list_connectors, get_connector
+    from app.connectors.registry import list_connectors
 
     _scheduler = AsyncIOScheduler(timezone="UTC")
     connectors = list_connectors()
@@ -88,12 +100,17 @@ def start_scheduler():
             )
             logger.info("Scheduled connector", source=source_id, cron=cron_expr)
         except Exception as e:
-            logger.error("Failed to schedule connector", source=source_id,
-                         cron=cron_expr, error=str(e))
+            logger.error(
+                "Failed to schedule connector",
+                source=source_id,
+                cron=cron_expr,
+                error=str(e),
+            )
 
     _scheduler.start()
-    logger.info("TenderOS Connector Scheduler started",
-                total_jobs=len(_scheduler.get_jobs()))
+    logger.info(
+        "TenderOS Connector Scheduler started", total_jobs=len(_scheduler.get_jobs())
+    )
 
 
 def stop_scheduler():
@@ -111,12 +128,16 @@ def get_scheduler_status() -> dict:
 
     jobs = []
     for job in _scheduler.get_jobs():
-        jobs.append({
-            "id": job.id,
-            "name": job.name,
-            "next_run": job.next_run_time.isoformat() if job.next_run_time else None,
-            "trigger": str(job.trigger),
-        })
+        jobs.append(
+            {
+                "id": job.id,
+                "name": job.name,
+                "next_run": job.next_run_time.isoformat()
+                if job.next_run_time
+                else None,
+                "trigger": str(job.trigger),
+            }
+        )
 
     return {
         "running": _scheduler.running,
@@ -133,7 +154,9 @@ def disable_connector_schedule(source_id: str):
             _scheduler.pause_job(f"sync_{source_id}")
             logger.info("Paused connector schedule", source=source_id)
         except Exception as e:
-            logger.warning("Could not pause connector schedule", source=source_id, error=str(e))
+            logger.warning(
+                "Could not pause connector schedule", source=source_id, error=str(e)
+            )
 
 
 def enable_connector_schedule(source_id: str):
@@ -144,4 +167,6 @@ def enable_connector_schedule(source_id: str):
             _scheduler.resume_job(f"sync_{source_id}")
             logger.info("Resumed connector schedule", source=source_id)
         except Exception as e:
-            logger.warning("Could not resume connector schedule", source=source_id, error=str(e))
+            logger.warning(
+                "Could not resume connector schedule", source=source_id, error=str(e)
+            )

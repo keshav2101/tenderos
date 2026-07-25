@@ -2,14 +2,15 @@
 Redis-backed sliding window rate limiter.
 Per-user limits based on their plan tier.
 """
+
 import time
+
+import redis.asyncio as aioredis
 import structlog
+from app.config import settings
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-import redis.asyncio as aioredis
-
-from app.config import settings
 
 logger = structlog.get_logger()
 
@@ -45,7 +46,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         plan_status = user.get("plan_status", "active") if user else "active"
         if plan_status not in ("active", "trialing"):
             plan = "free"
-        user_id = user.get("user_id", request.client.host) if user else request.client.host
+        user_id = (
+            user.get("user_id", request.client.host) if user else request.client.host
+        )
 
         limit = PLAN_LIMITS.get(plan, PLAN_LIMITS["free"])
 

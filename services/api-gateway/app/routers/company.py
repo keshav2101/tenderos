@@ -1,8 +1,9 @@
 """Company Digital Twin routes."""
-from fastapi import APIRouter, Request, UploadFile, File, Form
-from app.proxy import ServiceProxy
-from app.config import settings
+
 import httpx
+from app.config import settings
+from app.proxy import ServiceProxy
+from fastapi import APIRouter, Request
 
 router = APIRouter()
 _proxy = ServiceProxy(settings.DIGITAL_TWIN_SERVICE_URL)
@@ -28,7 +29,9 @@ async def get_profile_score(request: Request):
     return await _proxy.get(f"/profile/{user['user_id']}/score")
 
 
-@router.post("/documents", summary="Upload company document (GST, ISO, Experience cert, etc.)")
+@router.post(
+    "/documents", summary="Upload company document (GST, ISO, Experience cert, etc.)"
+)
 async def upload_document(request: Request):
     """
     Upload and auto-extract company documents.
@@ -39,7 +42,13 @@ async def upload_document(request: Request):
     form = await request.form()
     # Stream the file to digital-twin-service
     async with httpx.AsyncClient(timeout=60.0) as client:
-        files = {"file": (form["file"].filename, await form["file"].read(), form["file"].content_type)}
+        files = {
+            "file": (
+                form["file"].filename,
+                await form["file"].read(),
+                form["file"].content_type,
+            )
+        }
         data = {"user_id": user["user_id"], "doc_type": form.get("doc_type", "other")}
         resp = await client.post(
             f"{settings.DIGITAL_TWIN_SERVICE_URL}/documents",
@@ -48,6 +57,7 @@ async def upload_document(request: Request):
         )
     if resp.status_code >= 400:
         from fastapi import HTTPException
+
         raise HTTPException(status_code=resp.status_code, detail=resp.json())
     return resp.json()
 

@@ -1,4 +1,5 @@
 """Dispatcher client for multi-channel notifications (Slack, Twilio)."""
+
 import httpx
 import structlog
 
@@ -12,9 +13,7 @@ class SlackDispatcher:
             logger.warning("Slack webhook URL not provided, skipping")
             return False
 
-        payload = {
-            "text": f"*{title}*\n{body}"
-        }
+        payload = {"text": f"*{title}*\n{body}"}
 
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
@@ -23,7 +22,11 @@ class SlackDispatcher:
                     logger.info("Slack alert sent successfully")
                     return True
                 else:
-                    logger.error("Slack alert failed", status_code=resp.status_code, response=resp.text)
+                    logger.error(
+                        "Slack alert failed",
+                        status_code=resp.status_code,
+                        response=resp.text,
+                    )
                     return False
         except Exception as e:
             logger.error("Slack connection error", error=str(e))
@@ -31,15 +34,25 @@ class SlackDispatcher:
 
 
 class TwilioDispatcher:
-    def __init__(self, account_sid: str = "", auth_token: str = "", from_number: str = ""):
+    def __init__(
+        self, account_sid: str = "", auth_token: str = "", from_number: str = ""
+    ):
         self.account_sid = account_sid
         self.auth_token = auth_token
         self.from_number = from_number
-        self.client_url = f"https://api.twilio.com/2010-04-01/Accounts/{self.account_sid}/Messages.json" if account_sid else ""
+        self.client_url = (
+            f"https://api.twilio.com/2010-04-01/Accounts/{self.account_sid}/Messages.json"
+            if account_sid
+            else ""
+        )
 
     async def send_sms(self, to_number: str, text: str) -> bool:
         if not self.account_sid or not self.auth_token or not self.from_number:
-            logger.warning("Twilio SMS credentials missing, logging message instead", to=to_number, text=text)
+            logger.warning(
+                "Twilio SMS credentials missing, logging message instead",
+                to=to_number,
+                text=text,
+            )
             return True
 
         try:
@@ -53,7 +66,11 @@ class TwilioDispatcher:
                     logger.info("Twilio SMS sent successfully")
                     return True
                 else:
-                    logger.error("Twilio SMS failed", status_code=resp.status_code, response=resp.text)
+                    logger.error(
+                        "Twilio SMS failed",
+                        status_code=resp.status_code,
+                        response=resp.text,
+                    )
                     return False
         except Exception as e:
             logger.error("Twilio SMS connection error", error=str(e))
@@ -61,12 +78,22 @@ class TwilioDispatcher:
 
     async def send_whatsapp(self, to_number: str, text: str) -> bool:
         if not self.account_sid or not self.auth_token or not self.from_number:
-            logger.warning("Twilio WhatsApp credentials missing, logging message instead", to=to_number, text=text)
+            logger.warning(
+                "Twilio WhatsApp credentials missing, logging message instead",
+                to=to_number,
+                text=text,
+            )
             return True
 
         # Twilio WhatsApp requires prefix 'whatsapp:'
-        to_formatted = to_number if to_number.startswith("whatsapp:") else f"whatsapp:{to_number}"
-        from_formatted = self.from_number if self.from_number.startswith("whatsapp:") else f"whatsapp:{self.from_number}"
+        to_formatted = (
+            to_number if to_number.startswith("whatsapp:") else f"whatsapp:{to_number}"
+        )
+        from_formatted = (
+            self.from_number
+            if self.from_number.startswith("whatsapp:")
+            else f"whatsapp:{self.from_number}"
+        )
 
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
@@ -79,7 +106,11 @@ class TwilioDispatcher:
                     logger.info("Twilio WhatsApp alert sent successfully")
                     return True
                 else:
-                    logger.error("Twilio WhatsApp alert failed", status_code=resp.status_code, response=resp.text)
+                    logger.error(
+                        "Twilio WhatsApp alert failed",
+                        status_code=resp.status_code,
+                        response=resp.text,
+                    )
                     return False
         except Exception as e:
             logger.error("Twilio WhatsApp connection error", error=str(e))

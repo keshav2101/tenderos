@@ -1,7 +1,8 @@
 """Search routes — proxy to search-service."""
-from fastapi import APIRouter, Request
-from app.proxy import ServiceProxy
+
 from app.config import settings
+from app.proxy import ServiceProxy
+from fastapi import APIRouter, Request
 
 router = APIRouter()
 _proxy = ServiceProxy(settings.SEARCH_SERVICE_URL)

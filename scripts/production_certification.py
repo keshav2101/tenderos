@@ -1,15 +1,16 @@
-import sys
 import json
-from scripts.security_audit import run_security_audit
-from scripts.performance_benchmark import run_performance_benchmark
-from scripts.evaluate_rag_harness import run_rag_eval
-from scripts.evaluate_proposals_compliance import run_proposals_compliance_eval
-from scripts.evaluate_time_series_forecasting import run_forecasting_eval
-from scripts.evaluate_reliability_dr import run_reliability_dr_tests
+
 from scripts.evaluate_phase9_operations import run_phase9_eval
 from scripts.evaluate_phase10_ga import run_phase10_eval
 from scripts.evaluate_phase11_ga import run_phase11_eval
 from scripts.evaluate_phase12_post_ga import run_phase12_eval
+from scripts.evaluate_proposals_compliance import run_proposals_compliance_eval
+from scripts.evaluate_rag_harness import run_rag_eval
+from scripts.evaluate_reliability_dr import run_reliability_dr_tests
+from scripts.evaluate_time_series_forecasting import run_forecasting_eval
+from scripts.performance_benchmark import run_performance_benchmark
+from scripts.security_audit import run_security_audit
+
 
 def run_production_certification():
     print("=" * 60)
@@ -18,7 +19,7 @@ def run_production_certification():
 
     # 1. Security Audit
     sec_score = run_security_audit()
-    
+
     # 2. Performance Benchmark
     perf_score = run_performance_benchmark()
 
@@ -47,9 +48,25 @@ def run_production_certification():
     p12_report = run_phase12_eval()
 
     # Dynamic Score Computation
-    ai_trust_score = round((rag_report["grounding_score"] * 50 + comp_report["compliance_accuracy_pct"] * 0.5), 1)
-    reliability_score = round(100.0 - rel_report["recovery_time_objective_rto_sec"] * 0.1, 1)
-    overall_release_score = round((sec_score * 0.25 + perf_score * 0.25 + ai_trust_score * 0.25 + reliability_score * 0.25), 1)
+    ai_trust_score = round(
+        (
+            rag_report["grounding_score"] * 50
+            + comp_report["compliance_accuracy_pct"] * 0.5
+        ),
+        1,
+    )
+    reliability_score = round(
+        100.0 - rel_report["recovery_time_objective_rto_sec"] * 0.1, 1
+    )
+    overall_release_score = round(
+        (
+            sec_score * 0.25
+            + perf_score * 0.25
+            + ai_trust_score * 0.25
+            + reliability_score * 0.25
+        ),
+        1,
+    )
 
     journey_steps = [
         "1. Login & Authentication Flow",
@@ -61,7 +78,7 @@ def run_production_certification():
         "7. Autonomous Intelligence Recommendation",
         "8. Executive Dashboard & Proactive Alerts",
         "9. Multi-Agent Copilot Chat Drawer",
-        "10. User Logout & Session Invalidation"
+        "10. User Logout & Session Invalidation",
     ]
 
     scores = {
@@ -72,7 +89,7 @@ def run_production_certification():
         "ai_trust_score": round(ai_trust_score, 1),
         "connector_coverage_score": 100.0,
         "test_coverage_score": 94.2,
-        "overall_release_score": round(overall_release_score, 1)
+        "overall_release_score": round(overall_release_score, 1),
     }
 
     test_summary = {
@@ -82,7 +99,7 @@ def run_production_certification():
         "load_stress_tests_passed": 12,
         "security_tests_passed": 18,
         "browser_e2e_tests_passed": 14,
-        "total_test_coverage_pct": 94.2
+        "total_test_coverage_pct": 94.2,
     }
 
     output = {
@@ -96,8 +113,8 @@ def run_production_certification():
             "rag_evaluation": rag_report,
             "proposals_compliance_evaluation": comp_report,
             "time_series_forecasting_evaluation": ts_report,
-            "reliability_dr_tests": rel_report
-        }
+            "reliability_dr_tests": rel_report,
+        },
     }
 
     print("\n" + "=" * 60)
@@ -105,6 +122,7 @@ def run_production_certification():
     print("=" * 60)
     print(json.dumps(output, indent=2))
     return scores["overall_release_score"]
+
 
 if __name__ == "__main__":
     run_production_certification()

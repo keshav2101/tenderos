@@ -6,11 +6,13 @@ Each connector is a minimal subclass of StateBaseConnector setting only:
 
 The StateBaseConnector base class handles all shared logic.
 """
+
 from __future__ import annotations
+
 from app.connectors.plugins.state.state_base import StateBaseConnector
 
-
 # ─── 28 States ────────────────────────────────────────────────────────────────
+
 
 class AndhraPradeshConnector(StateBaseConnector):
     source_id = "ap"
@@ -265,6 +267,7 @@ class WestBengalConnector(StateBaseConnector):
 
 
 # ─── 8 Union Territories ──────────────────────────────────────────────────────
+
 
 class AndamanNicobarConnector(StateBaseConnector):
     source_id = "an"

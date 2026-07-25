@@ -6,13 +6,16 @@ and register it in the connector registry. No core changes required.
 
 Phase 14: Extended with ConnectorState, stats(), enable/disable, schedule() support.
 """
+
 from __future__ import annotations
+
 import hashlib
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, AsyncIterator, Dict, List, Optional
+from typing import Any
 
 import structlog
 
@@ -35,27 +38,30 @@ class ConnectorStatus(str, Enum):
 @dataclass
 class ConnectorState:
     """Runtime state and statistics for a connector."""
+
     source_id: str
     enabled: bool = True
     status: str = "idle"
-    last_run: Optional[datetime] = None
-    last_success: Optional[datetime] = None
+    last_run: datetime | None = None
+    last_success: datetime | None = None
     success_count: int = 0
     failure_count: int = 0
     total_tenders: int = 0
     new_tenders: int = 0
     updated_tenders: int = 0
-    last_error: Optional[str] = None
+    last_error: str | None = None
     last_duration_seconds: float = 0.0
     quality_score: float = 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "source_id": self.source_id,
             "enabled": self.enabled,
             "status": self.status,
             "last_run": self.last_run.isoformat() if self.last_run else None,
-            "last_success": self.last_success.isoformat() if self.last_success else None,
+            "last_success": self.last_success.isoformat()
+            if self.last_success
+            else None,
             "success_count": self.success_count,
             "failure_count": self.failure_count,
             "total_tenders": self.total_tenders,
@@ -70,16 +76,19 @@ class ConnectorState:
 @dataclass
 class RetryPolicy:
     max_attempts: int = 3
-    backoff_base: float = 2.0          # Exponential backoff multiplier
+    backoff_base: float = 2.0  # Exponential backoff multiplier
     max_backoff_seconds: float = 300.0
-    retry_on_status: List[int] = field(default_factory=lambda: [429, 500, 502, 503, 504])
+    retry_on_status: list[int] = field(
+        default_factory=lambda: [429, 500, 502, 503, 504]
+    )
 
 
 @dataclass
 class CadenceConfig:
     """Per-portal crawl cadence."""
-    cron: str                     # cron expression
-    min_interval_seconds: int     # Minimum between syncs
+
+    cron: str  # cron expression
+    min_interval_seconds: int  # Minimum between syncs
     description: str = ""
 
 
@@ -92,12 +101,13 @@ class RateLimitConfig:
 @dataclass
 class RawTender:
     """Minimal tender data from a source before AI extraction."""
+
     source_id: str
     source_tender_id: str
     source_url: str
-    raw_html: Optional[str] = None
-    raw_json: Optional[dict] = None
-    document_urls: List[str] = field(default_factory=list)
+    raw_html: str | None = None
+    raw_json: dict | None = None
+    document_urls: list[str] = field(default_factory=list)
     fetched_at: datetime = field(default_factory=datetime.utcnow)
 
     def content_hash(self) -> str:
@@ -116,6 +126,7 @@ class BaseConnector(ABC):
       - get_stats() -> ConnectorState
       - enable() / disable()
     """
+
     source_id: str
     display_name: str
     description: str
@@ -127,13 +138,15 @@ class BaseConnector(ABC):
     # Access limitation documentation for gated portals
     access_limitations: str = ""
 
-    def __init__(self, config: Dict[str, Any] = None):
+    def __init__(self, config: dict[str, Any] = None):
         self.config = config or {}
         self._logger = structlog.get_logger().bind(connector=self.source_id)
         self._state = ConnectorState(source_id=self.source_id)
 
     @abstractmethod
-    async def fetch_tenders(self, since: Optional[datetime] = None) -> AsyncIterator[RawTender]:
+    async def fetch_tenders(
+        self, since: datetime | None = None
+    ) -> AsyncIterator[RawTender]:
         """
         Yield raw tenders from the source.
         `since` is the last successful sync timestamp for incremental sync.
@@ -165,8 +178,14 @@ class BaseConnector(ABC):
         self._state.status = "running"
         self._state.last_run = datetime.utcnow()
 
-    def record_run_success(self, new: int = 0, updated: int = 0, total: int = 0,
-                           duration: float = 0.0, quality_score: float = 0.0):
+    def record_run_success(
+        self,
+        new: int = 0,
+        updated: int = 0,
+        total: int = 0,
+        duration: float = 0.0,
+        quality_score: float = 0.0,
+    ):
         """Record a successful sync run."""
         self._state.status = "idle"
         self._state.last_success = datetime.utcnow()
@@ -190,14 +209,16 @@ class BaseConnector(ABC):
         Used for change detection — if fingerprint unchanged, skip detailed fetch.
         """
         import re
+
         # Extract structural elements only (tags + classes), ignore content
-        structural = re.sub(r'>([^<]+)<', '><', html)
-        structural = re.sub(r'\s+', ' ', structural)
-        return hashlib.md5(structural.encode(), usedforsecurity=False).hexdigest()  # noqa: S324
+        structural = re.sub(r">([^<]+)<", "><", html)
+        structural = re.sub(r"\s+", " ", structural)
+        return hashlib.md5(structural.encode(), usedforsecurity=False).hexdigest()
 
     async def is_accessible(self) -> bool:
         """Check if the source portal is reachable."""
         import httpx
+
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 resp = await client.head(self._base_url())

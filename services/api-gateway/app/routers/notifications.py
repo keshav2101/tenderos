@@ -1,7 +1,8 @@
 """Notifications router."""
-from fastapi import APIRouter, Request
-from app.proxy import ServiceProxy
+
 from app.config import settings
+from app.proxy import ServiceProxy
+from fastapi import APIRouter, Request
 
 router = APIRouter()
 _proxy = ServiceProxy(settings.NOTIFICATION_SERVICE_URL)
@@ -16,7 +17,9 @@ async def list_notifications(request: Request):
 @router.post("/{notification_id}/read", summary="Mark notification as read")
 async def mark_read(request: Request, notification_id: str):
     user = request.state.user
-    return await _proxy.post(f"/notifications/{notification_id}/read", json={"user_id": user["user_id"]})
+    return await _proxy.post(
+        f"/notifications/{notification_id}/read", json={"user_id": user["user_id"]}
+    )
 
 
 @router.get("/preferences", summary="Get notification preferences")

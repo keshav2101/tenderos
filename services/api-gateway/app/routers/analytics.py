@@ -1,8 +1,8 @@
 """Analytics, Predictions, and Competitor Intelligence routes."""
-from typing import Optional
-from fastapi import APIRouter, Query
-from app.proxy import ServiceProxy
+
 from app.config import settings
+from app.proxy import ServiceProxy
+from fastapi import APIRouter, Query
 
 router = APIRouter()
 _market = ServiceProxy(settings.MARKET_INTEL_SERVICE_URL)
@@ -12,13 +12,16 @@ _competitor = ServiceProxy(settings.COMPETITOR_SERVICE_URL)
 
 # ─── Market Intelligence ─────────────────────────────────────────────────────
 
+
 @router.get("/trends", summary="Procurement trends over time")
 async def get_trends(
     period: str = Query("12m", enum=["3m", "6m", "12m", "24m"]),
-    category: Optional[str] = None,
-    state: Optional[str] = None,
+    category: str | None = None,
+    state: str | None = None,
 ):
-    return await _market.get("/trends", params={"period": period, "category": category, "state": state})
+    return await _market.get(
+        "/trends", params={"period": period, "category": category, "state": state}
+    )
 
 
 @router.get("/ministries", summary="Top ministries by procurement volume")
@@ -37,7 +40,7 @@ async def get_state_analytics(period: str = "12m"):
 
 
 @router.get("/seasonality", summary="Procurement seasonality by category")
-async def get_seasonality(category: Optional[str] = None):
+async def get_seasonality(category: str | None = None):
     return await _market.get("/seasonality", params={"category": category})
 
 
@@ -48,29 +51,35 @@ async def get_overview():
 
 # ─── Predictive Procurement ──────────────────────────────────────────────────
 
+
 @router.get("/predictions", summary="Upcoming tender forecasts by ministry/category")
 async def get_predictions(
-    ministry: Optional[str] = None,
-    category: Optional[str] = None,
+    ministry: str | None = None,
+    category: str | None = None,
     horizon_days: int = Query(90, ge=30, le=365),
 ):
     return await _predict.get(
         "/predictions",
-        params={"ministry": ministry, "category": category, "horizon_days": horizon_days},
+        params={
+            "ministry": ministry,
+            "category": category,
+            "horizon_days": horizon_days,
+        },
     )
 
 
 @router.get("/predictions/seasonal", summary="Seasonal procurement patterns")
-async def get_seasonal_patterns(ministry: Optional[str] = None):
+async def get_seasonal_patterns(ministry: str | None = None):
     return await _predict.get("/predictions/seasonal", params={"ministry": ministry})
 
 
 # ─── Competitor Intelligence ─────────────────────────────────────────────────
 
+
 @router.get("/competitors", summary="Competitor analysis for a category")
 async def get_competitors(
-    category: Optional[str] = None,
-    ministry: Optional[str] = None,
+    category: str | None = None,
+    ministry: str | None = None,
     period: str = "24m",
 ):
     return await _competitor.get(
@@ -79,11 +88,16 @@ async def get_competitors(
     )
 
 
-@router.get("/competitors/{tender_id}", summary="Competitor analysis for a specific tender's category")
+@router.get(
+    "/competitors/{tender_id}",
+    summary="Competitor analysis for a specific tender's category",
+)
 async def get_tender_competitors(tender_id: str):
     return await _competitor.get(f"/competitors/{tender_id}")
 
 
 @router.get("/market-share", summary="Vendor market share by category")
 async def get_market_share(category: str, period: str = "12m"):
-    return await _competitor.get("/market-share", params={"category": category, "period": period})
+    return await _competitor.get(
+        "/market-share", params={"category": category, "period": period}
+    )

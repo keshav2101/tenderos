@@ -1,18 +1,18 @@
 """Billing Service FastAPI application with Stripe subscription flows."""
+
 from __future__ import annotations
-from datetime import datetime
+
 import json
-from typing import Optional
+from datetime import datetime
 from uuid import UUID
 
 import asyncpg
 import stripe
 import structlog
-from fastapi import FastAPI, HTTPException, Request, Header, status
+from app.config import settings
+from fastapi import FastAPI, Header, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-
-from app.config import settings
 
 logger = structlog.get_logger()
 app = FastAPI(title="TenderOS Billing Service", version=settings.VERSION)
@@ -26,7 +26,7 @@ app.add_middleware(
 )
 
 stripe.api_key = settings.STRIPE_API_KEY
-_pool: Optional[asyncpg.Pool] = None
+_pool: asyncpg.Pool | None = None
 
 
 async def get_db() -> asyncpg.Pool:
@@ -46,9 +46,11 @@ async def get_db() -> asyncpg.Pool:
 
 # ─── Pydantic Request Models ──────────────────────────────────────────────────
 
+
 class CheckoutRequest(BaseModel):
     user_id: str
     plan_tier: str  # 'sme' or 'enterprise'
+
 
 class PortalRequest(BaseModel):
     user_id: str
@@ -61,6 +63,7 @@ async def health():
 
 # ─── Checkout & Portal ────────────────────────────────────────────────────────
 
+
 @app.post("/billing/checkout")
 async def create_checkout_session(req: CheckoutRequest):
     price_id = (
@@ -71,7 +74,10 @@ async def create_checkout_session(req: CheckoutRequest):
 
     pool = await get_db()
     async with pool.acquire() as conn:
-        user = await conn.fetchrow("SELECT email, stripe_customer_id FROM users WHERE id = $1", UUID(req.user_id))
+        user = await conn.fetchrow(
+            "SELECT email, stripe_customer_id FROM users WHERE id = $1",
+            UUID(req.user_id),
+        )
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
 
@@ -104,9 +110,13 @@ async def create_checkout_session(req: CheckoutRequest):
 async def create_portal_session(req: PortalRequest):
     pool = await get_db()
     async with pool.acquire() as conn:
-        user = await conn.fetchrow("SELECT stripe_customer_id FROM users WHERE id = $1", UUID(req.user_id))
+        user = await conn.fetchrow(
+            "SELECT stripe_customer_id FROM users WHERE id = $1", UUID(req.user_id)
+        )
         if not user or not user["stripe_customer_id"]:
-            raise HTTPException(status_code=400, detail="User has no Stripe customer billing record")
+            raise HTTPException(
+                status_code=400, detail="User has no Stripe customer billing record"
+            )
 
     try:
         session = stripe.billing_portal.Session.create(
@@ -121,14 +131,19 @@ async def create_portal_session(req: PortalRequest):
 
 # ─── Stripe Webhook ───────────────────────────────────────────────────────────
 
+
 @app.post("/billing/webhook")
-async def stripe_webhook(request: Request, stripe_signature: Optional[str] = Header(None)):
+async def stripe_webhook(request: Request, stripe_signature: str | None = Header(None)):
     payload = await request.body()
     event = None
 
     try:
         # Verify webhook signature
-        if stripe_signature and settings.STRIPE_WEBHOOK_SECRET != "whsec_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx":
+        if (
+            stripe_signature
+            and settings.STRIPE_WEBHOOK_SECRET
+            != "whsec_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        ):
             event = stripe.Webhook.construct_event(
                 payload, stripe_signature, settings.STRIPE_WEBHOOK_SECRET
             )
@@ -138,7 +153,9 @@ async def stripe_webhook(request: Request, stripe_signature: Optional[str] = Hea
             event = stripe.Event.construct_from(data, stripe.api_key)
     except Exception as e:
         logger.error("Invalid webhook payload or signature", error=str(e))
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid webhook signature")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid webhook signature"
+        )
 
     event_type = event["type"]
     logger.info("Received Stripe webhook event", type=event_type)
@@ -184,12 +201,24 @@ async def handle_subscription_change(subscription: dict):
                     updated_at = NOW()
                 WHERE id = $6
                 """,
-                customer_id, stripe_sub_id, plan, status_str, ends_at, user_id
+                customer_id,
+                stripe_sub_id,
+                plan,
+                status_str,
+                ends_at,
+                user_id,
             )
-            logger.info("Updated subscription for user from metadata", user_id=user_id_str, plan=plan, status=status_str)
+            logger.info(
+                "Updated subscription for user from metadata",
+                user_id=user_id_str,
+                plan=plan,
+                status=status_str,
+            )
         else:
             # Fallback: Lookup user by stripe_customer_id
-            user = await conn.fetchrow("SELECT id FROM users WHERE stripe_customer_id = $1", customer_id)
+            user = await conn.fetchrow(
+                "SELECT id FROM users WHERE stripe_customer_id = $1", customer_id
+            )
             if user:
                 await conn.execute(
                     """
@@ -198,8 +227,20 @@ async def handle_subscription_change(subscription: dict):
                         subscription_ends_at = $4, updated_at = NOW()
                     WHERE id = $5
                     """,
-                    stripe_sub_id, plan, status_str, ends_at, user["id"]
+                    stripe_sub_id,
+                    plan,
+                    status_str,
+                    ends_at,
+                    user["id"],
                 )
-                logger.info("Updated subscription for customer lookup", customer_id=customer_id, plan=plan, status=status_str)
+                logger.info(
+                    "Updated subscription for customer lookup",
+                    customer_id=customer_id,
+                    plan=plan,
+                    status=status_str,
+                )
             else:
-                logger.warning("Subscription change received but no user matches customer_id", customer_id=customer_id)
+                logger.warning(
+                    "Subscription change received but no user matches customer_id",
+                    customer_id=customer_id,
+                )

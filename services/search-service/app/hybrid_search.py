@@ -2,18 +2,19 @@
 Hybrid Search Engine — combines BM25 (OpenSearch) + Semantic (Qdrant) using RRF.
 Search latency target: < 300ms.
 """
+
 from __future__ import annotations
+
 import asyncio
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import structlog
-from opensearchpy import AsyncOpenSearch
-from qdrant_client import AsyncQdrantClient
-
 from app.config import settings
 from app.indexing_contract import build_embedding_text, build_tender_document
 from app.query_parser import parse_natural_language_query
+from opensearchpy import AsyncOpenSearch
+from qdrant_client import AsyncQdrantClient
 
 logger = structlog.get_logger()
 
@@ -26,15 +27,15 @@ TENDER_VECTOR_COLLECTION = "tenders"
 
 
 def reciprocal_rank_fusion(
-    bm25_hits: List[Dict],
-    semantic_hits: List[Dict],
+    bm25_hits: list[dict],
+    semantic_hits: list[dict],
     k: int = RRF_K,
-) -> List[Tuple[str, float]]:
+) -> list[tuple[str, float]]:
     """
     Combine BM25 and semantic results using Reciprocal Rank Fusion.
     Returns list of (tender_id, rrf_score) sorted by score descending.
     """
-    scores: Dict[str, float] = {}
+    scores: dict[str, float] = {}
 
     for rank, hit in enumerate(bm25_hits, 1):
         tid = hit["_id"]
@@ -57,14 +58,16 @@ class HybridSearchEngine:
     """
 
     def __init__(self):
-        self._os: Optional[AsyncOpenSearch] = None
-        self._qdrant: Optional[AsyncQdrantClient] = None
-        self._embedder: Optional[Any] = None
+        self._os: AsyncOpenSearch | None = None
+        self._qdrant: AsyncQdrantClient | None = None
+        self._embedder: Any | None = None
 
     def _get_os(self) -> AsyncOpenSearch:
         if self._os is None:
             self._os = AsyncOpenSearch(
-                hosts=[{"host": settings.OPENSEARCH_HOST, "port": settings.OPENSEARCH_PORT}],
+                hosts=[
+                    {"host": settings.OPENSEARCH_HOST, "port": settings.OPENSEARCH_PORT}
+                ],
                 http_compress=True,
                 use_ssl=False,
             )
@@ -82,10 +85,11 @@ class HybridSearchEngine:
     def _get_embedder(self) -> Any:
         if self._embedder is None:
             from sentence_transformers import SentenceTransformer
+
             self._embedder = SentenceTransformer(settings.EMBEDDING_MODEL)
         return self._embedder
 
-    def _embed(self, text: str) -> List[float]:
+    def _embed(self, text: str) -> list[float]:
         return self._get_embedder().encode(text, normalize_embeddings=True).tolist()
 
     async def _ensure_opensearch_index(self) -> None:
@@ -110,13 +114,53 @@ class HybridSearchEngine:
                 },
                 "mappings": {
                     "properties": {
-                        "title": {"type": "text", "fields": {"keyword": {"type": "keyword", "normalizer": "lowercase_normalizer"}}},
+                        "title": {
+                            "type": "text",
+                            "fields": {
+                                "keyword": {
+                                    "type": "keyword",
+                                    "normalizer": "lowercase_normalizer",
+                                }
+                            },
+                        },
                         "source": {"type": "keyword"},
                         "source_tender_id": {"type": "keyword"},
-                        "ministry": {"type": "text", "fields": {"keyword": {"type": "keyword", "normalizer": "lowercase_normalizer"}}},
-                        "department": {"type": "text", "fields": {"keyword": {"type": "keyword", "normalizer": "lowercase_normalizer"}}},
-                        "organisation": {"type": "text", "fields": {"keyword": {"type": "keyword", "normalizer": "lowercase_normalizer"}}},
-                        "state": {"type": "text", "fields": {"keyword": {"type": "keyword", "normalizer": "lowercase_normalizer"}}},
+                        "ministry": {
+                            "type": "text",
+                            "fields": {
+                                "keyword": {
+                                    "type": "keyword",
+                                    "normalizer": "lowercase_normalizer",
+                                }
+                            },
+                        },
+                        "department": {
+                            "type": "text",
+                            "fields": {
+                                "keyword": {
+                                    "type": "keyword",
+                                    "normalizer": "lowercase_normalizer",
+                                }
+                            },
+                        },
+                        "organisation": {
+                            "type": "text",
+                            "fields": {
+                                "keyword": {
+                                    "type": "keyword",
+                                    "normalizer": "lowercase_normalizer",
+                                }
+                            },
+                        },
+                        "state": {
+                            "type": "text",
+                            "fields": {
+                                "keyword": {
+                                    "type": "keyword",
+                                    "normalizer": "lowercase_normalizer",
+                                }
+                            },
+                        },
                         "categories": {"type": "keyword"},
                         "estimated_cost_lakhs": {"type": "float"},
                         "emd_lakhs": {"type": "float"},
@@ -150,7 +194,7 @@ class HybridSearchEngine:
             vectors_config=VectorParams(size=vector_size, distance=Distance.COSINE),
         )
 
-    async def index_tender(self, tender: Dict[str, Any]) -> Dict[str, Any]:
+    async def index_tender(self, tender: dict[str, Any]) -> dict[str, Any]:
         """
         Index a tender into OpenSearch and Qdrant.
         Returns per-backend outcomes; raises if an enabled backend fails.
@@ -160,7 +204,7 @@ class HybridSearchEngine:
         if not embedding_text:
             raise ValueError("Cannot index tender without searchable text")
 
-        outcomes: Dict[str, Any] = {}
+        outcomes: dict[str, Any] = {}
 
         if settings.OPENSEARCH_HOST == "disabled":
             outcomes["opensearch"] = {"status": "skipped", "reason": "disabled"}
@@ -202,36 +246,42 @@ class HybridSearchEngine:
         return outcomes
 
     def _build_os_query(
-        self, query: str, filters: Dict, page: int, page_size: int
-    ) -> Dict:
+        self, query: str, filters: dict, page: int, page_size: int
+    ) -> dict:
         """Build OpenSearch query with BM25 + filters."""
         must_clauses = []
         filter_clauses = []
 
         if query:
-            must_clauses.append({
-                "multi_match": {
-                    "query": query,
-                    "fields": [
-                        "title^3",
-                        "ministry^2",
-                        "department^2",
-                        "organisation^1.5",
-                        "ai_summary",
-                        "state",
-                    ],
-                    "type": "best_fields",
-                    "fuzziness": "AUTO",
+            must_clauses.append(
+                {
+                    "multi_match": {
+                        "query": query,
+                        "fields": [
+                            "title^3",
+                            "ministry^2",
+                            "department^2",
+                            "organisation^1.5",
+                            "ai_summary",
+                            "state",
+                        ],
+                        "type": "best_fields",
+                        "fuzziness": "AUTO",
+                    }
                 }
-            })
+            )
 
         # Apply filters
         if filters.get("states"):
             filter_clauses.append({"terms": {"state.keyword": filters["states"]}})
         if filters.get("ministries"):
-            filter_clauses.append({"terms": {"ministry.keyword": filters["ministries"]}})
+            filter_clauses.append(
+                {"terms": {"ministry.keyword": filters["ministries"]}}
+            )
         if filters.get("departments"):
-            filter_clauses.append({"terms": {"department.keyword": filters["departments"]}})
+            filter_clauses.append(
+                {"terms": {"department.keyword": filters["departments"]}}
+            )
         if filters.get("categories"):
             filter_clauses.append({"terms": {"categories": filters["categories"]}})
         if filters.get("status"):
@@ -239,7 +289,7 @@ class HybridSearchEngine:
         if filters.get("msme_eligible") is not None:
             filter_clauses.append({"term": {"msme_eligible": filters["msme_eligible"]}})
         if filters.get("cost_min_lakhs") or filters.get("cost_max_lakhs"):
-            range_q: Dict = {}
+            range_q: dict = {}
             if filters.get("cost_min_lakhs"):
                 range_q["gte"] = filters["cost_min_lakhs"]
             if filters.get("cost_max_lakhs"):
@@ -294,7 +344,9 @@ class HybridSearchEngine:
             },
         }
 
-    async def _bm25_search(self, query: str, filters: Dict, page: int, size: int) -> Tuple[List, Dict, int]:
+    async def _bm25_search(
+        self, query: str, filters: dict, page: int, size: int
+    ) -> tuple[list, dict, int]:
         """Execute BM25 search on OpenSearch."""
         if settings.OPENSEARCH_HOST == "disabled":
             return [], {}, 0
@@ -305,7 +357,9 @@ class HybridSearchEngine:
             hits = response["hits"]["hits"]
             total = response["hits"]["total"]["value"]
             facets = {
-                name: [{"value": b["key"], "count": b["doc_count"]} for b in agg["buckets"]]
+                name: [
+                    {"value": b["key"], "count": b["doc_count"]} for b in agg["buckets"]
+                ]
                 for name, agg in response.get("aggregations", {}).items()
             }
             return hits, facets, total
@@ -313,7 +367,7 @@ class HybridSearchEngine:
             logger.error("OpenSearch BM25 search failed", error=str(e))
             return [], {}, 0
 
-    async def _semantic_search(self, query: str, filters: Dict, limit: int) -> List:
+    async def _semantic_search(self, query: str, filters: dict, limit: int) -> list:
         """Execute vector similarity search on Qdrant."""
         if settings.QDRANT_HOST == "disabled":
             return []
@@ -321,12 +375,19 @@ class HybridSearchEngine:
         qdrant = self._get_qdrant()
 
         # Build Qdrant filter from our filter dict
-        from qdrant_client.models import Filter, FieldCondition, MatchValue, MatchAny
+        from qdrant_client.models import FieldCondition, Filter, MatchAny
+
         conditions = []
         if filters.get("states"):
-            conditions.append(FieldCondition(key="state", match=MatchAny(any=filters["states"])))
+            conditions.append(
+                FieldCondition(key="state", match=MatchAny(any=filters["states"]))
+            )
         if filters.get("categories"):
-            conditions.append(FieldCondition(key="categories", match=MatchAny(any=filters["categories"])))
+            conditions.append(
+                FieldCondition(
+                    key="categories", match=MatchAny(any=filters["categories"])
+                )
+            )
 
         qdrant_filter = Filter(must=conditions) if conditions else None
 
@@ -339,7 +400,10 @@ class HybridSearchEngine:
                 with_payload=True,
                 score_threshold=0.25,
             )
-            return [{"id": str(r.id), **r.payload, "semantic_score": r.score} for r in results]
+            return [
+                {"id": str(r.id), **r.payload, "semantic_score": r.score}
+                for r in results
+            ]
         except Exception as e:
             logger.error("Qdrant semantic search failed", error=str(e))
             return []
@@ -348,11 +412,11 @@ class HybridSearchEngine:
         self,
         query: str,
         mode: str = "hybrid",
-        filters: Optional[Dict] = None,
+        filters: dict | None = None,
         page: int = 1,
         page_size: int = 20,
         sort_by: str = "relevance",
-    ) -> Dict:
+    ) -> dict:
         start_time = time.perf_counter()
         filters = filters or {}
 
@@ -371,7 +435,9 @@ class HybridSearchEngine:
         final_hits = []
 
         if mode == "keyword":
-            hits, facets, total = await self._bm25_search(query, filters, page, page_size)
+            hits, facets, total = await self._bm25_search(
+                query, filters, page, page_size
+            )
             final_hits = [self._format_os_hit(h) for h in hits[:page_size]]
 
         elif mode == "semantic":
@@ -411,8 +477,10 @@ class HybridSearchEngine:
         # Fallback to postgres if OpenSearch and Qdrant are disabled/empty
         if not final_hits:
             logger.info("Falling back to Postgres direct query for search")
-            import asyncpg
             import os
+
+            import asyncpg
+
             pg_host = os.getenv("POSTGRES_HOST", "postgres")
             pg_port = os.getenv("POSTGRES_PORT", "5432")
             pg_db = os.getenv("POSTGRES_DB", "tenderos")
@@ -420,36 +488,55 @@ class HybridSearchEngine:
             pg_pwd = os.getenv("POSTGRES_PASSWORD", "")
             try:
                 conn = await asyncpg.connect(
-                    host=pg_host, port=int(pg_port),
-                    database=pg_db, user=pg_user, password=pg_pwd
+                    host=pg_host,
+                    port=int(pg_port),
+                    database=pg_db,
+                    user=pg_user,
+                    password=pg_pwd,
                 )
                 offset = (page - 1) * page_size
                 conditions = ["status = 'active'"]
                 params = []
                 param_idx = 1
-                
+
                 if query:
-                    conditions.append(f"(title ILIKE ${param_idx} OR ministry ILIKE ${param_idx} OR department ILIKE ${param_idx} OR organisation ILIKE ${param_idx} OR ai_summary ILIKE ${param_idx})")
+                    conditions.append(
+                        f"(title ILIKE ${param_idx} OR ministry ILIKE ${param_idx} OR department ILIKE ${param_idx} OR organisation ILIKE ${param_idx} OR ai_summary ILIKE ${param_idx})"
+                    )
                     params.append(f"%{query}%")
                     param_idx += 1
-                
+
                 if filters.get("states") or filters.get("state"):
                     state_filter = filters.get("states") or filters.get("state")
-                    states = state_filter if isinstance(state_filter, list) else [state_filter]
+                    states = (
+                        state_filter
+                        if isinstance(state_filter, list)
+                        else [state_filter]
+                    )
                     conditions.append(f"state = ANY(${param_idx})")
                     params.append(states)
                     param_idx += 1
-                    
+
                 if filters.get("ministries") or filters.get("ministry"):
-                    ministry_filter = filters.get("ministries") or filters.get("ministry")
-                    ministries = ministry_filter if isinstance(ministry_filter, list) else [ministry_filter]
+                    ministry_filter = filters.get("ministries") or filters.get(
+                        "ministry"
+                    )
+                    ministries = (
+                        ministry_filter
+                        if isinstance(ministry_filter, list)
+                        else [ministry_filter]
+                    )
                     conditions.append(f"ministry = ANY(${param_idx})")
                     params.append(ministries)
                     param_idx += 1
 
                 if filters.get("departments") or filters.get("department"):
-                    dept_filter = filters.get("departments") or filters.get("department")
-                    depts = dept_filter if isinstance(dept_filter, list) else [dept_filter]
+                    dept_filter = filters.get("departments") or filters.get(
+                        "department"
+                    )
+                    depts = (
+                        dept_filter if isinstance(dept_filter, list) else [dept_filter]
+                    )
                     conditions.append(f"department = ANY(${param_idx})")
                     params.append(depts)
                     param_idx += 1
@@ -461,32 +548,48 @@ class HybridSearchEngine:
                     params.append(cats_list)
                     param_idx += 1
 
-                if filters.get("cost_min_lakhs") is not None or filters.get("estimated_cost_min") is not None:
-                    min_cost = filters.get("cost_min_lakhs") or filters.get("estimated_cost_min")
+                if (
+                    filters.get("cost_min_lakhs") is not None
+                    or filters.get("estimated_cost_min") is not None
+                ):
+                    min_cost = filters.get("cost_min_lakhs") or filters.get(
+                        "estimated_cost_min"
+                    )
                     conditions.append(f"estimated_cost_lakhs >= ${param_idx}")
                     params.append(float(min_cost))
                     param_idx += 1
-                if filters.get("cost_max_lakhs") is not None or filters.get("estimated_cost_max") is not None:
-                    max_cost = filters.get("cost_max_lakhs") or filters.get("estimated_cost_max")
+                if (
+                    filters.get("cost_max_lakhs") is not None
+                    or filters.get("estimated_cost_max") is not None
+                ):
+                    max_cost = filters.get("cost_max_lakhs") or filters.get(
+                        "estimated_cost_max"
+                    )
                     conditions.append(f"estimated_cost_lakhs <= ${param_idx}")
                     params.append(float(max_cost))
                     param_idx += 1
 
                 if filters.get("deadline_from"):
                     from datetime import datetime
-                    d_from = datetime.fromisoformat(filters["deadline_from"].replace("Z", "+00:00")).replace(tzinfo=None)
+
+                    d_from = datetime.fromisoformat(
+                        filters["deadline_from"].replace("Z", "+00:00")
+                    ).replace(tzinfo=None)
                     conditions.append(f"submission_deadline >= ${param_idx}")
                     params.append(d_from)
                     param_idx += 1
                 if filters.get("deadline_to"):
                     from datetime import datetime
-                    d_to = datetime.fromisoformat(filters["deadline_to"].replace("Z", "+00:00")).replace(tzinfo=None)
+
+                    d_to = datetime.fromisoformat(
+                        filters["deadline_to"].replace("Z", "+00:00")
+                    ).replace(tzinfo=None)
                     conditions.append(f"submission_deadline <= ${param_idx}")
                     params.append(d_to)
                     param_idx += 1
-                
+
                 where_clause = " AND ".join(conditions)
-                
+
                 fetch_query = f"""
                     SELECT id, title, ministry, department, organisation, state,
                            categories, estimated_cost_lakhs, emd_lakhs,
@@ -496,14 +599,13 @@ class HybridSearchEngine:
                     ORDER BY submission_deadline DESC
                     LIMIT ${param_idx} OFFSET ${param_idx + 1}
                 """
-                
+
                 count_query = f"SELECT COUNT(*) FROM tenders WHERE {where_clause}"
-                
+
                 rows = await conn.fetch(fetch_query, *params, page_size, offset)
                 count_row = await conn.fetchrow(count_query, *params)
                 total = count_row[0] if count_row else 0
                 await conn.close()
-
 
                 for r in rows:
                     hit = {
@@ -514,21 +616,26 @@ class HybridSearchEngine:
                         "organisation": r["organisation"],
                         "state": r["state"],
                         "categories": r["categories"] or [],
-                        "estimated_cost_lakhs": float(r["estimated_cost_lakhs"]) if r["estimated_cost_lakhs"] is not None else None,
-                        "emd_lakhs": float(r["emd_lakhs"]) if r["emd_lakhs"] is not None else None,
-                        "submission_deadline": r["submission_deadline"].isoformat() if r["submission_deadline"] else None,
+                        "estimated_cost_lakhs": float(r["estimated_cost_lakhs"])
+                        if r["estimated_cost_lakhs"] is not None
+                        else None,
+                        "emd_lakhs": float(r["emd_lakhs"])
+                        if r["emd_lakhs"] is not None
+                        else None,
+                        "submission_deadline": r["submission_deadline"].isoformat()
+                        if r["submission_deadline"]
+                        else None,
                         "status": r["status"],
                         "source": r["source"],
                         "ai_summary": r["ai_summary"],
                         "relevance_score": 100.0,
-                        "highlights": {}
+                        "highlights": {},
                     }
                     final_hits.append(hit)
             except Exception as ex:
                 logger.error("Postgres fallback search failed", error=str(ex))
 
         query_time_ms = int((time.perf_counter() - start_time) * 1000)
-
 
         return {
             "hits": final_hits,
@@ -541,7 +648,7 @@ class HybridSearchEngine:
             "facets": facets,
         }
 
-    def _format_os_hit(self, hit: Dict) -> Dict:
+    def _format_os_hit(self, hit: dict) -> dict:
         src = hit.get("_source", {})
         highlights = {k: v for k, v in hit.get("highlight", {}).items()}
         return {
@@ -563,7 +670,7 @@ class HybridSearchEngine:
             "highlights": highlights,
         }
 
-    def _format_qdrant_hit(self, hit: Dict) -> Dict:
+    def _format_qdrant_hit(self, hit: dict) -> dict:
         return {
             "tender_id": hit.get("id") or hit.get("tender_id", ""),
             "title": hit.get("title", ""),

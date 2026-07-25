@@ -7,24 +7,21 @@ Which doesn't require Captcha or sessions for initial pages.
 
 Never returns fixture data.
 """
+
 from __future__ import annotations
 
 import asyncio
-import re
+from collections.abc import AsyncIterator
 from datetime import datetime, timedelta
-from typing import AsyncIterator, Optional, List, Dict, Any
 
 import httpx
+from app.connectors.base import BaseConnector, CadenceConfig, HealthStatus, RateLimitConfig, RawTender, RetryPolicy
 from bs4 import BeautifulSoup
-
-from app.connectors.base import (
-    BaseConnector, CadenceConfig, HealthStatus,
-    RateLimitConfig, RawTender, RetryPolicy,
-)
 
 
 class EProcureConnector(BaseConnector):
     """eProcure National Portal — State/MMP portal connector."""
+
     source_id = "eprocure"
     display_name = "eProcure National Portal"
     description = "State and Mission Mode Project procurement via eprocure.gov.in"
@@ -69,55 +66,70 @@ class EProcureConnector(BaseConnector):
                 pub_date = cells[1].get_text(strip=True)
                 close_date = cells[2].get_text(strip=True)
                 opening_date = cells[3].get_text(strip=True)
-                
+
                 title_ref_cell = cells[4]
                 title_ref_text = title_ref_cell.get_text("\n", strip=True)
                 lines = [l.strip() for l in title_ref_text.split("\n") if l.strip()]
-                
+
                 title = lines[0] if lines else ""
                 ref_no = lines[1] if len(lines) > 1 else ""
-                tender_id = lines[2] if len(lines) > 2 else (ref_no or cells[0].get_text(strip=True))
+                tender_id = (
+                    lines[2]
+                    if len(lines) > 2
+                    else (ref_no or cells[0].get_text(strip=True))
+                )
 
                 link_tag = title_ref_cell.find("a")
                 detail_url = source_url
                 if link_tag and link_tag.get("href"):
                     href = link_tag["href"]
-                    detail_url = href if href.startswith("http") else f"https://eprocure.gov.in{href}"
+                    detail_url = (
+                        href
+                        if href.startswith("http")
+                        else f"https://eprocure.gov.in{href}"
+                    )
 
                 organisation = cells[5].get_text(strip=True)
 
-                published_at = self._parse_date(pub_date) or datetime.utcnow().isoformat()
-                submission_deadline = self._parse_date(close_date) or (datetime.utcnow() + timedelta(days=14)).isoformat()
+                published_at = (
+                    self._parse_date(pub_date) or datetime.utcnow().isoformat()
+                )
+                submission_deadline = (
+                    self._parse_date(close_date)
+                    or (datetime.utcnow() + timedelta(days=14)).isoformat()
+                )
                 opening_at = self._parse_date(opening_date)
 
                 state = self._infer_state(organisation)
                 ministry = self._infer_ministry(organisation)
 
-                results.append({
-                    "title": title,
-                    "ministry": ministry,
-                    "department": organisation,
-                    "organisation": organisation,
-                    "state": state,
-                    "estimated_cost_lakhs": None,
-                    "emd_lakhs": None,
-                    "tender_fee": None,
-                    "categories": self._infer_categories(title),
-                    "procurement_method": "open",
-                    "status": "active",
-                    "published_at": published_at,
-                    "submission_deadline": submission_deadline,
-                    "opening_date": opening_at,
-                    "source_nit_no": ref_no or tender_id,
-                    "source_detail_url": detail_url,
-                })
+                results.append(
+                    {
+                        "title": title,
+                        "ministry": ministry,
+                        "department": organisation,
+                        "organisation": organisation,
+                        "state": state,
+                        "estimated_cost_lakhs": None,
+                        "emd_lakhs": None,
+                        "tender_fee": None,
+                        "categories": self._infer_categories(title),
+                        "procurement_method": "open",
+                        "status": "active",
+                        "published_at": published_at,
+                        "submission_deadline": submission_deadline,
+                        "opening_date": opening_at,
+                        "source_nit_no": ref_no or tender_id,
+                        "source_detail_url": detail_url,
+                    }
+                )
             except Exception as parse_err:
                 self.log_warning("eProcure: row parse error", error=str(parse_err))
                 continue
 
         return results
 
-    def _parse_date(self, s: str) -> Optional[str]:
+    def _parse_date(self, s: str) -> str | None:
         if not s or s == "--":
             return None
         s = s.strip()
@@ -138,12 +150,23 @@ class EProcureConnector(BaseConnector):
 
     def _infer_state(self, org: str) -> str:
         state_keywords = {
-            "Maharashtra": "Maharashtra", "Delhi": "Delhi", "Karnataka": "Karnataka",
-            "Tamil Nadu": "Tamil Nadu", "Uttar Pradesh": "Uttar Pradesh",
-            "Gujarat": "Gujarat", "Rajasthan": "Rajasthan", "Madhya Pradesh": "Madhya Pradesh",
-            "West Bengal": "West Bengal", "Punjab": "Punjab", "Haryana": "Haryana",
-            "Bihar": "Bihar", "Odisha": "Odisha", "Telangana": "Telangana",
-            "Kerala": "Kerala", "Assam": "Assam", "Jharkhand": "Jharkhand",
+            "Maharashtra": "Maharashtra",
+            "Delhi": "Delhi",
+            "Karnataka": "Karnataka",
+            "Tamil Nadu": "Tamil Nadu",
+            "Uttar Pradesh": "Uttar Pradesh",
+            "Gujarat": "Gujarat",
+            "Rajasthan": "Rajasthan",
+            "Madhya Pradesh": "Madhya Pradesh",
+            "West Bengal": "West Bengal",
+            "Punjab": "Punjab",
+            "Haryana": "Haryana",
+            "Bihar": "Bihar",
+            "Odisha": "Odisha",
+            "Telangana": "Telangana",
+            "Kerala": "Kerala",
+            "Assam": "Assam",
+            "Jharkhand": "Jharkhand",
         }
         org_lower = org.lower()
         for state, name in state_keywords.items():
@@ -157,9 +180,13 @@ class EProcureConnector(BaseConnector):
             return "Ministry of Health and Family Welfare"
         if any(k in org_lower for k in ["railway", "rail"]):
             return "Ministry of Railways"
-        if any(k in org_lower for k in ["defence", "army", "navy", "air force", "drdo"]):
+        if any(
+            k in org_lower for k in ["defence", "army", "navy", "air force", "drdo"]
+        ):
             return "Ministry of Defence"
-        if any(k in org_lower for k in ["education", "school", "university", "iit", "nit"]):
+        if any(
+            k in org_lower for k in ["education", "school", "university", "iit", "nit"]
+        ):
             return "Ministry of Education"
         if any(k in org_lower for k in ["road", "highway", "nhai", "morth"]):
             return "Ministry of Road Transport and Highways"
@@ -172,23 +199,55 @@ class EProcureConnector(BaseConnector):
     def _infer_categories(self, title: str) -> list[str]:
         title_lower = title.lower()
         cats = []
-        if any(k in title_lower for k in ["software", "it ", "ict", "digital", "computer", "data", "cloud", "erp"]):
+        if any(
+            k in title_lower
+            for k in [
+                "software",
+                "it ",
+                "ict",
+                "digital",
+                "computer",
+                "data",
+                "cloud",
+                "erp",
+            ]
+        ):
             cats.append("IT & Software")
-        if any(k in title_lower for k in ["construction", "civil", "road", "bridge", "building", "infrastructure"]):
+        if any(
+            k in title_lower
+            for k in [
+                "construction",
+                "civil",
+                "road",
+                "bridge",
+                "building",
+                "infrastructure",
+            ]
+        ):
             cats.append("Civil & Construction")
-        if any(k in title_lower for k in ["medical", "health", "hospital", "equipment", "medicine"]):
+        if any(
+            k in title_lower
+            for k in ["medical", "health", "hospital", "equipment", "medicine"]
+        ):
             cats.append("Healthcare")
         if any(k in title_lower for k in ["supply", "purchase", "procure", "goods"]):
             cats.append("Goods & Services")
-        if any(k in title_lower for k in ["consult", "service", "advisory", "amc", "maintenance"]):
+        if any(
+            k in title_lower
+            for k in ["consult", "service", "advisory", "amc", "maintenance"]
+        ):
             cats.append("Consultancy & Professional Services")
         return cats or ["General"]
 
-    async def fetch_tenders(self, since: Optional[datetime] = None) -> AsyncIterator[RawTender]:
+    async def fetch_tenders(
+        self, since: datetime | None = None
+    ) -> AsyncIterator[RawTender]:
         """
         Scrape active tenders.
         """
-        self.log_info("EProcureConnector: starting live NIC mmpdata scrape", since=since)
+        self.log_info(
+            "EProcureConnector: starting live NIC mmpdata scrape", since=since
+        )
         yielded = 0
 
         async with httpx.AsyncClient(
@@ -205,7 +264,8 @@ class EProcureConnector(BaseConnector):
                     if resp.status_code != 200:
                         self.log_warning(
                             "EProcureConnector: non-200 response",
-                            status=resp.status_code, page=page_no,
+                            status=resp.status_code,
+                            page=page_no,
                         )
                         break
 
@@ -219,7 +279,9 @@ class EProcureConnector(BaseConnector):
                         break
 
                     for raw in tenders:
-                        tender_id = raw.get("source_nit_no") or f"EP-{page_no}-{yielded}"
+                        tender_id = (
+                            raw.get("source_nit_no") or f"EP-{page_no}-{yielded}"
+                        )
                         yield RawTender(
                             source_id=self.source_id,
                             source_tender_id=tender_id,
@@ -234,14 +296,18 @@ class EProcureConnector(BaseConnector):
                     self.log_warning("EProcureConnector: timeout on page", page=page_no)
                     break
                 except Exception as err:
-                    self.log_error("EProcureConnector: scrape error", error=str(err), page=page_no)
+                    self.log_error(
+                        "EProcureConnector: scrape error", error=str(err), page=page_no
+                    )
                     break
 
         self.log_info("EProcureConnector: crawl complete", total=yielded)
 
     async def health_check(self) -> HealthStatus:
         try:
-            async with httpx.AsyncClient(timeout=10.0, follow_redirects=True, verify=False) as client:  # nosec B501
+            async with httpx.AsyncClient(
+                timeout=10.0, follow_redirects=True, verify=False
+            ) as client:  # nosec B501
                 resp = await client.get(
                     self.PORTAL_BASE,
                     headers={"User-Agent": self.HEADERS["User-Agent"]},

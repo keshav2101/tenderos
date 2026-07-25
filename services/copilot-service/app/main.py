@@ -1,25 +1,30 @@
 """Copilot service FastAPI application."""
+
 from __future__ import annotations
-from typing import Optional, List, Dict
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+
 import httpx
 import structlog
-
 from app.config import settings
 from app.rag_pipeline import CopilotRAGPipeline
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 logger = structlog.get_logger()
 
 app = FastAPI(title="TenderOS Copilot Service")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
-                   allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 rag = CopilotRAGPipeline()
 
 
-async def _fetch_tender_context(tender_id: str) -> Dict[str, str]:
+async def _fetch_tender_context(tender_id: str) -> dict[str, str]:
     """
     Fetch tender title and ministry from tender-service.
     Returns fallback values on failure so copilot degrades gracefully.
@@ -36,22 +41,24 @@ async def _fetch_tender_context(tender_id: str) -> Dict[str, str]:
                     "ministry": data.get("ministry", "Government of India"),
                 }
     except Exception as e:
-        logger.warning("Could not fetch tender context", tender_id=tender_id, error=str(e))
+        logger.warning(
+            "Could not fetch tender context", tender_id=tender_id, error=str(e)
+        )
     return {"title": "Unknown Tender", "ministry": "Government of India"}
 
 
 class ChatRequest(BaseModel):
     tender_id: str
     message: str
-    conversation_id: Optional[str] = None
+    conversation_id: str | None = None
     user_id: str
 
 
 class IndexRequest(BaseModel):
     tender_id: str
     document_text: str
-    doc_type: Optional[str] = "notice"
-    page_data: Optional[List[Dict]] = None
+    doc_type: str | None = "notice"
+    page_data: list[dict] | None = None
 
 
 @app.get("/health")
@@ -63,6 +70,7 @@ async def health():
 async def chat(tender_id: str, req: ChatRequest):
     import os
     from datetime import datetime
+
     # Fetch real tender context (title + ministry) from tender-service
     context = await _fetch_tender_context(tender_id)
     tender_title = context["title"]
@@ -88,19 +96,20 @@ async def chat(tender_id: str, req: ChatRequest):
         chunks_used=result.get("chunks_used"),
         sources=result.get("sources"),
         confidence=result.get("confidence") or 0.0,
-        conversation_id=result["conversation_id"]
+        conversation_id=result["conversation_id"],
     )
 
     # Write file audit log
     try:
         os.makedirs("logs", exist_ok=True)
         with open("logs/copilot_audit.log", "a") as f:
-            f.write(f"[{datetime.utcnow().isoformat()}] TENDER_ID: {tender_id} | Q: {req.message} | A: {result.get('answer')[:100]}... | CONFIDENCE: {result.get('confidence')} | SOURCES: {result.get('sources')}\n")
+            f.write(
+                f"[{datetime.utcnow().isoformat()}] TENDER_ID: {tender_id} | Q: {req.message} | A: {result.get('answer')[:100]}... | CONFIDENCE: {result.get('confidence')} | SOURCES: {result.get('sources')}\n"
+            )
     except Exception as audit_err:
         logger.warning("Failed to write to copilot_audit.log", error=str(audit_err))
 
     return result
-
 
 
 @app.post("/index")
@@ -117,17 +126,17 @@ async def index_document(req: IndexRequest):
 # ─── MULTI-AGENT ORCHESTRATION & EVALUATION ENDPOINTS ─────────────────────────
 
 # In-memory session context storage
-session_memory_store: Dict[str, Dict] = {}
+session_memory_store: dict[str, dict] = {}
 
 
 class OrchestrationRequest(BaseModel):
     query: str
-    tender_id: Optional[str] = None
-    company_id: Optional[str] = None
+    tender_id: str | None = None
+    company_id: str | None = None
     user_id: str = "default_user"
-    session_id: Optional[str] = "session-default"
-    current_proposal_id: Optional[str] = None
-    filters: Optional[Dict] = None
+    session_id: str | None = "session-default"
+    current_proposal_id: str | None = None
+    filters: dict | None = None
 
 
 @app.post("/copilot/orchestrate")
@@ -139,20 +148,34 @@ async def orchestrate_agents(req: OrchestrationRequest):
     q_lower = req.query.lower()
     active_agent = "DocumentAgent"
     delegated_routes = []
-    
-    if any(k in q_lower for k in ["find", "search", "show me", "list", "defence", "railway"]):
+
+    if any(
+        k in q_lower
+        for k in ["find", "search", "show me", "list", "defence", "railway"]
+    ):
         active_agent = "SearchAgent"
         delegated_routes.append("/tenders/search")
-    elif any(k in q_lower for k in ["eligible", "eligibility", "qualification", "missing doc", "msme"]):
+    elif any(
+        k in q_lower
+        for k in ["eligible", "eligibility", "qualification", "missing doc", "msme"]
+    ):
         active_agent = "ComplianceAgent"
         delegated_routes.append("/qualification/check-eligibility")
-    elif any(k in q_lower for k in ["risk", "penalty", "sla", "liquidated damages", "warranty"]):
+    elif any(
+        k in q_lower
+        for k in ["risk", "penalty", "sla", "liquidated damages", "warranty"]
+    ):
         active_agent = "RiskAgent"
         delegated_routes.append("/qualification/risk-analysis")
-    elif any(k in q_lower for k in ["bid", "win probability", "strategy", "should i bid", "go/no-go"]):
+    elif any(
+        k in q_lower
+        for k in ["bid", "win probability", "strategy", "should i bid", "go/no-go"]
+    ):
         active_agent = "StrategyAgent"
         delegated_routes.append("/qualification/strategy")
-    elif any(k in q_lower for k in ["proposal", "draft", "section", "write", "response"]):
+    elif any(
+        k in q_lower for k in ["proposal", "draft", "section", "write", "response"]
+    ):
         active_agent = "ProposalAgent"
         delegated_routes.append("/proposals/generate")
     else:
@@ -169,9 +192,9 @@ async def orchestrate_agents(req: OrchestrationRequest):
             "retrieved_documents": [],
             "current_proposal": req.current_proposal_id,
             "current_filters": req.filters or {},
-            "current_buyer": None
+            "current_buyer": None,
         }
-    
+
     mem = session_memory_store[session_id]
     if req.tender_id:
         mem["current_tender_id"] = req.tender_id
@@ -205,10 +228,12 @@ async def orchestrate_agents(req: OrchestrationRequest):
             "current_tender": mem["current_tender_id"],
             "current_buyer": mem["current_buyer"],
             "previous_questions_count": len(mem["previous_questions"]),
-            "current_filters": mem["current_filters"]
+            "current_filters": mem["current_filters"],
         },
         "confidence_score": rag_response.get("confidence") if rag_response else 0.92,
-        "grounding_status": "VERIFIED_EVIDENCE" if rag_response else "SYNTHESIZED_ROUTING"
+        "grounding_status": "VERIFIED_EVIDENCE"
+        if rag_response
+        else "SYNTHESIZED_ROUTING",
     }
 
 
@@ -226,7 +251,5 @@ async def get_evaluation_metrics():
         "model_in_use": "Gemini 2.0 Flash / Grounded Local RAG",
         "vector_search_engine": "Qdrant + PostgreSQL Fallback",
         "total_audited_queries": 1250,
-        "system_status": "PASSED_GROUNDING_AUDIT"
+        "system_status": "PASSED_GROUNDING_AUDIT",
     }
-
-

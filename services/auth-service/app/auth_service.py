@@ -1,17 +1,17 @@
 """Auth service — JWT management and user CRUD."""
-from __future__ import annotations
-import secrets
-import hashlib
-from datetime import datetime, timedelta
-from typing import Optional
-from uuid import UUID, uuid4
 
+from __future__ import annotations
+
+import hashlib
+import secrets
+from datetime import datetime, timedelta
+from uuid import uuid4
+
+import redis.asyncio as aioredis
 import structlog
+from app.config import settings
 from jose import jwt
 from passlib.context import CryptContext
-import redis.asyncio as aioredis
-
-from app.config import settings
 
 logger = structlog.get_logger()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -21,7 +21,7 @@ class AuthService:
     """Core auth logic — password hashing, JWT generation, token management."""
 
     def __init__(self):
-        self._redis: Optional[aioredis.Redis] = None
+        self._redis: aioredis.Redis | None = None
 
     async def _get_redis(self) -> aioredis.Redis:
         """Return a live Redis connection, reconnecting if the cached client is stale."""
@@ -62,7 +62,9 @@ class AuthService:
             "exp": expire,
             "type": "access",
         }
-        return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
+        return jwt.encode(
+            payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM
+        )
 
     def create_refresh_token(self, user_id: str) -> str:
         now = datetime.utcnow()
@@ -74,11 +76,15 @@ class AuthService:
             "type": "refresh",
             "jti": str(uuid4()),  # Unique token ID for revocation
         }
-        return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
+        return jwt.encode(
+            payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM
+        )
 
-    def decode_token(self, token: str) -> Optional[dict]:
+    def decode_token(self, token: str) -> dict | None:
         try:
-            return jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
+            return jwt.decode(
+                token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM]
+            )
         except Exception:
             return None
 
@@ -125,7 +131,7 @@ class AuthService:
         await redis.setex(f"reset_token:{token}", 900, user_id)
         return token
 
-    async def verify_reset_token(self, token: str) -> Optional[str]:
+    async def verify_reset_token(self, token: str) -> str | None:
         """Returns user_id if token is valid, None if expired."""
         redis = await self._get_redis()
         user_id = await redis.get(f"reset_token:{token}")

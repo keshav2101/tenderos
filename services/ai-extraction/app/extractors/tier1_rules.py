@@ -2,10 +2,12 @@
 Tier 1 Extraction — Rule-based, regex + spaCy NER.
 Handles ~70% of all fields at near-zero compute cost.
 """
+
 from __future__ import annotations
+
 import re
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple
+from datetime import datetime
+from typing import Any
 
 import structlog
 from dateutil import parser as dateparser
@@ -16,62 +18,103 @@ logger = structlog.get_logger()
 
 # Indian currency patterns (various formats)
 AMOUNT_PATTERNS = [
-    r'(?:Rs\.?|INR|₹)\s*([0-9,]+(?:\.[0-9]+)?)\s*(?:Crore|Cr\.?)',     # Rs. 5.2 Crore
-    r'(?:Rs\.?|INR|₹)\s*([0-9,]+(?:\.[0-9]+)?)\s*(?:Lakh|Lakhs?|L\.?)',# Rs. 52 Lakhs
-    r'(?:Rs\.?|INR|₹)\s*([0-9,]+(?:\.[0-9]+)?)',                        # Rs. 52,00,000
-    r'([0-9,]+(?:\.[0-9]+)?)\s*(?:Crore|Cr\.)',
-    r'([0-9,]+(?:\.[0-9]+)?)\s*(?:Lakh|Lakhs?|L\.)',
+    r"(?:Rs\.?|INR|₹)\s*([0-9,]+(?:\.[0-9]+)?)\s*(?:Crore|Cr\.?)",  # Rs. 5.2 Crore
+    r"(?:Rs\.?|INR|₹)\s*([0-9,]+(?:\.[0-9]+)?)\s*(?:Lakh|Lakhs?|L\.?)",  # Rs. 52 Lakhs
+    r"(?:Rs\.?|INR|₹)\s*([0-9,]+(?:\.[0-9]+)?)",  # Rs. 52,00,000
+    r"([0-9,]+(?:\.[0-9]+)?)\s*(?:Crore|Cr\.)",
+    r"([0-9,]+(?:\.[0-9]+)?)\s*(?:Lakh|Lakhs?|L\.)",
 ]
 
 EMD_PATTERNS = [
-    r'(?:EMD|Earnest Money(?:\s+Deposit)?)[:\s]+(?:Rs\.?|INR|₹)?\s*([0-9,]+(?:\.[0-9]+)?)\s*(?:Lakh|Lakhs?|Crore|Cr\.?)?',
-    r'(?:Bid Security)[:\s]+(?:Rs\.?|INR|₹)?\s*([0-9,]+(?:\.[0-9]+)?)',
+    r"(?:EMD|Earnest Money(?:\s+Deposit)?)[:\s]+(?:Rs\.?|INR|₹)?\s*([0-9,]+(?:\.[0-9]+)?)\s*(?:Lakh|Lakhs?|Crore|Cr\.?)?",
+    r"(?:Bid Security)[:\s]+(?:Rs\.?|INR|₹)?\s*([0-9,]+(?:\.[0-9]+)?)",
 ]
 
 TENDER_ID_PATTERNS = [
-    r'\b([A-Z0-9/\-]{6,40}(?:TENDER|TEN|BID|NIT|GEM|CPPP)[A-Z0-9/\-]{0,20})\b',
-    r'\bGEM/[A-Z0-9/\-]+\b',
-    r'\bNIT[:\s]+([A-Z0-9/\-]+)\b',
-    r'\b(\d{4}[-_][A-Z]{2,6}[-_]\d{3,8})\b',
+    r"\b([A-Z0-9/\-]{6,40}(?:TENDER|TEN|BID|NIT|GEM|CPPP)[A-Z0-9/\-]{0,20})\b",
+    r"\bGEM/[A-Z0-9/\-]+\b",
+    r"\bNIT[:\s]+([A-Z0-9/\-]+)\b",
+    r"\b(\d{4}[-_][A-Z]{2,6}[-_]\d{3,8})\b",
 ]
 
 DATE_CONTEXTS = {
     "submission_deadline": [
-        r'(?:Bid\s+)?(?:Submission|Last\s+Date|Closing|Due\s+Date)[:\s]+([^\n]{5,50})',
-        r'(?:Last\s+date\s+of\s+(?:submission|bid))[:\s]+([^\n]{5,50})',
+        r"(?:Bid\s+)?(?:Submission|Last\s+Date|Closing|Due\s+Date)[:\s]+([^\n]{5,50})",
+        r"(?:Last\s+date\s+of\s+(?:submission|bid))[:\s]+([^\n]{5,50})",
     ],
     "opening_date": [
-        r'(?:Opening|Bid\s+Opening|Technical\s+Bid\s+Opening)[:\s]+([^\n]{5,50})',
+        r"(?:Opening|Bid\s+Opening|Technical\s+Bid\s+Opening)[:\s]+([^\n]{5,50})",
     ],
     "published": [
-        r'(?:Published|Published\s+Date|Tender\s+Date|Publish\s+Date)[:\s]+([^\n]{5,50})',
-        r'(?:Start\s+Date|Available\s+From)[:\s]+([^\n]{5,50})',
+        r"(?:Published|Published\s+Date|Tender\s+Date|Publish\s+Date)[:\s]+([^\n]{5,50})",
+        r"(?:Start\s+Date|Available\s+From)[:\s]+([^\n]{5,50})",
     ],
 }
 
 TURNOVER_PATTERNS = [
-    r'(?:Annual\s+)?(?:Average\s+)?Turnover[:\s]+(?:of\s+)?(?:Rs\.?|INR|₹)?\s*([0-9,]+(?:\.[0-9]+)?)\s*(?:Lakh|Lakhs?|Crore|Cr\.?)?',
-    r'(?:minimum|min\.?)\s+(?:annual\s+)?turnover[:\s]+([^\n]{5,50})',
+    r"(?:Annual\s+)?(?:Average\s+)?Turnover[:\s]+(?:of\s+)?(?:Rs\.?|INR|₹)?\s*([0-9,]+(?:\.[0-9]+)?)\s*(?:Lakh|Lakhs?|Crore|Cr\.?)?",
+    r"(?:minimum|min\.?)\s+(?:annual\s+)?turnover[:\s]+([^\n]{5,50})",
 ]
 
 EXPERIENCE_PATTERNS = [
-    r'(?:experience|prior\s+experience|similar\s+works?)[:\s]+(?:of\s+)?(?:minimum\s+|at\s+least\s+)?([0-9]+)\s*(?:year|yr)',
-    r'([0-9]+)\s*(?:year|yr)[s\s]+(?:of\s+)?(?:experience|prior\s+experience)',
+    r"(?:experience|prior\s+experience|similar\s+works?)[:\s]+(?:of\s+)?(?:minimum\s+|at\s+least\s+)?([0-9]+)\s*(?:year|yr)",
+    r"([0-9]+)\s*(?:year|yr)[s\s]+(?:of\s+)?(?:experience|prior\s+experience)",
 ]
 
 CERTIFICATION_KEYWORDS = [
-    "ISO 9001", "ISO 27001", "ISO 20000", "ISO 14001", "ISO 45001",
-    "CMMI", "CERT-In", "STQC", "BIS", "CE Mark", "GeM", "NSIC",
-    "MSME", "Udyam", "SSI", "DPIIT", "Startup India",
+    "ISO 9001",
+    "ISO 27001",
+    "ISO 20000",
+    "ISO 14001",
+    "ISO 45001",
+    "CMMI",
+    "CERT-In",
+    "STQC",
+    "BIS",
+    "CE Mark",
+    "GeM",
+    "NSIC",
+    "MSME",
+    "Udyam",
+    "SSI",
+    "DPIIT",
+    "Startup India",
 ]
 
 STATE_LIST = [
-    "Delhi", "Maharashtra", "Karnataka", "Tamil Nadu", "Gujarat", "Uttar Pradesh",
-    "West Bengal", "Rajasthan", "Madhya Pradesh", "Andhra Pradesh", "Telangana",
-    "Kerala", "Haryana", "Punjab", "Bihar", "Odisha", "Assam", "Jharkhand",
-    "Uttarakhand", "Himachal Pradesh", "Goa", "Chhattisgarh",
-    "Tripura", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Arunachal Pradesh",
-    "Sikkim", "J&K", "Jammu and Kashmir", "Ladakh", "Chandigarh",
+    "Delhi",
+    "Maharashtra",
+    "Karnataka",
+    "Tamil Nadu",
+    "Gujarat",
+    "Uttar Pradesh",
+    "West Bengal",
+    "Rajasthan",
+    "Madhya Pradesh",
+    "Andhra Pradesh",
+    "Telangana",
+    "Kerala",
+    "Haryana",
+    "Punjab",
+    "Bihar",
+    "Odisha",
+    "Assam",
+    "Jharkhand",
+    "Uttarakhand",
+    "Himachal Pradesh",
+    "Goa",
+    "Chhattisgarh",
+    "Tripura",
+    "Manipur",
+    "Meghalaya",
+    "Mizoram",
+    "Nagaland",
+    "Arunachal Pradesh",
+    "Sikkim",
+    "J&K",
+    "Jammu and Kashmir",
+    "Ladakh",
+    "Chandigarh",
 ]
 
 STATE_COORDS = {
@@ -107,7 +150,7 @@ STATE_COORDS = {
 }
 
 
-def _clean_amount(s: str) -> Optional[float]:
+def _clean_amount(s: str) -> float | None:
     """Normalize an amount string to Lakhs INR."""
     s = s.strip().replace(",", "")
     try:
@@ -124,7 +167,7 @@ def _to_lakhs(value: float, unit: str) -> float:
     return value  # Already in Lakhs
 
 
-def extract_amounts(text: str) -> Dict[str, Optional[float]]:
+def extract_amounts(text: str) -> dict[str, float | None]:
     """Extract estimated cost and EMD from document text."""
     result = {"estimated_cost_lakhs": None, "emd_lakhs": None}
 
@@ -136,7 +179,7 @@ def extract_amounts(text: str) -> Dict[str, Optional[float]]:
             try:
                 val = float(val_str)
                 # Determine unit from surrounding context
-                context = text[max(0, match.start() - 20): match.end() + 20]
+                context = text[max(0, match.start() - 20) : match.end() + 20]
                 if "crore" in context.lower() or "cr." in context.lower():
                     val *= 100
                 result["emd_lakhs"] = val
@@ -151,7 +194,7 @@ def extract_amounts(text: str) -> Dict[str, Optional[float]]:
             val_str = match.group(1).replace(",", "")
             try:
                 val = float(val_str)
-                context = text[max(0, match.start() - 30): match.end() + 30].lower()
+                context = text[max(0, match.start() - 30) : match.end() + 30].lower()
                 if "crore" in context or "cr." in context:
                     val *= 100
                 amounts.append(val)
@@ -164,7 +207,7 @@ def extract_amounts(text: str) -> Dict[str, Optional[float]]:
     return result
 
 
-def extract_dates(text: str) -> Dict[str, Optional[datetime]]:
+def extract_dates(text: str) -> dict[str, datetime | None]:
     """Extract key tender dates from text."""
     dates = {}
     for field, patterns in DATE_CONTEXTS.items():
@@ -182,22 +225,22 @@ def extract_dates(text: str) -> Dict[str, Optional[datetime]]:
     return dates
 
 
-def extract_state(text: str) -> Optional[str]:
+def extract_state(text: str) -> str | None:
     """Extract state from text using known state list."""
     for state in STATE_LIST:
-        if re.search(r'\b' + re.escape(state) + r'\b', text, re.IGNORECASE):
+        if re.search(r"\b" + re.escape(state) + r"\b", text, re.IGNORECASE):
             return state
     return None
 
 
-def extract_turnover(text: str) -> Optional[float]:
+def extract_turnover(text: str) -> float | None:
     """Extract minimum turnover requirement in Lakhs."""
     for pattern in TURNOVER_PATTERNS:
         match = re.search(pattern, text, re.IGNORECASE)
         if match:
             raw = match.group(1)
             # Try to find the number and unit
-            num_match = re.search(r'([0-9,]+(?:\.[0-9]+)?)', raw)
+            num_match = re.search(r"([0-9,]+(?:\.[0-9]+)?)", raw)
             if num_match:
                 try:
                     val = float(num_match.group(1).replace(",", ""))
@@ -210,7 +253,7 @@ def extract_turnover(text: str) -> Optional[float]:
     return None
 
 
-def extract_experience(text: str) -> Optional[int]:
+def extract_experience(text: str) -> int | None:
     """Extract minimum experience requirement in years."""
     for pattern in EXPERIENCE_PATTERNS:
         match = re.search(pattern, text, re.IGNORECASE)
@@ -222,7 +265,7 @@ def extract_experience(text: str) -> Optional[int]:
     return None
 
 
-def extract_certifications(text: str) -> List[str]:
+def extract_certifications(text: str) -> list[str]:
     """Extract required certifications from text."""
     found = []
     for cert in CERTIFICATION_KEYWORDS:
@@ -234,38 +277,64 @@ def extract_certifications(text: str) -> List[str]:
 def extract_msme_flag(text: str) -> bool:
     """Check if MSME exemption or preference is mentioned."""
     msme_keywords = [
-        "msme", "micro, small", "small enterprise", "startup",
-        "udyam", "emd exempt", "emd waived", "msme registered",
+        "msme",
+        "micro, small",
+        "small enterprise",
+        "startup",
+        "udyam",
+        "emd exempt",
+        "emd waived",
+        "msme registered",
         "msme exemption",
     ]
     text_lower = text.lower()
     return any(kw in text_lower for kw in msme_keywords)
 
 
-def extract_consortium_jv_oem(text: str) -> Tuple[bool, bool, bool]:
+def extract_consortium_jv_oem(text: str) -> tuple[bool, bool, bool]:
     """Extract consortium_allowed, jv_allowed, and oem_required flags."""
     text_lower = text.lower()
-    
+
     consortium = False
     if "consortium" in text_lower:
         # Check if allowed
-        if any(w in text_lower for w in ["allowed", "permitted", "eligible", "acceptable", "jointly and severally"]):
+        if any(
+            w in text_lower
+            for w in [
+                "allowed",
+                "permitted",
+                "eligible",
+                "acceptable",
+                "jointly and severally",
+            ]
+        ):
             consortium = True
-            
+
     jv = False
     if "joint venture" in text_lower or " jv" in text_lower:
-        if any(w in text_lower for w in ["allowed", "permitted", "eligible", "acceptable"]):
+        if any(
+            w in text_lower for w in ["allowed", "permitted", "eligible", "acceptable"]
+        ):
             jv = True
-            
+
     oem = False
     if "oem" in text_lower or "original equipment manufacturer" in text_lower:
-        if any(w in text_lower for w in ["required", "authorization", "maf ", "manufacturers authorization", "oem compliance"]):
+        if any(
+            w in text_lower
+            for w in [
+                "required",
+                "authorization",
+                "maf ",
+                "manufacturers authorization",
+                "oem compliance",
+            ]
+        ):
             oem = True
-            
+
     return consortium, jv, oem
 
 
-def extract_warranty_months(text: str) -> Optional[int]:
+def extract_warranty_months(text: str) -> int | None:
     """Extract warranty period in months."""
     patterns = [
         r"(\d+)\s*months?\s*warrant(y|ee)",
@@ -285,7 +354,7 @@ def extract_warranty_months(text: str) -> Optional[int]:
     return None
 
 
-def extract_duration_days(text: str) -> Optional[int]:
+def extract_duration_days(text: str) -> int | None:
     """Extract contract completion duration in days."""
     patterns = [
         r"(?:completion\s+period|time\s+for\s+completion|period\s+of\s+work|duration)[:\s]+(\d+)\s*(days?|months?|weeks?)",
@@ -323,12 +392,18 @@ def extract_payment_milestones(text: str) -> int:
 
 def extract_penalty_clause(text: str) -> bool:
     """Check if penalty or liquidated damages clause exists."""
-    keywords = ["penalty", "liquidated damages", "delay charges", "ld clause", "penalties"]
+    keywords = [
+        "penalty",
+        "liquidated damages",
+        "delay charges",
+        "ld clause",
+        "penalties",
+    ]
     text_lower = text.lower()
     return any(kw in text_lower for kw in keywords)
 
 
-def extract_funding_agency(text: str) -> Optional[str]:
+def extract_funding_agency(text: str) -> str | None:
     """Extract funding agency name (default to Government of India)."""
     text_lower = text.lower()
     if "world bank" in text_lower or "ibrd" in text_lower or "ida" in text_lower:
@@ -342,25 +417,39 @@ def extract_funding_agency(text: str) -> Optional[str]:
     return "Government of India"
 
 
-def derive_codes(title: str) -> Tuple[Optional[str], Optional[str]]:
+def derive_codes(title: str) -> tuple[str | None, str | None]:
     """Derive CPV and UNSPSC codes based on keywords."""
     title_lower = title.lower()
-    if any(k in title_lower for k in ["software", "erp", "app ", "application", "portal", "cloud", "saas"]):
-        return "72200000", "43230000" # Software, System/Application Software
-    if any(k in title_lower for k in ["computer", "hardware", "server", "laptop", "printer"]):
-        return "30200000", "43210000" # Computer equipment, Computer hardware
-    if any(k in title_lower for k in ["construction", "building", "civil", "structure"]):
-        return "45200000", "72000000" # Civil construction, Building construction
+    if any(
+        k in title_lower
+        for k in ["software", "erp", "app ", "application", "portal", "cloud", "saas"]
+    ):
+        return "72200000", "43230000"  # Software, System/Application Software
+    if any(
+        k in title_lower
+        for k in ["computer", "hardware", "server", "laptop", "printer"]
+    ):
+        return "30200000", "43210000"  # Computer equipment, Computer hardware
+    if any(
+        k in title_lower for k in ["construction", "building", "civil", "structure"]
+    ):
+        return "45200000", "72000000"  # Civil construction, Building construction
     if any(k in title_lower for k in ["road", "highway", "bridge", "flyover"]):
-        return "45233140", "72141103" # Road construction, Highway construction
-    if any(k in title_lower for k in ["medical", "health", "hospital", "medicine", "ventilator", "x-ray"]):
-        return "33000000", "42000000" # Medical equipments
+        return "45233140", "72141103"  # Road construction, Highway construction
+    if any(
+        k in title_lower
+        for k in ["medical", "health", "hospital", "medicine", "ventilator", "x-ray"]
+    ):
+        return "33000000", "42000000"  # Medical equipments
     if any(k in title_lower for k in ["consult", "study", "dpr", "advisory"]):
-        return "79311100", "80100000" # Research/consultancy, Management advisory
+        return "79311100", "80100000"  # Research/consultancy, Management advisory
     if any(k in title_lower for k in ["security", "cctv", "surveillance", "guard"]):
-        return "79710000", "46171600" # Security services, Surveillance
-    if any(k in title_lower for k in ["solar", "wind", "substation", "transformer", "power", "cabling"]):
-        return "31000000", "26000000" # Electrical machinery, Power generation
+        return "79710000", "46171600"  # Security services, Surveillance
+    if any(
+        k in title_lower
+        for k in ["solar", "wind", "substation", "transformer", "power", "cabling"]
+    ):
+        return "31000000", "26000000"  # Electrical machinery, Power generation
     return None, None
 
 
@@ -370,7 +459,7 @@ class Tier1Extractor:
     Operates on raw text (from OCR or structured JSON).
     """
 
-    def extract(self, text: str, source_json: Optional[Dict] = None) -> Dict[str, Any]:
+    def extract(self, text: str, source_json: dict | None = None) -> dict[str, Any]:
         """
         Extract all possible fields using rules.
         Returns a dict with extracted values and confidence per field.
@@ -436,7 +525,9 @@ class Tier1Extractor:
         result["consortium_allowed"] = consortium
         result["jv_allowed"] = jv
         result["oem_required"] = oem
-        result["_fields_extracted"].extend(["consortium_allowed", "jv_allowed", "oem_required"])
+        result["_fields_extracted"].extend(
+            ["consortium_allowed", "jv_allowed", "oem_required"]
+        )
 
         # Warranty / completion duration / milestones
         warranty = extract_warranty_months(text)
@@ -465,7 +556,9 @@ class Tier1Extractor:
         # Derive title codes
         derived_title = ""
         # Match title patterns
-        m_title = re.search(r"(?:Subject|Name of work|Title)[:\s]+([^\n]+)", text, re.IGNORECASE)
+        m_title = re.search(
+            r"(?:Subject|Name of work|Title)[:\s]+([^\n]+)", text, re.IGNORECASE
+        )
         if m_title:
             derived_title = m_title.group(1).strip()
             cpv, unspsc = derive_codes(derived_title)
@@ -476,8 +569,13 @@ class Tier1Extractor:
 
         # Mark fields needing Tier 2/3
         required_fields = {
-            "title", "ministry", "department", "organisation",
-            "categories", "procurement_method", "eligibility_raw_text",
+            "title",
+            "ministry",
+            "department",
+            "organisation",
+            "categories",
+            "procurement_method",
+            "eligibility_raw_text",
         }
         result["_fields_pending"] = list(
             required_fields - set(result["_fields_extracted"])
@@ -485,15 +583,15 @@ class Tier1Extractor:
 
         return result
 
-    def _from_structured_json(self, data: Dict) -> Dict:
+    def _from_structured_json(self, data: dict) -> dict:
         """Directly map structured JSON (GeM API / Mock) to our schema."""
         eligibility = data.get("eligibility", {})
         title = data.get("title", "")
         cpv, unspsc = derive_codes(title)
-        
+
         state = data.get("state", "Delhi")
         coords = STATE_COORDS.get(state)
-        
+
         return {
             "title": title,
             "ministry": data.get("ministry"),
@@ -534,11 +632,25 @@ class Tier1Extractor:
             "contact_phone": data.get("contact", {}).get("phone"),
             "ai_summary": data.get("ai_summary"),
             "_fields_extracted": [
-                "title", "ministry", "department", "organisation", "state",
-                "estimated_cost_lakhs", "emd_lakhs", "categories", "status",
-                "submission_deadline", "msme_eligible", "latitude", "longitude",
-                "consortium_allowed", "jv_allowed", "oem_required", "funding_agency",
-                "cpv_code", "unspsc_code"
+                "title",
+                "ministry",
+                "department",
+                "organisation",
+                "state",
+                "estimated_cost_lakhs",
+                "emd_lakhs",
+                "categories",
+                "status",
+                "submission_deadline",
+                "msme_eligible",
+                "latitude",
+                "longitude",
+                "consortium_allowed",
+                "jv_allowed",
+                "oem_required",
+                "funding_agency",
+                "cpv_code",
+                "unspsc_code",
             ],
             "_fields_pending": [],
         }

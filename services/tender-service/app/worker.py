@@ -1,13 +1,12 @@
-import json
-import redis.asyncio as aioredis
-import httpx
-import asyncpg
-import structlog
 import asyncio
-import re
-from uuid import UUID, uuid4
+import json
 from datetime import datetime, timedelta
-from typing import Optional, Tuple, Dict, Any
+from uuid import uuid4
+
+import asyncpg
+import httpx
+import redis.asyncio as aioredis
+import structlog
 from app.config import settings
 
 logger = structlog.get_logger()
@@ -18,8 +17,12 @@ REDIS_PORT = settings.REDIS_PORT
 REDIS_PASSWORD = settings.REDIS_PASSWORD
 
 # Downstream URL settings
-DOCUMENT_PIPELINE_URL = getattr(settings, "DOCUMENT_PIPELINE_URL", "http://document-pipeline:8005")
-SEARCH_SERVICE_URL = getattr(settings, "SEARCH_SERVICE_URL", "http://search-service:8010")
+DOCUMENT_PIPELINE_URL = getattr(
+    settings, "DOCUMENT_PIPELINE_URL", "http://document-pipeline:8005"
+)
+SEARCH_SERVICE_URL = getattr(
+    settings, "SEARCH_SERVICE_URL", "http://search-service:8010"
+)
 
 STATE_COORDS = {
     "Andhra Pradesh": (15.9129, 79.7400),
@@ -53,9 +56,12 @@ STATE_COORDS = {
     "Delhi": (28.6139, 77.2090),
 }
 
+
 async def get_db_pool() -> asyncpg.Pool:
     from app.main import get_pool
+
     return await get_pool()
+
 
 async def get_redis_client():
     if REDIS_PASSWORD:
@@ -64,10 +70,11 @@ async def get_redis_client():
         url = f"redis://{REDIS_HOST}:{REDIS_PORT}/0"
     return aioredis.from_url(url, decode_responses=True)
 
+
 async def start_queue_worker():
     """Infinite consumer loop reading new tenders from Redis queue."""
     logger.info("Starting Redis queue consumer worker in tender-service...")
-    
+
     r_client = None
     for attempt in range(5):
         try:
@@ -76,9 +83,11 @@ async def start_queue_worker():
             logger.info("Connected to Redis queue successfully")
             break
         except Exception as e:
-            logger.warning("Failed to connect to Redis, retrying...", attempt=attempt, error=str(e))
+            logger.warning(
+                "Failed to connect to Redis, retrying...", attempt=attempt, error=str(e)
+            )
             await asyncio.sleep(2)
-            
+
     if not r_client:
         logger.error("Redis queue client could not connect. Worker exiting.")
         return
@@ -89,31 +98,44 @@ async def start_queue_worker():
             if not result:
                 await asyncio.sleep(0.1)
                 continue
-                
+
             _, message_json = result
             logger.info("Dequeued raw tender for processing")
-            
+
             await process_queued_message(json.loads(message_json))
-            
+
         except Exception as err:
             logger.error("Queue worker error, continuing", error=str(err))
             await asyncio.sleep(1)
 
-def derive_codes(title: str) -> Tuple[Optional[str], Optional[str]]:
+
+def derive_codes(title: str) -> tuple[str | None, str | None]:
     title_lower = title.lower()
-    if any(k in title_lower for k in ["software", "erp", "app ", "application", "portal", "cloud", "saas"]):
+    if any(
+        k in title_lower
+        for k in ["software", "erp", "app ", "application", "portal", "cloud", "saas"]
+    ):
         return "72200000", "43230000"
-    if any(k in title_lower for k in ["computer", "hardware", "server", "laptop", "printer"]):
+    if any(
+        k in title_lower
+        for k in ["computer", "hardware", "server", "laptop", "printer"]
+    ):
         return "30200000", "43210000"
-    if any(k in title_lower for k in ["construction", "building", "civil", "structure"]):
+    if any(
+        k in title_lower for k in ["construction", "building", "civil", "structure"]
+    ):
         return "45200000", "72000000"
     if any(k in title_lower for k in ["road", "highway", "bridge", "flyover"]):
         return "45233140", "72141103"
-    if any(k in title_lower for k in ["medical", "health", "hospital", "medicine", "ventilator", "x-ray"]):
+    if any(
+        k in title_lower
+        for k in ["medical", "health", "hospital", "medicine", "ventilator", "x-ray"]
+    ):
         return "33000000", "42000000"
     if any(k in title_lower for k in ["consult", "study", "dpr", "advisory"]):
         return "79311100", "80100000"
     return None, None
+
 
 async def process_queued_message(payload: dict):
     source_id = payload.get("source_id")
@@ -121,25 +143,29 @@ async def process_queued_message(payload: dict):
     source_url = payload.get("source_url")
     raw_data = payload.get("raw_json", {})
     document_urls = payload.get("document_urls", [])
-    
+
     if not source_id or not source_tender_id:
         logger.warning("Received invalid queue message", payload=payload)
         return
 
     now = datetime.utcnow()
-    
+
     # Extract & map basic fields
     if source_id == "gem":
         title = raw_data.get("b_category_name", ["Live GeM Bid"])[0]
-        ministry = raw_data.get("ba_official_details_minName", ["Ministry of Defence"])[0]
-        dept = raw_data.get("ba_official_details_deptName", ["Department of Military Affairs"])[0]
+        ministry = raw_data.get("ba_official_details_minName", ["Ministry of Defence"])[
+            0
+        ]
+        dept = raw_data.get(
+            "ba_official_details_deptName", ["Department of Military Affairs"]
+        )[0]
         org = dept
         state = "Delhi"
         if "karnataka" in dept.lower() or "karnataka" in title.lower():
             state = "Karnataka"
         elif "maharashtra" in dept.lower() or "maharashtra" in title.lower():
             state = "Maharashtra"
-            
+
         qty = raw_data.get("b_total_quantity", [1])[0]
         try:
             cost_lakhs = float(qty) * 12.5
@@ -150,16 +176,28 @@ async def process_queued_message(payload: dict):
         pbg = 3.0
         method = "gem"
         status = "active"
-        
+
         published_str = raw_data.get("final_start_date_sort", [None])[0]
         deadline_str = raw_data.get("final_end_date_sort", [None])[0]
-        
-        published = datetime.fromisoformat(published_str.replace("Z", "+00:00")).replace(tzinfo=None) if published_str else now
-        deadline = datetime.fromisoformat(deadline_str.replace("Z", "+00:00")).replace(tzinfo=None) if deadline_str else now + timedelta(days=14)
-        
+
+        published = (
+            datetime.fromisoformat(published_str.replace("Z", "+00:00")).replace(
+                tzinfo=None
+            )
+            if published_str
+            else now
+        )
+        deadline = (
+            datetime.fromisoformat(deadline_str.replace("Z", "+00:00")).replace(
+                tzinfo=None
+            )
+            if deadline_str
+            else now + timedelta(days=14)
+        )
+
         categories = raw_data.get("b_category_name", [])
         ai_summary = f"GeM Bid {source_tender_id} for {title} under {ministry}, {dept}. Estimated cost is ₹{cost_lakhs:.2f} Lakhs. Submission deadline is {deadline.strftime('%Y-%m-%d')}."
-        
+
         # GeM specific enrichment defaults
         cpv_code, unspsc_code = derive_codes(title)
         funding_agency = "Government of India"
@@ -173,7 +211,7 @@ async def process_queued_message(payload: dict):
         warranty_months = 12
         technical_criteria_raw = None
         financial_criteria_raw = None
-        
+
     else:  # cppp / state / other
         title = raw_data.get("title", "Live CPPP Notice")
         ministry = raw_data.get("ministry", "Ministry of Electronics and IT")
@@ -196,27 +234,41 @@ async def process_queued_message(payload: dict):
             pbg = float(raw_data.get("performance_guarantee_pct", 5.0))
         except (ValueError, TypeError):
             pbg = 5.0
-            
+
         method = raw_data.get("procurement_method", "open")
         status = raw_data.get("status", "active")
-        
-        published = datetime.fromisoformat(raw_data["published_at"]) if raw_data.get("published_at") else now
-        deadline = datetime.fromisoformat(raw_data["submission_deadline"]) if raw_data.get("submission_deadline") else now + timedelta(days=14)
+
+        published = (
+            datetime.fromisoformat(raw_data["published_at"])
+            if raw_data.get("published_at")
+            else now
+        )
+        deadline = (
+            datetime.fromisoformat(raw_data["submission_deadline"])
+            if raw_data.get("submission_deadline")
+            else now + timedelta(days=14)
+        )
         categories = raw_data.get("categories", ["IT"])
-        ai_summary = raw_data.get("ai_summary", f"Tender {source_tender_id} published by {org}.")
+        ai_summary = raw_data.get(
+            "ai_summary", f"Tender {source_tender_id} published by {org}."
+        )
 
         # Retrieve new enrichment fields from raw_data
         cpv_code = raw_data.get("cpv_code")
         unspsc_code = raw_data.get("unspsc_code")
         if not cpv_code:
             cpv_code, unspsc_code = derive_codes(title)
-            
+
         funding_agency = raw_data.get("funding_agency") or "Government of India"
         city = raw_data.get("city")
         consortium_allowed = bool(raw_data.get("consortium_allowed", False))
         jv_allowed = bool(raw_data.get("jv_allowed", False))
         oem_required = bool(raw_data.get("oem_required", False))
-        contract_duration_days = raw_data.get("contract_duration_days") or raw_data.get("work_completion_days") or 180
+        contract_duration_days = (
+            raw_data.get("contract_duration_days")
+            or raw_data.get("work_completion_days")
+            or 180
+        )
         payment_milestone_count = raw_data.get("payment_milestone_count") or 0
         penalty_clause = bool(raw_data.get("penalty_clause", False))
         warranty_months = raw_data.get("warranty_months") or 12
@@ -224,7 +276,7 @@ async def process_queued_message(payload: dict):
         financial_criteria_raw = raw_data.get("financial_criteria_raw")
 
     opening = deadline + timedelta(days=1)
-    
+
     # Retrieve coordinates
     latitude, longitude = STATE_COORDS.get(state, (28.6139, 77.2090))
     if "latitude" in raw_data and raw_data.get("latitude"):
@@ -238,12 +290,13 @@ async def process_queued_message(payload: dict):
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
             "SELECT id, dedup_hash FROM tenders WHERE source = $1 AND source_tender_id = $2",
-            source_id, source_tender_id
+            source_id,
+            source_tender_id,
         )
-        
+
         # Calculate content hash
         new_hash = str(hash(json.dumps(raw_data, sort_keys=True)))
-        
+
         # Check for duplicates before inserting
         dup_row = await conn.fetchrow(
             """
@@ -253,7 +306,11 @@ async def process_queued_message(payload: dict):
                 OR (source_tender_id = $4 AND source != $5)
             ) LIMIT 1
             """,
-            title, state, cost_lakhs, source_tender_id, source_id
+            title,
+            state,
+            cost_lakhs,
+            source_tender_id,
+            source_id,
         )
         duplicate_of_id = dup_row["id"] if dup_row else None
         dedup_status = "duplicate" if duplicate_of_id else "canonical"
@@ -283,19 +340,58 @@ async def process_queued_message(payload: dict):
                     $37, $38, $39, $40, $41, $42, $43
                 )
                 """,
-                tender_uuid, source_id, source_tender_id, source_url, title,
-                ministry, dept, org, state, cost_lakhs,
-                emd, fee, pbg, categories,
-                method, status, published, deadline,
-                opening, cost_lakhs * 0.3, 2, ["ISO 9001"],
-                True, True, ai_summary, new_hash,
-                cpv_code, unspsc_code, funding_agency, city, latitude, longitude,
-                consortium_allowed, jv_allowed, oem_required, contract_duration_days,
-                payment_milestone_count, penalty_clause, warranty_months,
-                technical_criteria_raw, financial_criteria_raw, duplicate_of_id, dedup_status
+                tender_uuid,
+                source_id,
+                source_tender_id,
+                source_url,
+                title,
+                ministry,
+                dept,
+                org,
+                state,
+                cost_lakhs,
+                emd,
+                fee,
+                pbg,
+                categories,
+                method,
+                status,
+                published,
+                deadline,
+                opening,
+                cost_lakhs * 0.3,
+                2,
+                ["ISO 9001"],
+                True,
+                True,
+                ai_summary,
+                new_hash,
+                cpv_code,
+                unspsc_code,
+                funding_agency,
+                city,
+                latitude,
+                longitude,
+                consortium_allowed,
+                jv_allowed,
+                oem_required,
+                contract_duration_days,
+                payment_milestone_count,
+                penalty_clause,
+                warranty_months,
+                technical_criteria_raw,
+                financial_criteria_raw,
+                duplicate_of_id,
+                dedup_status,
             )
-            logger.info("Worker inserted new tender to database", source_id=source_id, source_tender_id=source_tender_id, uuid=str(tender_uuid), status=dedup_status)
-            
+            logger.info(
+                "Worker inserted new tender to database",
+                source_id=source_id,
+                source_tender_id=source_tender_id,
+                uuid=str(tender_uuid),
+                status=dedup_status,
+            )
+
             # 3. Dynamic Indexing trigger to search-service
             try:
                 async with httpx.AsyncClient() as client:
@@ -317,13 +413,15 @@ async def process_queued_message(payload: dict):
                             "status": status,
                             "msme_eligible": True,
                             "startup_eligible": True,
-                            "ai_summary": ai_summary
+                            "ai_summary": ai_summary,
                         },
-                        timeout=5.0
+                        timeout=5.0,
                     )
             except Exception as search_err:
-                logger.error("Worker failed to trigger search index", error=str(search_err))
-                
+                logger.error(
+                    "Worker failed to trigger search index", error=str(search_err)
+                )
+
             # 4. Trigger document pipeline download & OCR
             if document_urls:
                 try:
@@ -333,12 +431,14 @@ async def process_queued_message(payload: dict):
                             json={
                                 "tender_id": str(tender_uuid),
                                 "document_url": document_urls[0],
-                                "document_name": f"{source_tender_id.replace('/', '_')}_spec.pdf"
+                                "document_name": f"{source_tender_id.replace('/', '_')}_spec.pdf",
                             },
-                            timeout=5.0
+                            timeout=5.0,
                         )
                 except Exception as doc_err:
-                    logger.error("Worker failed to trigger document pipeline", error=str(doc_err))
+                    logger.error(
+                        "Worker failed to trigger document pipeline", error=str(doc_err)
+                    )
         else:
             tender_uuid = row["id"]
             existing_hash = row["dedup_hash"]
@@ -355,10 +455,30 @@ async def process_queued_message(payload: dict):
                         duplicate_of_id = $18, dedup_status = $19
                     WHERE id = $20
                     """,
-                    title, cost_lakhs, deadline, new_hash,
-                    cpv_code, unspsc_code, funding_agency, city, latitude, longitude,
-                    consortium_allowed, jv_allowed, oem_required, contract_duration_days,
-                    payment_milestone_count, penalty_clause, warranty_months,
-                    duplicate_of_id, dedup_status, tender_uuid
+                    title,
+                    cost_lakhs,
+                    deadline,
+                    new_hash,
+                    cpv_code,
+                    unspsc_code,
+                    funding_agency,
+                    city,
+                    latitude,
+                    longitude,
+                    consortium_allowed,
+                    jv_allowed,
+                    oem_required,
+                    contract_duration_days,
+                    payment_milestone_count,
+                    penalty_clause,
+                    warranty_months,
+                    duplicate_of_id,
+                    dedup_status,
+                    tender_uuid,
                 )
-                logger.info("Worker updated existing tender in database", source_id=source_id, source_tender_id=source_tender_id, uuid=str(tender_uuid))
+                logger.info(
+                    "Worker updated existing tender in database",
+                    source_id=source_id,
+                    source_tender_id=source_tender_id,
+                    uuid=str(tender_uuid),
+                )

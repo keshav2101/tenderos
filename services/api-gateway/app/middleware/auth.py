@@ -2,15 +2,14 @@
 JWT + API Key authentication middleware.
 Validates credentials and attaches the current user context to the request.
 """
-from typing import Optional
-import structlog
-import httpx
-from fastapi import Request, HTTPException, status
-from fastapi.responses import JSONResponse
-from jose import jwt, JWTError
-from starlette.middleware.base import BaseHTTPMiddleware
 
+import httpx
+import structlog
 from app.config import settings
+from fastapi import Request
+from fastapi.responses import JSONResponse
+from jose import JWTError, jwt
+from starlette.middleware.base import BaseHTTPMiddleware
 
 logger = structlog.get_logger()
 
@@ -27,7 +26,6 @@ PUBLIC_PATHS = {
     "/docs",
     "/redoc",
     "/openapi.json",
-
     # Auth (no token exists yet)
     "/api/v1/auth/login",
     "/api/v1/auth/register",
@@ -36,19 +34,15 @@ PUBLIC_PATHS = {
     "/api/v1/auth/google/callback",
     "/api/v1/auth/forgot-password",
     "/api/v1/auth/reset-password",
-
     # Public tender browsing — guests must be able to search and view tenders
     # without an account.  Watchlist/write operations still require auth because
     # those routes use POST/DELETE methods which are handled separately below.
     "/api/v1/tenders",
     "/api/v1/search",
-
     # Homepage analytics overview (powers the stats widgets on the landing page)
     "/api/v1/analytics/overview",
-
     # AI Copilot chat for guest users
     "/api/v1/chat",
-
     # External webhook — Stripe sends events without a user JWT
     "/api/v1/billing/webhook",
 }
@@ -66,10 +60,15 @@ class AuthMiddleware(BaseHTTPMiddleware):
             if subdomain not in ("www", "app", "api"):
                 import hashlib
                 from uuid import UUID
-                tenant_hash = hashlib.md5(subdomain.encode(), usedforsecurity=False).hexdigest()  # noqa: S324
+
+                tenant_hash = hashlib.md5(
+                    subdomain.encode(), usedforsecurity=False
+                ).hexdigest()
                 tenant_id = str(UUID(tenant_hash))
-                
-                headers = [h for h in request.scope["headers"] if h[0] != b"x-tenant-id"]
+
+                headers = [
+                    h for h in request.scope["headers"] if h[0] != b"x-tenant-id"
+                ]
                 headers.append((b"x-tenant-id", tenant_id.encode()))
                 request.scope["headers"] = headers
 
@@ -91,8 +90,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
                         return res
                     return await call_next(request)
                 return JSONResponse(
-                    status_code=401,
-                    content={"detail": "Invalid API key"}
+                    status_code=401, content={"detail": "Invalid API key"}
                 )
 
             if auth_header.startswith("Bearer "):
@@ -108,7 +106,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 return JSONResponse(
                     status_code=401,
                     content={"detail": "Invalid or expired token"},
-                    headers={"WWW-Authenticate": "Bearer"}
+                    headers={"WWW-Authenticate": "Bearer"},
                 )
 
         # Fallback to public path check if no auth credentials were sent
@@ -120,20 +118,22 @@ class AuthMiddleware(BaseHTTPMiddleware):
         return JSONResponse(
             status_code=401,
             content={"detail": "Authentication required"},
-            headers={"WWW-Authenticate": "Bearer"}
+            headers={"WWW-Authenticate": "Bearer"},
         )
 
-    def _check_role_transition(self, path: str, user: dict) -> Optional[JSONResponse]:
+    def _check_role_transition(self, path: str, user: dict) -> JSONResponse | None:
         if path.endswith("/workflow/transition"):
             role = user.get("role", "viewer")
             if role not in ("admin", "enterprise", "consultant", "sme"):
                 return JSONResponse(
                     status_code=403,
-                    content={"detail": "Role does not have permission to transition bid workflow states"}
+                    content={
+                        "detail": "Role does not have permission to transition bid workflow states"
+                    },
                 )
         return None
 
-    async def _validate_jwt(self, token: str) -> Optional[dict]:
+    async def _validate_jwt(self, token: str) -> dict | None:
         try:
             payload = jwt.decode(
                 token,
@@ -150,16 +150,15 @@ class AuthMiddleware(BaseHTTPMiddleware):
             logger.warning("JWT validation failed", error=str(e))
             return None
 
-    async def _validate_api_key(self, api_key: str) -> Optional[dict]:
+    async def _validate_api_key(self, api_key: str) -> dict | None:
         try:
             async with httpx.AsyncClient(timeout=5.0) as client:
                 resp = await client.post(
                     f"{settings.AUTH_SERVICE_URL}/auth/api-keys/validate",
-                    json={"api_key": api_key}
+                    json={"api_key": api_key},
                 )
                 if resp.status_code == 200:
                     return resp.json()
         except Exception as e:
             logger.error("API key validation request failed", error=str(e))
         return None
-

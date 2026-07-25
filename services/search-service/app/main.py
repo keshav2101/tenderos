@@ -1,33 +1,39 @@
 """Search service FastAPI application."""
+
 from __future__ import annotations
-from typing import Optional, List, Dict, Any
-from fastapi import FastAPI, Query, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+
+from typing import Any
 
 import structlog
-from app.config import settings
 from app.hybrid_search import HybridSearchEngine
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
 
 logger = structlog.get_logger()
 
 app = FastAPI(title="TenderOS Search Service")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
-                   allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 search_engine = HybridSearchEngine()
 
 
 class AdvancedSearchRequest(BaseModel):
     query: str
-    mode: Optional[str] = "hybrid"
-    states: Optional[List[str]] = None
-    categories: Optional[List[str]] = None
-    cost_min_lakhs: Optional[float] = None
-    cost_max_lakhs: Optional[float] = None
-    msme_eligible: Optional[bool] = None
-    page: Optional[int] = 1
-    page_size: Optional[int] = 20
+    mode: str | None = "hybrid"
+    states: list[str] | None = None
+    categories: list[str] | None = None
+    cost_min_lakhs: float | None = None
+    cost_max_lakhs: float | None = None
+    msme_eligible: bool | None = None
+    page: int | None = 1
+    page_size: int | None = 20
 
 
 @app.get("/health")
@@ -39,11 +45,11 @@ async def health():
 async def search(
     q: str = "",
     mode: str = "hybrid",
-    state: Optional[str] = None,
-    category: Optional[str] = None,
-    cost_min: Optional[float] = None,
-    cost_max: Optional[float] = None,
-    msme_eligible: Optional[bool] = None,
+    state: str | None = None,
+    category: str | None = None,
+    cost_min: float | None = None,
+    cost_max: float | None = None,
+    msme_eligible: bool | None = None,
     page: int = 1,
     page_size: int = 20,
 ):
@@ -121,23 +127,24 @@ class SearchIndexRequest(BaseModel):
     title: str
     source: str
     source_tender_id: str
-    ministry: Optional[str] = None
-    department: Optional[str] = None
-    organisation: Optional[str] = None
-    state: Optional[str] = None
-    estimated_cost_lakhs: Optional[float] = None
-    emd_lakhs: Optional[float] = None
-    categories: List[str] = Field(default_factory=list)
-    submission_deadline: Optional[str] = None
-    status: Optional[str] = "active"
-    msme_eligible: Optional[bool] = False
-    startup_eligible: Optional[bool] = False
-    ai_summary: Optional[str] = None
+    ministry: str | None = None
+    department: str | None = None
+    organisation: str | None = None
+    state: str | None = None
+    estimated_cost_lakhs: float | None = None
+    emd_lakhs: float | None = None
+    categories: list[str] = Field(default_factory=list)
+    submission_deadline: str | None = None
+    status: str | None = "active"
+    msme_eligible: bool | None = False
+    startup_eligible: bool | None = False
+    ai_summary: str | None = None
 
 
 @app.post("/search/index")
 async def index_tender(req: SearchIndexRequest):
     import structlog
+
     service_logger = structlog.get_logger()
     service_logger.info("Indexing tender dynamically", id=req.id, title=req.title)
 
@@ -159,8 +166,9 @@ async def reindex_tenders(limit: int = Query(1000, ge=1, le=10000)):
     This is intentionally bounded; large production reindexes should page this endpoint
     or run the same logic from a worker/Job.
     """
-    import asyncpg
     import os
+
+    import asyncpg
 
     pg_host = os.getenv("POSTGRES_HOST", "postgres")
     pg_port = int(os.getenv("POSTGRES_PORT", "5432"))
@@ -169,7 +177,7 @@ async def reindex_tenders(limit: int = Query(1000, ge=1, le=10000)):
     pg_pwd = os.getenv("POSTGRES_PASSWORD", "")
 
     rows_indexed = 0
-    failures: List[Dict[str, Any]] = []
+    failures: list[dict[str, Any]] = []
     conn = None
     try:
         conn = await asyncpg.connect(
@@ -196,7 +204,9 @@ async def reindex_tenders(limit: int = Query(1000, ge=1, le=10000)):
             payload = dict(row)
             payload["id"] = str(payload["id"])
             if payload.get("submission_deadline"):
-                payload["submission_deadline"] = payload["submission_deadline"].isoformat()
+                payload["submission_deadline"] = payload[
+                    "submission_deadline"
+                ].isoformat()
             if payload.get("estimated_cost_lakhs") is not None:
                 payload["estimated_cost_lakhs"] = float(payload["estimated_cost_lakhs"])
             if payload.get("emd_lakhs") is not None:
@@ -208,7 +218,9 @@ async def reindex_tenders(limit: int = Query(1000, ge=1, le=10000)):
                 failures.append({"id": payload["id"], "error": str(index_err)})
 
     except Exception as db_err:
-        raise HTTPException(status_code=502, detail=f"Reindex failed while reading PostgreSQL: {db_err}")
+        raise HTTPException(
+            status_code=502, detail=f"Reindex failed while reading PostgreSQL: {db_err}"
+        )
     finally:
         if conn:
             await conn.close()
@@ -225,7 +237,7 @@ async def reindex_tenders(limit: int = Query(1000, ge=1, le=10000)):
 async def metrics():
     # Return Prometheus metrics in standard plain text format
     from fastapi.responses import PlainTextResponse
-    
+
     metrics_str = (
         "# HELP http_requests_total Total number of HTTP requests.\n"
         "# TYPE http_requests_total counter\n"
@@ -235,11 +247,11 @@ async def metrics():
         "\n"
         "# HELP search_latency_seconds Latency of search requests in seconds.\n"
         "# TYPE search_latency_seconds histogram\n"
-        "search_latency_seconds_bucket{le=\"0.05\"} 1250\n"
-        "search_latency_seconds_bucket{le=\"0.1\"} 1420\n"
-        "search_latency_seconds_bucket{le=\"0.2\"} 1510\n"
-        "search_latency_seconds_bucket{le=\"0.5\"} 1540\n"
-        "search_latency_seconds_bucket{le=\"+Inf\"} 1543\n"
+        'search_latency_seconds_bucket{le="0.05"} 1250\n'
+        'search_latency_seconds_bucket{le="0.1"} 1420\n'
+        'search_latency_seconds_bucket{le="0.2"} 1510\n'
+        'search_latency_seconds_bucket{le="0.5"} 1540\n'
+        'search_latency_seconds_bucket{le="+Inf"} 1543\n'
         "search_latency_seconds_sum 143.25\n"
         "search_latency_seconds_count 1543\n"
         "\n"

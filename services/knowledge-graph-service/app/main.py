@@ -1,7 +1,9 @@
 """Knowledge graph service establishing relational entity connections in PostgreSQL."""
+
 from __future__ import annotations
-from typing import List, Dict, Any, Optional
+
 import os
+
 import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,8 +11,13 @@ from pydantic import BaseModel
 
 logger = structlog.get_logger()
 app = FastAPI(title="TenderOS Knowledge Graph Service")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
-                   allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 class Node(BaseModel):
@@ -32,19 +39,19 @@ class AwardIngestRequest(BaseModel):
     department_name: str
     winning_vendor_name: str
     contract_value_lakhs: float
-    technologies_used: List[str]
+    technologies_used: list[str]
 
 
 async def get_db_conn():
     import asyncpg
+
     pg_host = os.getenv("POSTGRES_HOST", "postgres")
     pg_port = os.getenv("POSTGRES_PORT", "5432")
     pg_db = os.getenv("POSTGRES_DB", "tenderos")
     pg_user = os.getenv("POSTGRES_USER", "tenderos")
     pg_pwd = os.getenv("POSTGRES_PASSWORD", "tenderos_local_pwd")
     return await asyncpg.connect(
-        host=pg_host, port=int(pg_port),
-        database=pg_db, user=pg_user, password=pg_pwd
+        host=pg_host, port=int(pg_port), database=pg_db, user=pg_user, password=pg_pwd
     )
 
 
@@ -72,7 +79,9 @@ async def startup_event():
         await conn.close()
         logger.info("Successfully initialized knowledge-graph schema in PostgreSQL")
     except Exception as e:
-        logger.error("Failed to initialize knowledge-graph database tables", error=str(e))
+        logger.error(
+            "Failed to initialize knowledge-graph database tables", error=str(e)
+        )
 
 
 @app.get("/health")
@@ -91,7 +100,9 @@ async def add_node(req: Node):
             VALUES ($1, $2, $3)
             ON CONFLICT (id) DO UPDATE SET label = $2, name = $3
             """,
-            req.id, req.label, req.name
+            req.id,
+            req.label,
+            req.name,
         )
     finally:
         await conn.close()
@@ -100,7 +111,12 @@ async def add_node(req: Node):
 
 @app.post("/graph/edges")
 async def add_edge(req: Edge):
-    logger.info("Adding edge to Knowledge Graph", source=req.source_id, target=req.target_id, relation=req.relation)
+    logger.info(
+        "Adding edge to Knowledge Graph",
+        source=req.source_id,
+        target=req.target_id,
+        relation=req.relation,
+    )
     conn = await get_db_conn()
     try:
         await conn.execute(
@@ -109,7 +125,9 @@ async def add_edge(req: Edge):
             VALUES ($1, $2, $3)
             ON CONFLICT (source_id, target_id, relation) DO NOTHING
             """,
-            req.source_id, req.target_id, req.relation
+            req.source_id,
+            req.target_id,
+            req.relation,
         )
     finally:
         await conn.close()
@@ -122,9 +140,15 @@ async def get_graph_stats():
     try:
         total_nodes = await conn.fetchval("SELECT count(*) FROM graph_nodes")
         total_edges = await conn.fetchval("SELECT count(*) FROM graph_edges")
-        ministries = await conn.fetchval("SELECT count(*) FROM graph_nodes WHERE label = 'ministry'")
-        companies = await conn.fetchval("SELECT count(*) FROM graph_nodes WHERE label = 'company'")
-        tenders = await conn.fetchval("SELECT count(*) FROM graph_nodes WHERE label = 'tender'")
+        ministries = await conn.fetchval(
+            "SELECT count(*) FROM graph_nodes WHERE label = 'ministry'"
+        )
+        companies = await conn.fetchval(
+            "SELECT count(*) FROM graph_nodes WHERE label = 'company'"
+        )
+        tenders = await conn.fetchval(
+            "SELECT count(*) FROM graph_nodes WHERE label = 'tender'"
+        )
     finally:
         await conn.close()
     return {
@@ -138,15 +162,19 @@ async def get_graph_stats():
             "Bharat Electronics Limited": {
                 "ministry": "Ministry of Defence",
                 "win_count": 42,
-                "win_probability": 0.78
+                "win_probability": 0.78,
             }
-        }
+        },
     }
 
 
 @app.post("/graph/ingest/award")
 async def ingest_award_relation(req: AwardIngestRequest):
-    logger.info("Ingesting award relation to Knowledge Graph", tender_id=req.tender_id, winner=req.winning_vendor_name)
+    logger.info(
+        "Ingesting award relation to Knowledge Graph",
+        tender_id=req.tender_id,
+        winner=req.winning_vendor_name,
+    )
     conn = await get_db_conn()
     try:
         async with conn.transaction():
@@ -155,57 +183,70 @@ async def ingest_award_relation(req: AwardIngestRequest):
                 (req.tender_id, "tender", req.tender_title),
                 (req.ministry_name, "ministry", req.ministry_name),
                 (req.department_name, "department", req.department_name),
-                (req.winning_vendor_name, "company", req.winning_vendor_name)
+                (req.winning_vendor_name, "company", req.winning_vendor_name),
             ]:
                 await conn.execute(
                     """
                     INSERT INTO graph_nodes (id, label, name) VALUES ($1, $2, $3)
                     ON CONFLICT (id) DO UPDATE SET label = $2, name = $3
                     """,
-                    n_id, n_label, n_name
+                    n_id,
+                    n_label,
+                    n_name,
                 )
-            
+
             for tech in req.technologies_used:
                 await conn.execute(
                     """
                     INSERT INTO graph_nodes (id, label, name) VALUES ($1, $2, $3)
                     ON CONFLICT (id) DO UPDATE SET label = $2, name = $3
                     """,
-                    tech, "technology", tech
+                    tech,
+                    "technology",
+                    tech,
                 )
 
             # Ingest edges
             for s_id, t_id, rel in [
                 (req.tender_id, req.department_name, "department_of"),
                 (req.department_name, req.ministry_name, "ministry_of"),
-                (req.tender_id, req.winning_vendor_name, "won_by")
+                (req.tender_id, req.winning_vendor_name, "won_by"),
             ]:
                 await conn.execute(
                     """
                     INSERT INTO graph_edges (source_id, target_id, relation) VALUES ($1, $2, $3)
                     ON CONFLICT (source_id, target_id, relation) DO NOTHING
                     """,
-                    s_id, t_id, rel
+                    s_id,
+                    t_id,
+                    rel,
                 )
-                
+
             for tech in req.technologies_used:
                 await conn.execute(
                     """
                     INSERT INTO graph_edges (source_id, target_id, relation) VALUES ($1, $2, $3)
                     ON CONFLICT (source_id, target_id, relation) DO NOTHING
                     """,
-                    req.tender_id, tech, "uses_tech"
+                    req.tender_id,
+                    tech,
+                    "uses_tech",
                 )
                 await conn.execute(
                     """
                     INSERT INTO graph_edges (source_id, target_id, relation) VALUES ($1, $2, $3)
                     ON CONFLICT (source_id, target_id, relation) DO NOTHING
                     """,
-                    req.winning_vendor_name, tech, "expertise_in"
+                    req.winning_vendor_name,
+                    tech,
+                    "expertise_in",
                 )
     finally:
         await conn.close()
-    return {"status": "success", "message": "Award relationship successfully ingested to graph network"}
+    return {
+        "status": "success",
+        "message": "Award relationship successfully ingested to graph network",
+    }
 
 
 @app.get("/graph/query")
@@ -214,8 +255,10 @@ async def query_graph_relations(source_id: str):
     conn = await get_db_conn()
     neighbors = []
     try:
-        source_node = await conn.fetchrow("SELECT label, name FROM graph_nodes WHERE id = $1", source_id)
-        
+        source_node = await conn.fetchrow(
+            "SELECT label, name FROM graph_nodes WHERE id = $1", source_id
+        )
+
         # Outgoing edges
         rows_out = await conn.fetch(
             """
@@ -224,16 +267,18 @@ async def query_graph_relations(source_id: str):
             JOIN graph_nodes n ON e.target_id = n.id
             WHERE e.source_id = $1
             """,
-            source_id
+            source_id,
         )
         for r in rows_out:
-            neighbors.append({
-                "relation": r["relation"],
-                "target_id": r["target_id"],
-                "target_label": r["target_label"],
-                "target_name": r["target_name"]
-            })
-            
+            neighbors.append(
+                {
+                    "relation": r["relation"],
+                    "target_id": r["target_id"],
+                    "target_label": r["target_label"],
+                    "target_name": r["target_name"],
+                }
+            )
+
         # Incoming edges
         rows_in = await conn.fetch(
             """
@@ -242,26 +287,31 @@ async def query_graph_relations(source_id: str):
             JOIN graph_nodes n ON e.source_id = n.id
             WHERE e.target_id = $1
             """,
-            source_id
+            source_id,
         )
         for r in rows_in:
-            neighbors.append({
-                "relation": f"reversed_{r['relation']}",
-                "target_id": r["source_id"],
-                "target_label": r["source_label"],
-                "target_name": r["source_name"]
-            })
+            neighbors.append(
+                {
+                    "relation": f"reversed_{r['relation']}",
+                    "target_id": r["source_id"],
+                    "target_label": r["source_label"],
+                    "target_name": r["source_name"],
+                }
+            )
     finally:
         await conn.close()
 
     return {
         "source_id": source_id,
-        "source_node": {"label": source_node["label"], "name": source_node["name"]} if source_node else {"label": "unknown", "name": source_id},
-        "connections": neighbors
+        "source_node": {"label": source_node["label"], "name": source_node["name"]}
+        if source_node
+        else {"label": "unknown", "name": source_id},
+        "connections": neighbors,
     }
 
 
 # ─── PROCUREMENT TIMELINE VISUALIZATION ─────────────────────────────────────
+
 
 @app.get("/graph/timeline/{tender_id}")
 async def get_procurement_timeline(tender_id: str):
@@ -269,7 +319,11 @@ async def get_procurement_timeline(tender_id: str):
     conn = await get_db_conn()
     try:
         from uuid import UUID
-        row = await conn.fetchrow("SELECT title, published_at, submission_deadline, opening_date, status FROM tenders WHERE id = $1", UUID(tender_id))
+
+        row = await conn.fetchrow(
+            "SELECT title, published_at, submission_deadline, opening_date, status FROM tenders WHERE id = $1",
+            UUID(tender_id),
+        )
         t_data = dict(row) if row else {}
     except Exception:
         t_data = {}
@@ -281,17 +335,52 @@ async def get_procurement_timeline(tender_id: str):
     open_date = t_data.get("opening_date")
 
     milestones = [
-        {"stage": "TENDER_PUBLISHED", "status": "COMPLETED", "date": pub_date.isoformat() if pub_date else "2026-07-24T18:55:00Z", "detail": "NIT published on portal"},
-        {"stage": "CORRIGENDUM_ISSUED", "status": "COMPLETED", "date": "2026-07-25T10:00:00Z", "detail": "Clarification on MSME EMD waiver issued"},
-        {"stage": "PRE_BID_MEETING", "status": "COMPLETED", "date": "2026-07-26T11:30:00Z", "detail": "Pre-bid conference held"},
-        {"stage": "TECHNICAL_BID_SUBMITTED", "status": "PENDING", "date": sub_date.isoformat() if sub_date else "2026-07-30T12:00:00Z", "detail": "Online submission deadline"},
-        {"stage": "FINANCIAL_BID_OPENED", "status": "SCHEDULED", "date": open_date.isoformat() if open_date else "2026-07-31T12:00:00Z", "detail": "Price bid opening"},
-        {"stage": "L1_DETERMINED", "status": "SCHEDULED", "date": "2026-08-02T15:00:00Z", "detail": "Lowest bidder evaluation"},
-        {"stage": "AWARD_LOA", "status": "SCHEDULED", "date": "2026-08-05T12:00:00Z", "detail": "Letter of Acceptance issuance"}
+        {
+            "stage": "TENDER_PUBLISHED",
+            "status": "COMPLETED",
+            "date": pub_date.isoformat() if pub_date else "2026-07-24T18:55:00Z",
+            "detail": "NIT published on portal",
+        },
+        {
+            "stage": "CORRIGENDUM_ISSUED",
+            "status": "COMPLETED",
+            "date": "2026-07-25T10:00:00Z",
+            "detail": "Clarification on MSME EMD waiver issued",
+        },
+        {
+            "stage": "PRE_BID_MEETING",
+            "status": "COMPLETED",
+            "date": "2026-07-26T11:30:00Z",
+            "detail": "Pre-bid conference held",
+        },
+        {
+            "stage": "TECHNICAL_BID_SUBMITTED",
+            "status": "PENDING",
+            "date": sub_date.isoformat() if sub_date else "2026-07-30T12:00:00Z",
+            "detail": "Online submission deadline",
+        },
+        {
+            "stage": "FINANCIAL_BID_OPENED",
+            "status": "SCHEDULED",
+            "date": open_date.isoformat() if open_date else "2026-07-31T12:00:00Z",
+            "detail": "Price bid opening",
+        },
+        {
+            "stage": "L1_DETERMINED",
+            "status": "SCHEDULED",
+            "date": "2026-08-02T15:00:00Z",
+            "detail": "Lowest bidder evaluation",
+        },
+        {
+            "stage": "AWARD_LOA",
+            "status": "SCHEDULED",
+            "date": "2026-08-05T12:00:00Z",
+            "detail": "Letter of Acceptance issuance",
+        },
     ]
 
     return {
         "tender_id": tender_id,
         "tender_title": t_data.get("title", "Government Procurement Tender"),
-        "milestone_timeline": milestones
+        "milestone_timeline": milestones,
     }

@@ -4,25 +4,57 @@ Data Normalization Layer — Phase 14 expanded.
 Standardizes raw tenders from 80+ sources into the unified TenderOS schema.
 Supports GeM, CPPP, Railways, all PSUs, all Ministries, all 36 State/UT portals.
 """
+
 from __future__ import annotations
+
 import hashlib
 from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional
-from pydantic import BaseModel, Field
+from typing import Any
+
 import structlog
 from app.connectors.base import RawTender
+from pydantic import BaseModel, Field
 
 logger = structlog.get_logger()
 
 # Standard Indian states list for location normalization
 INDIAN_STATES = [
-    "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
-    "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka",
-    "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram",
-    "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu",
-    "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal",
-    "Andaman and Nicobar Islands", "Chandigarh", "Dadra and Nagar Haveli and Daman and Diu",
-    "Delhi", "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry"
+    "Andhra Pradesh",
+    "Arunachal Pradesh",
+    "Assam",
+    "Bihar",
+    "Chhattisgarh",
+    "Goa",
+    "Gujarat",
+    "Haryana",
+    "Himachal Pradesh",
+    "Jharkhand",
+    "Karnataka",
+    "Kerala",
+    "Madhya Pradesh",
+    "Maharashtra",
+    "Manipur",
+    "Meghalaya",
+    "Mizoram",
+    "Nagaland",
+    "Odisha",
+    "Punjab",
+    "Rajasthan",
+    "Sikkim",
+    "Tamil Nadu",
+    "Telangana",
+    "Tripura",
+    "Uttar Pradesh",
+    "Uttarakhand",
+    "West Bengal",
+    "Andaman and Nicobar Islands",
+    "Chandigarh",
+    "Dadra and Nagar Haveli and Daman and Diu",
+    "Delhi",
+    "Jammu and Kashmir",
+    "Ladakh",
+    "Lakshadweep",
+    "Puducherry",
 ]
 
 # Source ID groups for routing normalization logic
@@ -32,20 +64,70 @@ RAILWAYS_SOURCES = {"railways", "ireps"}
 
 # All PSU and Central Gov sources that use the generic normalizer
 GENERIC_SOURCES = {
-    "bhel", "ntpc", "ongc", "npcil", "gail", "coal_india", "sail",
-    "aai", "nhai", "isro", "hal", "iocl", "bpcl",
-    "cpwd", "defence", "drdo", "bel",
-    "mof", "mha", "moe", "mohfw", "msme",
+    "bhel",
+    "ntpc",
+    "ongc",
+    "npcil",
+    "gail",
+    "coal_india",
+    "sail",
+    "aai",
+    "nhai",
+    "isro",
+    "hal",
+    "iocl",
+    "bpcl",
+    "cpwd",
+    "defence",
+    "drdo",
+    "bel",
+    "mof",
+    "mha",
+    "moe",
+    "mohfw",
+    "msme",
     "psu",  # legacy
 }
 
 # State/UT source IDs
 STATE_SOURCES = {
-    "ap", "ar", "as", "br", "cg", "ga", "gj", "hr", "hp", "jh",
-    "ka", "kl", "mp", "mh", "mn", "ml", "mz", "nl", "od", "pb",
-    "rj", "sk", "tn", "ts", "tr", "up", "uk", "wb",
+    "ap",
+    "ar",
+    "as",
+    "br",
+    "cg",
+    "ga",
+    "gj",
+    "hr",
+    "hp",
+    "jh",
+    "ka",
+    "kl",
+    "mp",
+    "mh",
+    "mn",
+    "ml",
+    "mz",
+    "nl",
+    "od",
+    "pb",
+    "rj",
+    "sk",
+    "tn",
+    "ts",
+    "tr",
+    "up",
+    "uk",
+    "wb",
     # UTs
-    "an", "ch", "dd", "dl", "jk", "la", "ld", "py",
+    "an",
+    "ch",
+    "dd",
+    "dl",
+    "jk",
+    "la",
+    "ld",
+    "py",
     # legacy state connector
     "state_procurement",
 }
@@ -59,31 +141,31 @@ class NormalizedTender(BaseModel):
     organisation: str
     buyer: str
     location: str
-    district: Optional[str] = None
-    procurement_type: Optional[str] = None
-    bid_type: Optional[str] = None
+    district: str | None = None
+    procurement_type: str | None = None
+    bid_type: str | None = None
     currency: str = "INR"
     tender_status: str = "active"
-    estimated_cost_lakhs: Optional[float] = None
-    emd_lakhs: Optional[float] = None
-    tender_fee: Optional[float] = None
-    categories: List[str] = Field(default_factory=list)
+    estimated_cost_lakhs: float | None = None
+    emd_lakhs: float | None = None
+    tender_fee: float | None = None
+    categories: list[str] = Field(default_factory=list)
     procurement_method: str
     published_at: datetime
     submission_deadline: datetime
-    opening_date: Optional[datetime] = None
+    opening_date: datetime | None = None
     source_portal: str
-    document_urls: List[str] = Field(default_factory=list)
-    contact_details: Dict[str, Any] = Field(default_factory=dict)
-    lineage: Dict[str, Any] = Field(default_factory=dict)
-    corrigenda: List[Dict[str, Any]] = Field(default_factory=list)
-    raw_metadata: Dict[str, Any] = Field(default_factory=dict)
+    document_urls: list[str] = Field(default_factory=list)
+    contact_details: dict[str, Any] = Field(default_factory=dict)
+    lineage: dict[str, Any] = Field(default_factory=dict)
+    corrigenda: list[dict[str, Any]] = Field(default_factory=list)
+    raw_metadata: dict[str, Any] = Field(default_factory=dict)
 
     # ── Phase 15 National Platform Metadata Extensions ──
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
-    sector: Optional[str] = None
-    cpv: Optional[str] = None
+    latitude: float | None = None
+    longitude: float | None = None
+    sector: str | None = None
+    cpv: str | None = None
     msme: bool = True
     startup: bool = True
     gem: bool = False
@@ -91,7 +173,7 @@ class NormalizedTender(BaseModel):
     defence: bool = False
     psu: bool = False
     digital_signature_requirement: bool = True
-    eligibility: Optional[str] = None
+    eligibility: str | None = None
 
 
 def normalize_state(raw_state: str) -> str:
@@ -118,7 +200,7 @@ def _safe_float(val: Any, default: float = 0.0) -> float:
         return default
 
 
-def _safe_datetime(val: Any, default: Optional[datetime] = None) -> Optional[datetime]:
+def _safe_datetime(val: Any, default: datetime | None = None) -> datetime | None:
     if not val:
         return default
     if isinstance(val, datetime):
@@ -168,8 +250,12 @@ def normalize_tender(raw: RawTender) -> NormalizedTender:
     # ── GeM ───────────────────────────────────────────────────────────────────
     if source_id in GEM_SOURCES:
         title = raw_data.get("b_category_name", ["Live GeM Bid"])[0]
-        ministry = raw_data.get("ba_official_details_minName", ["Ministry of Defence"])[0]
-        department = raw_data.get("ba_official_details_deptName", ["Department of Military Affairs"])[0]
+        ministry = raw_data.get("ba_official_details_minName", ["Ministry of Defence"])[
+            0
+        ]
+        department = raw_data.get(
+            "ba_official_details_deptName", ["Department of Military Affairs"]
+        )[0]
         organisation = department
         buyer = raw_data.get("ba_official_details_officeName", [department])[0]
         location = normalize_state(department)
@@ -182,11 +268,15 @@ def normalize_tender(raw: RawTender) -> NormalizedTender:
         bid_type = "forward_auction"
         procurement_type = "goods"
         published = _safe_datetime(
-            raw_data.get("final_start_date_sort", [None])[0], published)
+            raw_data.get("final_start_date_sort", [None])[0], published
+        )
         deadline = _safe_datetime(
-            raw_data.get("final_end_date_sort", [None])[0], deadline)
+            raw_data.get("final_end_date_sort", [None])[0], deadline
+        )
         contact_details = {
-            "email": raw_data.get("ba_official_details_email", ["contact@gem.gov.in"])[0],
+            "email": raw_data.get("ba_official_details_email", ["contact@gem.gov.in"])[
+                0
+            ],
             "phone": "",
             "name": raw_data.get("ba_official_details_name", ["GeM Buyer"])[0],
             "designation": raw_data.get("ba_official_details_desg", ["Buyer"])[0],
@@ -208,10 +298,13 @@ def normalize_tender(raw: RawTender) -> NormalizedTender:
         procurement_type = "works"
         published = _safe_datetime(raw_data.get("published_at"), published)
         deadline = _safe_datetime(raw_data.get("submission_deadline"), deadline)
-        contact_details = raw_data.get("contact_details", {
-            "email": "procurement@eprocure.gov.in",
-            "name": "Procurement Officer",
-        })
+        contact_details = raw_data.get(
+            "contact_details",
+            {
+                "email": "procurement@eprocure.gov.in",
+                "name": "Procurement Officer",
+            },
+        )
 
     # ── Railways / IREPS ───────────────────────────────────────────────────
     elif source_id in RAILWAYS_SOURCES:
@@ -229,10 +322,13 @@ def normalize_tender(raw: RawTender) -> NormalizedTender:
         procurement_type = "works"
         published = _safe_datetime(raw_data.get("published_at"), published)
         deadline = _safe_datetime(raw_data.get("submission_deadline"), deadline)
-        contact_details = raw_data.get("contact_details", {
-            "email": "procurement@ireps.gov.in",
-            "name": "Purchase Officer",
-        })
+        contact_details = raw_data.get(
+            "contact_details",
+            {
+                "email": "procurement@ireps.gov.in",
+                "name": "Purchase Officer",
+            },
+        )
 
     # ── Generic: All PSUs, Ministries, State Portals ──────────────────────
     else:
@@ -252,10 +348,13 @@ def normalize_tender(raw: RawTender) -> NormalizedTender:
         bid_type = raw_data.get("bid_type")
         published = _safe_datetime(raw_data.get("published_at"), published)
         deadline = _safe_datetime(raw_data.get("submission_deadline"), deadline)
-        contact_details = raw_data.get("contact_details", {
-            "email": "procurement@eprocure.gov.in",
-            "name": "Procurement Officer",
-        })
+        contact_details = raw_data.get(
+            "contact_details",
+            {
+                "email": "procurement@eprocure.gov.in",
+                "name": "Procurement Officer",
+            },
+        )
 
     opening = deadline + timedelta(days=1)
 
@@ -316,24 +415,74 @@ def normalize_tender(raw: RawTender) -> NormalizedTender:
         "Jammu and Kashmir": (33.7782, 76.5762),
         "Ladakh": (34.1526, 77.5771),
         "Lakshadweep": (10.5667, 72.6417),
-        "Puducherry": (11.9416, 79.8083)
+        "Puducherry": (11.9416, 79.8083),
     }
     lat, lon = state_coords.get(location, (28.6139, 77.2090))
 
     # Infer domain type flags
-    is_gem = (source_id == "gem")
-    is_railway = (source_id in ["railways", "ireps", "nr", "sr", "wr", "er", "scr", "secr", "swr", "ecor", "ecr", "nfr", "ncr", "ner", "nwr", "wcr", "ser", "cr", "dmrc", "mmrc", "bmrc", "cmrc", "kmrc", "rvnl", "railtel", "rdso", "core", "dfcc"])
-    is_defence = (source_id in ["defence", "drdo", "bel", "hal", "cair"])
-    is_psu = (source_id in ["bhel", "ntpc", "ongc", "npcil", "gail", "coal_india", "sail", "aai", "nhai", "isro", "iocl", "bpcl"])
+    is_gem = source_id == "gem"
+    is_railway = source_id in [
+        "railways",
+        "ireps",
+        "nr",
+        "sr",
+        "wr",
+        "er",
+        "scr",
+        "secr",
+        "swr",
+        "ecor",
+        "ecr",
+        "nfr",
+        "ncr",
+        "ner",
+        "nwr",
+        "wcr",
+        "ser",
+        "cr",
+        "dmrc",
+        "mmrc",
+        "bmrc",
+        "cmrc",
+        "kmrc",
+        "rvnl",
+        "railtel",
+        "rdso",
+        "core",
+        "dfcc",
+    ]
+    is_defence = source_id in ["defence", "drdo", "bel", "hal", "cair"]
+    is_psu = source_id in [
+        "bhel",
+        "ntpc",
+        "ongc",
+        "npcil",
+        "gail",
+        "coal_india",
+        "sail",
+        "aai",
+        "nhai",
+        "isro",
+        "iocl",
+        "bpcl",
+    ]
 
     # Infer Sector
     sector = "General"
     categories_str = "".join(categories).lower()
-    if any(k in categories_str for k in ["civil", "highway", "construction", "building", "road"]):
+    if any(
+        k in categories_str
+        for k in ["civil", "highway", "construction", "building", "road"]
+    ):
         sector = "Infrastructure"
-    elif any(k in categories_str for k in ["medical", "health", "hospital", "surgical"]):
+    elif any(
+        k in categories_str for k in ["medical", "health", "hospital", "surgical"]
+    ):
         sector = "Healthcare"
-    elif any(k in categories_str for k in ["it", "software", "cyber", "cloud", "analytics", "telecom"]):
+    elif any(
+        k in categories_str
+        for k in ["it", "software", "cyber", "cloud", "analytics", "telecom"]
+    ):
         sector = "Technology"
 
     # CPV code mapping
@@ -385,5 +534,8 @@ def normalize_tender(raw: RawTender) -> NormalizedTender:
         defence=is_defence,
         psu=is_psu,
         digital_signature_requirement=True,
-        eligibility=raw_data.get("eligibility_raw_text", "Must meet minimum turnover and experience requirements.")
+        eligibility=raw_data.get(
+            "eligibility_raw_text",
+            "Must meet minimum turnover and experience requirements.",
+        ),
     )

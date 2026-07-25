@@ -1,17 +1,17 @@
 """Auth Service FastAPI application."""
+
 from __future__ import annotations
+
 from datetime import datetime
-from typing import Optional
 from uuid import UUID, uuid4
 
+import asyncpg
 import structlog
-from fastapi import FastAPI, HTTPException, status, Depends
+from app.auth_service import AuthService
+from app.config import settings
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
-import asyncpg
-
-from app.config import settings
-from app.auth_service import AuthService
 
 logger = structlog.get_logger()
 app = FastAPI(title="TenderOS Auth Service", version=settings.VERSION)
@@ -25,27 +25,32 @@ app.add_middleware(
 )
 
 auth_svc = AuthService()
-_pool: Optional[asyncpg.Pool] = None
+_pool: asyncpg.Pool | None = None
 
 
 async def get_db() -> asyncpg.Pool:
     global _pool
     if _pool is None:
         _pool = await asyncpg.create_pool(
-            host=settings.POSTGRES_HOST, port=settings.POSTGRES_PORT,
-            database=settings.POSTGRES_DB, user=settings.POSTGRES_USER,
-            password=settings.POSTGRES_PASSWORD, min_size=2, max_size=10,
+            host=settings.POSTGRES_HOST,
+            port=settings.POSTGRES_PORT,
+            database=settings.POSTGRES_DB,
+            user=settings.POSTGRES_USER,
+            password=settings.POSTGRES_PASSWORD,
+            min_size=2,
+            max_size=10,
         )
     return _pool
 
 
 # ─── Request/Response Models ──────────────────────────────────────────────────
 
+
 class RegisterRequest(BaseModel):
     email: EmailStr
     password: str
-    name: str                          # FIX: was full_name — matches DB column
-    company_name: Optional[str] = None
+    name: str  # FIX: was full_name — matches DB column
+    company_name: str | None = None
 
     def validated_password(self) -> str:
         """Bcrypt max is 72 bytes — enforce a safe max of 64 chars."""
@@ -55,12 +60,15 @@ class RegisterRequest(BaseModel):
             raise ValueError("Password must not exceed 64 characters")
         return self.password
 
+
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
 
+
 class RefreshRequest(BaseModel):
     refresh_token: str
+
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -68,27 +76,33 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
     user: dict
 
+
 class CreateAPIKeyRequest(BaseModel):
     user_id: str
     name: str
     scopes: list[str] = ["read"]  # stored in metadata, not a DB column
 
+
 class ChangePasswordRequest(BaseModel):
     current_password: str
     new_password: str
 
+
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
+
 
 class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str
+
 
 class ValidateAPIKeyRequest(BaseModel):
     api_key: str
 
 
 # ─── Routes ──────────────────────────────────────────────────────────────────
+
 
 @app.get("/health")
 async def health():
@@ -105,7 +119,9 @@ async def register(req: RegisterRequest):
 
     pool = await get_db()
     async with pool.acquire() as conn:
-        existing = await conn.fetchrow("SELECT id FROM users WHERE email = $1", req.email)
+        existing = await conn.fetchrow(
+            "SELECT id FROM users WHERE email = $1", req.email
+        )
         if existing:
             raise HTTPException(status_code=400, detail="Email already registered")
 
@@ -119,11 +135,17 @@ async def register(req: RegisterRequest):
             VALUES ($1, $2, $3, $4, 'viewer', 'free', $5, $5)
             RETURNING id, email, name, role, plan, company_id
             """,
-            user_id, req.email, hashed_pw, req.name, now,
+            user_id,
+            req.email,
+            hashed_pw,
+            req.name,
+            now,
         )
 
         user_dict = dict(user)
-        user_dict = {k: str(v) if isinstance(v, UUID) else v for k, v in user_dict.items()}
+        user_dict = {
+            k: str(v) if isinstance(v, UUID) else v for k, v in user_dict.items()
+        }
         access = auth_svc.create_access_token(user_dict)
         refresh = auth_svc.create_refresh_token(str(user_id))
         logger.info("User registered", user_id=str(user_id), email=req.email)
@@ -139,13 +161,23 @@ async def login(req: LoginRequest):
             "SELECT id, email, password_hash, name, role, plan, company_id FROM users WHERE email = $1",
             req.email,
         )
-        if not user or not auth_svc.verify_password(req.password, user["password_hash"]):
+        if not user or not auth_svc.verify_password(
+            req.password, user["password_hash"]
+        ):
             raise HTTPException(status_code=401, detail="Invalid credentials")
 
         # FIX: column is `last_login_at`, not `last_login`
-        await conn.execute("UPDATE users SET last_login_at = $1 WHERE id = $2", datetime.utcnow(), user["id"])
+        await conn.execute(
+            "UPDATE users SET last_login_at = $1 WHERE id = $2",
+            datetime.utcnow(),
+            user["id"],
+        )
 
-        user_dict = {k: str(v) if isinstance(v, UUID) else v for k, v in dict(user).items() if k != "password_hash"}
+        user_dict = {
+            k: str(v) if isinstance(v, UUID) else v
+            for k, v in dict(user).items()
+            if k != "password_hash"
+        }
         access = auth_svc.create_access_token(user_dict)
         refresh = auth_svc.create_refresh_token(str(user["id"]))
         return TokenResponse(access_token=access, refresh_token=refresh, user=user_dict)
@@ -173,10 +205,14 @@ async def refresh_token(req: RefreshRequest):
 
         # Rotate refresh token
         await auth_svc.revoke_refresh_token(req.refresh_token)
-        user_dict = {k: str(v) if isinstance(v, UUID) else v for k, v in dict(user).items()}
+        user_dict = {
+            k: str(v) if isinstance(v, UUID) else v for k, v in dict(user).items()
+        }
         access = auth_svc.create_access_token(user_dict)
         new_refresh = auth_svc.create_refresh_token(str(user["id"]))
-        return TokenResponse(access_token=access, refresh_token=new_refresh, user=user_dict)
+        return TokenResponse(
+            access_token=access, refresh_token=new_refresh, user=user_dict
+        )
 
 
 @app.post("/auth/logout")
@@ -213,7 +249,12 @@ async def create_api_key(req: CreateAPIKeyRequest):
             INSERT INTO api_keys (id, user_id, name, key_prefix, key_hash, created_at)
             VALUES ($1, $2, $3, $4, $5, $6)
             """,
-            key_id, UUID(req.user_id), req.name, key_prefix, hashed_key, datetime.utcnow(),
+            key_id,
+            UUID(req.user_id),
+            req.name,
+            key_prefix,
+            hashed_key,
+            datetime.utcnow(),
         )
     return {
         "key_id": str(key_id),
@@ -236,7 +277,7 @@ async def validate_api_key(req: ValidateAPIKeyRequest):
             FROM api_keys
             WHERE key_hash = $1 AND is_active = TRUE
             """,
-            hashed_key
+            hashed_key,
         )
         if not key:
             raise HTTPException(status_code=401, detail="Invalid API key")
@@ -248,13 +289,13 @@ async def validate_api_key(req: ValidateAPIKeyRequest):
             SET last_used_at = NOW(), usage_today = usage_today + 1
             WHERE id = $1
             """,
-            key["id"]
+            key["id"],
         )
 
         # Retrieve user info
         user = await conn.fetchrow(
             "SELECT id, email, name, role, plan, company_id FROM users WHERE id = $1 AND is_active = TRUE",
-            key["user_id"]
+            key["user_id"],
         )
         if not user:
             raise HTTPException(status_code=401, detail="User account is deactivated")
@@ -265,12 +306,11 @@ async def validate_api_key(req: ValidateAPIKeyRequest):
             "name": user["name"],
             "role": user["role"],
             "plan": user["plan"],
-            "company_id": str(user["company_id"]) if user["company_id"] else None
+            "company_id": str(user["company_id"]) if user["company_id"] else None,
         }
 
 
 @app.get("/auth/api-keys")
-
 async def list_api_keys(user_id: str):
     pool = await get_db()
     async with pool.acquire() as conn:
@@ -279,7 +319,10 @@ async def list_api_keys(user_id: str):
             "SELECT id, name, key_prefix, created_at, last_used_at FROM api_keys WHERE user_id = $1 AND is_active = TRUE",
             UUID(user_id),
         )
-        return [{k: str(v) if hasattr(v, 'hex') else v for k, v in dict(row).items()} for row in keys]
+        return [
+            {k: str(v) if hasattr(v, "hex") else v for k, v in dict(row).items()}
+            for row in keys
+        ]
 
 
 @app.delete("/auth/api-keys/{key_id}")
@@ -289,7 +332,8 @@ async def revoke_api_key(key_id: str, user_id: str):
         # FIX: use is_active = FALSE (not revoked = TRUE)
         result = await conn.execute(
             "UPDATE api_keys SET is_active = FALSE WHERE id = $1 AND user_id = $2",
-            UUID(key_id), UUID(user_id),
+            UUID(key_id),
+            UUID(user_id),
         )
         if result == "UPDATE 0":
             raise HTTPException(status_code=404, detail="API key not found")
@@ -305,9 +349,13 @@ async def forgot_password(req: ForgotPasswordRequest):
             token = await auth_svc.create_reset_token(str(user["id"]))
             reset_url = f"{settings.FRONTEND_URL}/auth/reset-password?token={token}"
             # In production, send email here
-            logger.info("Password reset requested", email=req.email, reset_url=reset_url)
+            logger.info(
+                "Password reset requested", email=req.email, reset_url=reset_url
+            )
     # Always return 200 to prevent email enumeration
-    return {"message": "If this email is registered, you will receive a reset link shortly."}
+    return {
+        "message": "If this email is registered, you will receive a reset link shortly."
+    }
 
 
 @app.post("/auth/reset-password")
@@ -321,7 +369,9 @@ async def reset_password(req: ResetPasswordRequest):
         hashed = auth_svc.hash_password(req.new_password)
         await conn.execute(
             "UPDATE users SET password_hash = $1, updated_at = $2 WHERE id = $3",
-            hashed, datetime.utcnow(), UUID(user_id),
+            hashed,
+            datetime.utcnow(),
+            UUID(user_id),
         )
 
     await auth_svc.consume_reset_token(req.token)
@@ -330,20 +380,26 @@ async def reset_password(req: ResetPasswordRequest):
 
 # ─── Enterprise SAML SSO ──────────────────────────────────────────────────────
 
+
 @app.get("/auth/sso/login/{domain}")
 async def sso_login(domain: str):
     pool = await get_db()
     async with pool.acquire() as conn:
         tenant = await conn.fetchrow("SELECT id FROM tenants WHERE domain = $1", domain)
         if not tenant:
-            raise HTTPException(status_code=404, detail="Tenant organization not registered")
+            raise HTTPException(
+                status_code=404, detail="Tenant organization not registered"
+            )
 
         sso_config = await conn.fetchrow(
             "SELECT sso_url, entity_id FROM tenant_sso_configs WHERE tenant_id = $1 AND is_active = TRUE",
-            tenant["id"]
+            tenant["id"],
         )
         if not sso_config:
-            raise HTTPException(status_code=400, detail="SSO authentication not configured for this tenant")
+            raise HTTPException(
+                status_code=400,
+                detail="SSO authentication not configured for this tenant",
+            )
 
         relay_state = domain
         mock_saml_response = "PHNhbWxwOlJlc3BvbnNlIHhtbG5zOnNhbWxwPSJ1cm46b2FzaXM6bmFtZXM6dGM6U0FNTDoyLjA6cHJvdG9jb2wiPjwvc2FtbHA6UmVzcG9uc2U+"
@@ -363,39 +419,24 @@ async def sso_callback(req: dict):
 
     pool = await get_db()
     async with pool.acquire() as conn:
-        tenant = await conn.fetchrow("SELECT id, display_name FROM tenants WHERE domain = $1", relay_state)
+        tenant = await conn.fetchrow(
+            "SELECT id, display_name FROM tenants WHERE domain = $1", relay_state
+        )
         if not tenant:
             raise HTTPException(status_code=404, detail="Tenant organization not found")
 
         # Verify SAML Response. The default mock response is blocked.
-        if saml_response == "PHNhbWxwOlJlc3BvbnNlIHhtbG5zOnNhbWxwPSJ1cm46b2FzaXM6bmFtZXM6dGM6U0FNTDoyLjA6cHJvdG9jb2wiPjwvc2FtbHA6UmVzcG9uc2U+":
-            raise HTTPException(status_code=501, detail="SAML XML Signature verification not configured. Production requires a valid signature.")
-        
+        if (
+            saml_response
+            == "PHNhbWxwOlJlc3BvbnNlIHhtbG5zOnNhbWxwPSJ1cm46b2FzaXM6bmFtZXM6dGM6U0FNTDoyLjA6cHJvdG9jb2wiPjwvc2FtbHA6UmVzcG9uc2U+"
+        ):
+            raise HTTPException(
+                status_code=501,
+                detail="SAML XML Signature verification not configured. Production requires a valid signature.",
+            )
+
         # Real SAML parsing placeholder (empty/failed state since we do not import a SAML library in requirements)
-        raise HTTPException(status_code=400, detail="Invalid SAMLResponse signature or metadata configuration.")
-
-        user = await conn.fetchrow("SELECT id, email, role, plan, company_id FROM users WHERE email = $1", email)
-        if not user:
-            user_id = uuid4()
-            # FIX: `name` not `full_name`
-            user = await conn.fetchrow(
-                """
-                INSERT INTO users (id, email, name, role, plan, tenant_id, created_at, updated_at)
-                VALUES ($1, $2, $3, 'viewer', 'enterprise', $4, NOW(), NOW())
-                RETURNING id, email, name, role, plan, company_id, tenant_id
-                """,
-                user_id, email, name, tenant["id"]
-            )
-        else:
-            await conn.execute("UPDATE users SET tenant_id = $1 WHERE id = $2", tenant["id"], user["id"])
-            user = await conn.fetchrow(
-                "SELECT id, email, name, role, plan, company_id, tenant_id FROM users WHERE id = $1",
-                user["id"]
-            )
-
-        user_dict = {k: str(v) if isinstance(v, UUID) else v for k, v in dict(user).items()}
-        access = auth_svc.create_access_token(user_dict)
-        refresh = auth_svc.create_refresh_token(str(user["id"]))
-
-        logger.info("SSO Login completed", email=email, tenant=relay_state)
-        return TokenResponse(access_token=access, refresh_token=refresh, user=user_dict)
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid SAMLResponse signature or metadata configuration.",
+        )

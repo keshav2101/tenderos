@@ -1,10 +1,11 @@
 """Pure helpers for the tender search indexing contract."""
+
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any
 
 
-def build_tender_document(tender: Dict[str, Any]) -> Dict[str, Any]:
+def build_tender_document(tender: dict[str, Any]) -> dict[str, Any]:
     """Normalize an incoming tender payload for search backends."""
     return {
         "id": str(tender["id"]),
@@ -33,7 +34,7 @@ def build_tender_document(tender: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def build_embedding_text(tender: Dict[str, Any]) -> str:
+def build_embedding_text(tender: dict[str, Any]) -> str:
     """Build the text representation embedded for semantic tender search."""
     parts = [
         tender.get("title") or "",

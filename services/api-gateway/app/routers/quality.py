@@ -1,11 +1,14 @@
 """Data Quality router proxying downstream requests to data-quality-service."""
-from fastapi import APIRouter, Request
-from app.proxy import ServiceProxy
+
 from app.config import settings
+from app.proxy import ServiceProxy
+from fastapi import APIRouter, Request
 
 router = APIRouter()
 # We proxy to data-quality-service on port 8022
-_quality = ServiceProxy(settings.ADMIN_SERVICE_URL.replace(":8019", ":8022"), timeout=30.0)
+_quality = ServiceProxy(
+    settings.ADMIN_SERVICE_URL.replace(":8019", ":8022"), timeout=30.0
+)
 
 
 @router.get("/report", summary="Get data quality validation reports")

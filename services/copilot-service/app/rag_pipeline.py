@@ -5,17 +5,15 @@ Answers user questions about specific tenders by:
 2. Assembling context with source citations
 3. Generating answers with page/clause references using a cloud LLM
 """
+
 from __future__ import annotations
-import json
-from typing import Dict, List, Optional, Tuple
-from uuid import UUID
 
+from typing import Any
 import structlog
-from qdrant_client import AsyncQdrantClient
-from qdrant_client.models import Filter, FieldCondition, MatchValue
-
 from app.config import settings
 from app.llm_client import LLMClient
+from qdrant_client import AsyncQdrantClient
+from qdrant_client.models import FieldCondition, Filter, MatchValue
 
 CHUNK_COLLECTION = "tender_chunks"
 
@@ -54,8 +52,8 @@ class CopilotRAGPipeline:
     """
 
     def __init__(self):
-        self._qdrant: Optional[AsyncQdrantClient] = None
-        self._embedding_model: Optional[Any] = None
+        self._qdrant: AsyncQdrantClient | None = None
+        self._embedding_model: Any | None = None
         self._llm = LLMClient()
 
     async def _get_qdrant(self) -> AsyncQdrantClient:
@@ -70,10 +68,11 @@ class CopilotRAGPipeline:
     def _get_embedder(self) -> Any:
         if self._embedding_model is None:
             from sentence_transformers import SentenceTransformer
+
             self._embedding_model = SentenceTransformer(settings.EMBEDDING_MODEL)
         return self._embedding_model
 
-    def _embed(self, text: str) -> List[float]:
+    def _embed(self, text: str) -> list[float]:
         embedder = self._get_embedder()
         return embedder.encode(text, normalize_embeddings=True).tolist()
 
@@ -91,21 +90,26 @@ class CopilotRAGPipeline:
 
     async def retrieve_chunks(
         self, tender_id: str, query: str, top_k: int = 5
-    ) -> List[Dict]:
+    ) -> list[dict]:
         # Fallback to PostgreSQL if Qdrant is disabled
         if settings.QDRANT_HOST == "disabled":
-            logger.info("Qdrant is disabled; retrieving chunks from PostgreSQL fallback", tender_id=tender_id)
-            import asyncpg
+            logger.info(
+                "Qdrant is disabled; retrieving chunks from PostgreSQL fallback",
+                tender_id=tender_id,
+            )
             from uuid import UUID
+
+            import asyncpg
+
             try:
                 conn = await asyncpg.connect(
                     host=settings.POSTGRES_HOST,
                     port=settings.POSTGRES_PORT,
                     database=settings.POSTGRES_DB,
                     user=settings.POSTGRES_USER,
-                    password=settings.POSTGRES_PASSWORD
+                    password=settings.POSTGRES_PASSWORD,
                 )
-                
+
                 # Retrieve chunks with keyword matching (ILIKE) on query, or matching tender_id
                 # Filter by keyword if provided, otherwise return first top_k chunks
                 if query and len(query.strip()) > 1:
@@ -116,11 +120,13 @@ class CopilotRAGPipeline:
                         ORDER BY page ASC, chunk_index ASC
                         LIMIT $3
                         """,
-                        UUID(tender_id), f"%{query}%", top_k
+                        UUID(tender_id),
+                        f"%{query}%",
+                        top_k,
                     )
                 else:
                     rows = []
-                    
+
                 # If no matching keywords found, return first few chunks as general context
                 if not rows:
                     rows = await conn.fetch(
@@ -130,20 +136,23 @@ class CopilotRAGPipeline:
                         ORDER BY page ASC, chunk_index ASC
                         LIMIT $2
                         """,
-                        UUID(tender_id), top_k
+                        UUID(tender_id),
+                        top_k,
                     )
                 await conn.close()
-                
+
                 chunks = []
                 for row in rows:
-                    chunks.append({
-                        "text": row["content"],
-                        "page": str(row["page"]),
-                        "section": "",
-                        "doc_type": "notice",
-                        "document_name": row["document_name"] or "notice.pdf",
-                        "score": 1.0  # mock fallback score
-                    })
+                    chunks.append(
+                        {
+                            "text": row["content"],
+                            "page": str(row["page"]),
+                            "section": "",
+                            "doc_type": "notice",
+                            "document_name": row["document_name"] or "notice.pdf",
+                            "score": 1.0,  # mock fallback score
+                        }
+                    )
                 return chunks
             except Exception as pg_err:
                 logger.error("PostgreSQL chunk retrieval failed", error=str(pg_err))
@@ -157,7 +166,11 @@ class CopilotRAGPipeline:
                 collection_name=CHUNK_COLLECTION,
                 query_vector=query_embedding,
                 query_filter=Filter(
-                    must=[FieldCondition(key="tender_id", match=MatchValue(value=tender_id))]
+                    must=[
+                        FieldCondition(
+                            key="tender_id", match=MatchValue(value=tender_id)
+                        )
+                    ]
                 ),
                 limit=top_k,
                 with_payload=True,
@@ -167,28 +180,32 @@ class CopilotRAGPipeline:
             chunks = []
             for hit in results:
                 payload = hit.payload or {}
-                chunks.append({
-                    "text": payload.get("text") or payload.get("content", ""),
-                    "page": payload.get("page", "?"),
-                    "section": payload.get("section", ""),
-                    "doc_type": payload.get("doc_type", ""),
-                    "document_name": payload.get("document_name", "tender_spec.pdf"),
-                    "score": hit.score,
-                })
+                chunks.append(
+                    {
+                        "text": payload.get("text") or payload.get("content", ""),
+                        "page": payload.get("page", "?"),
+                        "section": payload.get("section", ""),
+                        "doc_type": payload.get("doc_type", ""),
+                        "document_name": payload.get(
+                            "document_name", "tender_spec.pdf"
+                        ),
+                        "score": hit.score,
+                    }
+                )
             return chunks
         except Exception as e:
-            logger.error("Qdrant retrieval failed, falling back to empty results", error=str(e))
+            logger.error(
+                "Qdrant retrieval failed, falling back to empty results", error=str(e)
+            )
             return []
 
-
-
-    def _build_context(self, chunks: List[Dict]) -> str:
+    def _build_context(self, chunks: list[dict]) -> str:
         """Format retrieved chunks into context string with citations."""
         parts = []
         for i, chunk in enumerate(chunks, 1):
             doc_ref = f"[Doc: {chunk.get('document_name', 'tender_spec.pdf')}]"
-            page_ref = f"[Page {chunk['page']}]" if chunk['page'] != "?" else ""
-            section_ref = f"[{chunk['section']}]" if chunk['section'] else ""
+            page_ref = f"[Page {chunk['page']}]" if chunk["page"] != "?" else ""
+            section_ref = f"[{chunk['section']}]" if chunk["section"] else ""
             ref = f"{doc_ref}{page_ref}{section_ref}".strip()
             parts.append(f"Excerpt {i} {ref}:\n{chunk['text']}")
         return "\n\n---\n\n".join(parts)
@@ -199,14 +216,16 @@ class CopilotRAGPipeline:
         tender_title: str,
         ministry: str,
         question: str,
-        conversation_history: Optional[List[Dict]] = None,
-    ) -> Dict:
+        conversation_history: list[dict] | None = None,
+    ) -> dict:
         """
         Answer a user question about a tender using RAG.
         Returns the answer text, source citations, and retrieved chunks.
         """
         # Retrieve relevant chunks
-        chunks = await self.retrieve_chunks(tender_id, question, top_k=settings.RAG_TOP_K)
+        chunks = await self.retrieve_chunks(
+            tender_id, question, top_k=settings.RAG_TOP_K
+        )
 
         if not chunks:
             return {
@@ -214,7 +233,7 @@ class CopilotRAGPipeline:
                 "sources": [],
                 "chunks_used": 0,
                 "confidence": 0.0,
-                "evidence_details": []
+                "evidence_details": [],
             }
 
         context = self._build_context(chunks)
@@ -227,15 +246,17 @@ class CopilotRAGPipeline:
             for turn in conversation_history[-5:]:
                 messages.append({"role": turn["role"], "content": turn["content"]})
 
-        messages.append({
-            "role": "user",
-            "content": COPILOT_USER_PROMPT.format(
-                tender_title=tender_title,
-                ministry=ministry,
-                context=context,
-                question=question,
-            ),
-        })
+        messages.append(
+            {
+                "role": "user",
+                "content": COPILOT_USER_PROMPT.format(
+                    tender_title=tender_title,
+                    ministry=ministry,
+                    context=context,
+                    question=question,
+                ),
+            }
+        )
 
         answer_text = await self._llm.chat(messages)
 
@@ -265,19 +286,25 @@ class CopilotRAGPipeline:
                     "section": c.get("section", "General"),
                     "excerpt": c.get("text", "")[:300],
                     "confidence": round(c.get("score", 0.9), 2),
-                    "pdf_viewer_url": f"/tenders/{tender_id}/documents/{c.get('document_name', 'notice.pdf')}#page={c.get('page', 1)}"
-                } for c in chunks
-            ]
+                    "pdf_viewer_url": f"/tenders/{tender_id}/documents/{c.get('document_name', 'notice.pdf')}#page={c.get('page', 1)}",
+                }
+                for c in chunks
+            ],
         }
 
     async def index_tender_documents(
-        self, tender_id: str, document_text: str, doc_type: str = "notice", page_data: List[Dict] = None
+        self,
+        tender_id: str,
+        document_text: str,
+        doc_type: str = "notice",
+        page_data: list[dict] = None,
     ):
         """
         Index a tender document into Qdrant for RAG retrieval.
         Splits document into overlapping chunks with page references.
         """
         from app.chunker import chunk_document
+
         qdrant = await self._get_qdrant()
 
         chunks = chunk_document(
@@ -294,6 +321,7 @@ class CopilotRAGPipeline:
 
         # Batch embed and upsert
         from qdrant_client.models import PointStruct
+
         points = []
         for chunk in chunks:
             embedding = self._embed(chunk["text"])
@@ -308,4 +336,6 @@ class CopilotRAGPipeline:
             )
 
         await qdrant.upsert(collection_name=CHUNK_COLLECTION, points=points)
-        logger.info("Indexed tender document chunks", tender_id=tender_id, chunks=len(points))
+        logger.info(
+            "Indexed tender document chunks", tender_id=tender_id, chunks=len(points)
+        )

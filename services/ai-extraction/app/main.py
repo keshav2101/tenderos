@@ -1,18 +1,23 @@
 """AI extraction service FastAPI application."""
+
 from __future__ import annotations
-from typing import Optional, List, Dict
+
 import structlog
+from app.extractors.tier1_rules import Tier1Extractor
+from app.extractors.tier3_llm import Tier3LLMExtractor
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from app.extractors.tier1_rules import Tier1Extractor
-from app.extractors.tier3_llm import Tier3LLMExtractor
-
 logger = structlog.get_logger()
 app = FastAPI(title="TenderOS AI Extraction Service")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
-                   allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 t1_extractor = Tier1Extractor()
 t3_extractor = Tier3LLMExtractor()
@@ -20,26 +25,32 @@ t3_extractor = Tier3LLMExtractor()
 
 class ExtractionRequest(BaseModel):
     text: str
-    source_json: Optional[Dict] = None
+    source_json: dict | None = None
 
 
 import asyncio
 import os
-import asyncpg
-from contextlib import asynccontextmanager
 
-_pool: Optional[asyncpg.Pool] = None
+import asyncpg
+
+_pool: asyncpg.Pool | None = None
+
 
 async def get_pool() -> asyncpg.Pool:
     global _pool
     if _pool is None:
-        db_url = os.getenv("DATABASE_URL", "postgresql://tenderos:tenderos_dev_2026@tenderos-postgres:5432/tenderos")
+        db_url = os.getenv(
+            "DATABASE_URL",
+            "postgresql://tenderos:tenderos_dev_2026@tenderos-postgres:5432/tenderos",
+        )
         _pool = await asyncpg.create_pool(db_url, min_size=1, max_size=5)
     return _pool
+
 
 @app.on_event("startup")
 async def startup_event():
     asyncio.create_task(auto_extraction_loop())
+
 
 async def auto_extraction_loop():
     """Background job processing raw tender records through Tier 1 / Tier 3 intelligence rules."""
@@ -65,16 +76,28 @@ async def auto_extraction_loop():
                         # Add metadata
                         extracted["_auto_extracted"] = True
                         extracted["_extracted_at"] = asyncio.get_event_loop().time()
-                        
+
                         import json
-                        await conn.execute("""
+
+                        await conn.execute(
+                            """
                             UPDATE tenders
                             SET extracted_attributes = $1::jsonb
                             WHERE id = $2
-                        """, json.dumps(extracted), r["id"])
-                        logger.info("Successfully auto-extracted attributes for tender", tender_id=t_id)
+                        """,
+                            json.dumps(extracted),
+                            r["id"],
+                        )
+                        logger.info(
+                            "Successfully auto-extracted attributes for tender",
+                            tender_id=t_id,
+                        )
                     except Exception as err:
-                        logger.warning("Failed auto-extraction for tender", tender_id=t_id, error=str(err))
+                        logger.warning(
+                            "Failed auto-extraction for tender",
+                            tender_id=t_id,
+                            error=str(err),
+                        )
         except Exception as e:
             logger.error("Auto-extraction loop error", error=str(e))
         await asyncio.sleep(30)
@@ -94,7 +117,10 @@ async def extract_tender(req: ExtractionRequest):
 
         # If we have pending fields or low confidence, escalate to Tier 3
         if t1_result.get("_fields_pending") and not req.source_json:
-            logger.info("Escalating to Tier 3 LLM extraction", pending_fields=t1_result["_fields_pending"])
+            logger.info(
+                "Escalating to Tier 3 LLM extraction",
+                pending_fields=t1_result["_fields_pending"],
+            )
             t3_result = await t3_extractor.extract(req.text)
             # Merge Tier 3 overrides
             for k, v in t3_result.items():
@@ -105,4 +131,4 @@ async def extract_tender(req: ExtractionRequest):
         return t1_result
     except Exception as e:
         logger.error("Extraction failed", error=str(e))
-        raise HTTPException(status_code=500, detail=f"Extraction failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Extraction failed: {e!s}")

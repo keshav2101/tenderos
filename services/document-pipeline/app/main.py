@@ -1,12 +1,13 @@
 """Document pipeline service handling text chunking and vector indexing."""
+
 from __future__ import annotations
-import hashlib
-import re
+
 import asyncio
-from datetime import datetime
-from typing import List, Dict, Any, Optional
-from uuid import uuid4, UUID
+import hashlib
 import os
+import re
+from datetime import datetime
+from uuid import UUID, uuid4
 
 import httpx
 import structlog
@@ -15,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from qdrant_client import QdrantClient
 from qdrant_client.http import models
+
 try:
     from sentence_transformers import SentenceTransformer
 except ImportError:
@@ -23,8 +25,13 @@ except ImportError:
 
 logger = structlog.get_logger()
 app = FastAPI(title="TenderOS Document Pipeline")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
-                   allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 QDRANT_HOST = os.getenv("QDRANT_HOST", "qdrant")
 QDRANT_PORT = int(os.getenv("QDRANT_PORT", "6333"))
@@ -32,7 +39,9 @@ QDRANT_API_KEY = os.getenv("QDRANT_API_KEY") or None
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
 EMBEDDING_DIMENSION = int(os.getenv("EMBEDDING_DIMENSION", "384"))
 if QDRANT_HOST != "disabled":
-    qdrant_client = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT, api_key=QDRANT_API_KEY)
+    qdrant_client = QdrantClient(
+        host=QDRANT_HOST, port=QDRANT_PORT, api_key=QDRANT_API_KEY
+    )
 else:
     qdrant_client = None
 COLLECTION_NAME = "tender_chunks"
@@ -40,19 +49,25 @@ COLLECTION_NAME = "tender_chunks"
 _pool = None
 _embedder = None
 
+
 async def get_pool():
     global _pool
     if _pool is None:
         import asyncpg
+
         pg_host = os.getenv("POSTGRES_HOST", "postgres")
         pg_port = os.getenv("POSTGRES_PORT", "5432")
         pg_db = os.getenv("POSTGRES_DB", "tenderos")
         pg_user = os.getenv("POSTGRES_USER", "tenderos")
         pg_pwd = os.getenv("POSTGRES_PASSWORD", "tenderos_local_pwd")
         _pool = await asyncpg.create_pool(
-            host=pg_host, port=int(pg_port),
-            database=pg_db, user=pg_user, password=pg_pwd,
-            min_size=1, max_size=10
+            host=pg_host,
+            port=int(pg_port),
+            database=pg_db,
+            user=pg_user,
+            password=pg_pwd,
+            min_size=1,
+            max_size=10,
         )
     return _pool
 
@@ -81,7 +96,6 @@ async def startup_event():
             ALTER TABLE tender_documents ADD COLUMN IF NOT EXISTS embedding_model_version VARCHAR(255);
         """)
 
-
     # Qdrant Setup
     if not qdrant_client:
         logger.info("Qdrant indexing is disabled via config")
@@ -93,9 +107,8 @@ async def startup_event():
             qdrant_client.recreate_collection(
                 collection_name=COLLECTION_NAME,
                 vectors_config=models.VectorParams(
-                    size=EMBEDDING_DIMENSION,
-                    distance=models.Distance.COSINE
-                )
+                    size=EMBEDDING_DIMENSION, distance=models.Distance.COSINE
+                ),
             )
         logger.info("Created Qdrant collection", name=COLLECTION_NAME)
     except Exception as e:
@@ -130,34 +143,43 @@ async def auto_fetch_documents_loop():
                     doc_urls = lineage.get("document_urls") or [doc_url]
                     target_url = doc_urls[0] if doc_urls else doc_url
                     doc_name = f"{r['source_tender_id'].replace('/', '_')}_spec.pdf"
-                    
+
                     try:
-                        logger.info("Auto-fetcher processing document for tender", tender_id=t_id, url=target_url)
+                        logger.info(
+                            "Auto-fetcher processing document for tender",
+                            tender_id=t_id,
+                            url=target_url,
+                        )
                         req = DocumentProcessRequest(
                             tender_id=t_id,
                             document_url=target_url,
-                            document_name=doc_name
+                            document_name=doc_name,
                         )
                         await process_document(req)
                     except Exception as err:
-                        logger.warning("Auto-fetcher document process failed", tender_id=t_id, error=str(err))
+                        logger.warning(
+                            "Auto-fetcher document process failed",
+                            tender_id=t_id,
+                            error=str(err),
+                        )
         except Exception as e:
             logger.error("Auto-fetcher loop error", error=str(e))
         await asyncio.sleep(60)
 
 
-def get_embedding(text: str) -> List[float]:
+def get_embedding(text: str) -> list[float]:
     """Generate a production embedding using the configured sentence-transformer."""
     global _embedder
     if _embedder is None:
         if SentenceTransformer is None:
-            raise ImportError("sentence-transformers is not installed. Enable Qdrant/SentenceTransformers in config.")
+            raise ImportError(
+                "sentence-transformers is not installed. Enable Qdrant/SentenceTransformers in config."
+            )
         _embedder = SentenceTransformer(EMBEDDING_MODEL)
     return _embedder.encode(text, normalize_embeddings=True).tolist()
 
 
-
-def split_text(text: str, chunk_size: int = 1000, overlap: int = 200) -> List[str]:
+def split_text(text: str, chunk_size: int = 1000, overlap: int = 200) -> list[str]:
     """Splits text into chunks with overlap."""
     if not text:
         return []
@@ -170,7 +192,14 @@ def split_text(text: str, chunk_size: int = 1000, overlap: int = 200) -> List[st
     return chunks
 
 
-async def update_state(conn, doc_id, state, last_success_stage=None, failure_reason=None, extra_updates=None):
+async def update_state(
+    conn,
+    doc_id,
+    state,
+    last_success_stage=None,
+    failure_reason=None,
+    extra_updates=None,
+):
     """Helper to update document status in PostgreSQL."""
     query = """
         UPDATE tender_documents
@@ -180,42 +209,47 @@ async def update_state(conn, doc_id, state, last_success_stage=None, failure_rea
     """
     params = [state]
     param_idx = 2
-    
+
     if last_success_stage:
         query += f", last_successful_stage = ${param_idx}"
         params.append(last_success_stage)
         param_idx += 1
-        
+
     if failure_reason:
         query += f", failure_reason = ${param_idx}, processing_errors = ${param_idx}"
         params.append(failure_reason)
         param_idx += 1
-        
+
     if extra_updates:
         for col, val in extra_updates.items():
             query += f", {col} = ${param_idx}"
             params.append(val)
             param_idx += 1
-            
+
     query += f" WHERE id = ${param_idx}"
     params.append(doc_id)
-    
+
     await conn.execute(query, *params)
 
 
 @app.post("/document/process")
 async def process_document(req: DocumentProcessRequest):
-    logger.info("Starting Document State Machine pipeline", tender_id=req.tender_id, name=req.document_name)
+    logger.info(
+        "Starting Document State Machine pipeline",
+        tender_id=req.tender_id,
+        name=req.document_name,
+    )
     start_time = datetime.utcnow()
-    
+
     pool = await get_pool()
     doc_id = None
-    
+
     # 1. QUEUED State Initiation
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
             "SELECT id FROM tender_documents WHERE tender_id = $1 AND filename = $2",
-            UUID(req.tender_id), req.document_name
+            UUID(req.tender_id),
+            req.document_name,
         )
         if not row:
             doc_id = uuid4()
@@ -224,7 +258,10 @@ async def process_document(req: DocumentProcessRequest):
                 INSERT INTO tender_documents (id, tender_id, filename, storage_path, doc_type, ocr_status, document_status, current_state)
                 VALUES ($1, $2, $3, $4, 'technical_spec', 'pending', 'QUEUED', 'QUEUED')
                 """,
-                doc_id, UUID(req.tender_id), req.document_name, f"tenders/{req.tender_id}/{req.document_name}"
+                doc_id,
+                UUID(req.tender_id),
+                req.document_name,
+                f"tenders/{req.tender_id}/{req.document_name}",
             )
         else:
             doc_id = row["id"]
@@ -233,7 +270,7 @@ async def process_document(req: DocumentProcessRequest):
     # 2. DOWNLOADING State
     async with pool.acquire() as conn:
         await update_state(conn, doc_id, "DOWNLOADING")
-        
+
     pdf_bytes = None
     max_retries = 3
     retries_run = 0
@@ -246,12 +283,22 @@ async def process_document(req: DocumentProcessRequest):
                     pdf_bytes = resp.content
                     break
         except Exception as e:
-            logger.warning("Connection failure during document download", error=str(e), attempt=attempt)
-        await asyncio.sleep(2 ** attempt)
+            logger.warning(
+                "Connection failure during document download",
+                error=str(e),
+                attempt=attempt,
+            )
+        await asyncio.sleep(2**attempt)
 
     if not pdf_bytes:
         async with pool.acquire() as conn:
-            await update_state(conn, doc_id, "FAILED", failure_reason="Document download failed after retries", extra_updates={"retry_count": retries_run})
+            await update_state(
+                conn,
+                doc_id,
+                "FAILED",
+                failure_reason="Document download failed after retries",
+                extra_updates={"retry_count": retries_run},
+            )
         raise HTTPException(status_code=502, detail="Document download failed")
 
     # 3. DOWNLOADED & Checksum Validation
@@ -260,16 +307,28 @@ async def process_document(req: DocumentProcessRequest):
         # Check for duplicates
         dup_row = await conn.fetchrow(
             "SELECT id, filename FROM tender_documents WHERE file_hash = $1 AND id != $2",
-            sha256_hash, doc_id
+            sha256_hash,
+            doc_id,
         )
         if dup_row:
-            await update_state(conn, doc_id, "FAILED", failure_reason=f"Duplicate document checksum matches: {dup_row['filename']}")
-            return {"status": "failed", "reason": "Duplicate checksum hash", "duplicate_of": dup_row["filename"]}
+            await update_state(
+                conn,
+                doc_id,
+                "FAILED",
+                failure_reason=f"Duplicate document checksum matches: {dup_row['filename']}",
+            )
+            return {
+                "status": "failed",
+                "reason": "Duplicate checksum hash",
+                "duplicate_of": dup_row["filename"],
+            }
 
         await update_state(
-            conn, doc_id, "DOWNLOADED",
+            conn,
+            doc_id,
+            "DOWNLOADED",
             last_success_stage="DOWNLOAD",
-            extra_updates={"file_hash": sha256_hash, "file_size_bytes": len(pdf_bytes)}
+            extra_updates={"file_hash": sha256_hash, "file_size_bytes": len(pdf_bytes)},
         )
 
     # 4. OCR_RUNNING
@@ -285,7 +344,7 @@ async def process_document(req: DocumentProcessRequest):
                 files = {"file": (req.document_name, pdf_bytes, "application/pdf")}
                 ocr_resp = await client.post(
                     f"{os.getenv('OCR_SERVICE_URL', 'http://ocr-service:8006')}/ocr/process",
-                    files=files
+                    files=files,
                 )
                 if ocr_resp.status_code == 200:
                     ocr_data = ocr_resp.json()
@@ -294,12 +353,19 @@ async def process_document(req: DocumentProcessRequest):
                     ocr_success = True
                     break
         except Exception as e:
-            logger.warning("OCR service processing timeout/error", error=str(e), attempt=attempt)
-        await asyncio.sleep(2 ** attempt)
+            logger.warning(
+                "OCR service processing timeout/error", error=str(e), attempt=attempt
+            )
+        await asyncio.sleep(2**attempt)
 
     if not ocr_success:
         async with pool.acquire() as conn:
-            await update_state(conn, doc_id, "FAILED", failure_reason="OCR processing failed after multiple attempts")
+            await update_state(
+                conn,
+                doc_id,
+                "FAILED",
+                failure_reason="OCR processing failed after multiple attempts",
+            )
         raise HTTPException(status_code=502, detail="OCR service failed")
 
     # 5. OCR_COMPLETE
@@ -307,14 +373,18 @@ async def process_document(req: DocumentProcessRequest):
         await update_state(conn, doc_id, "OCR_COMPLETE", last_success_stage="OCR")
 
     # 6. TEXT_VALIDATED
-    cleaned_text = re.sub(r'\s+', ' ', extracted_text).strip()
+    cleaned_text = re.sub(r"\s+", " ", extracted_text).strip()
     if len(cleaned_text) < 5:
         async with pool.acquire() as conn:
-            await update_state(conn, doc_id, "FAILED", failure_reason="Validated text length too short")
+            await update_state(
+                conn, doc_id, "FAILED", failure_reason="Validated text length too short"
+            )
         return {"status": "failed", "reason": "Empty extracted text"}
 
     async with pool.acquire() as conn:
-        await update_state(conn, doc_id, "TEXT_VALIDATED", last_success_stage="TEXT_CLEANING")
+        await update_state(
+            conn, doc_id, "TEXT_VALIDATED", last_success_stage="TEXT_CLEANING"
+        )
 
     # 7. CHUNKED
     points = []
@@ -324,30 +394,46 @@ async def process_document(req: DocumentProcessRequest):
         p_text = page.get("text", "")
         chunks = split_text(p_text, chunk_size=300, overlap=50)
         for chunk in chunks:
-            points.append({
-                "id": str(uuid4()),
-                "chunk_index": chunk_idx,
-                "page": p_num,
-                "content": chunk
-            })
+            points.append(
+                {
+                    "id": str(uuid4()),
+                    "chunk_index": chunk_idx,
+                    "page": p_num,
+                    "content": chunk,
+                }
+            )
             chunk_idx += 1
 
     async with pool.acquire() as conn:
-        await update_state(conn, doc_id, "CHUNKED", last_success_stage="CHUNKING", extra_updates={"page_count": len(pages_list)})
+        await update_state(
+            conn,
+            doc_id,
+            "CHUNKED",
+            last_success_stage="CHUNKING",
+            extra_updates={"page_count": len(pages_list)},
+        )
 
     # 8. EMBEDDINGS_CREATED & INDEXED
     async with pool.acquire() as conn:
         await update_state(conn, doc_id, "EMBEDDINGS_CREATED")
 
         # Always maintain PostgreSQL chunk fallback for Copilot if Qdrant is unavailable.
-        await conn.execute("DELETE FROM tender_document_chunks WHERE tender_id = $1", UUID(req.tender_id))
+        await conn.execute(
+            "DELETE FROM tender_document_chunks WHERE tender_id = $1",
+            UUID(req.tender_id),
+        )
         for pt in points:
             await conn.execute(
                 """
                 INSERT INTO tender_document_chunks (id, tender_id, document_name, chunk_index, page, content)
                 VALUES ($1, $2, $3, $4, $5, $6)
                 """,
-                UUID(pt["id"]), UUID(req.tender_id), req.document_name, pt["chunk_index"], pt["page"], pt["content"]
+                UUID(pt["id"]),
+                UUID(req.tender_id),
+                req.document_name,
+                pt["chunk_index"],
+                pt["page"],
+                pt["content"],
             )
 
         if qdrant_client:
@@ -366,33 +452,32 @@ async def process_document(req: DocumentProcessRequest):
                             "section": "",
                             "doc_type": "technical_spec",
                             "text": pt["content"],
-                            "content": pt["content"]
-                        }
+                            "content": pt["content"],
+                        },
                     )
                 )
-            qdrant_client.upsert(
-                collection_name=COLLECTION_NAME,
-                points=qdrant_points
-            )
+            qdrant_client.upsert(collection_name=COLLECTION_NAME, points=qdrant_points)
 
         # 9. READY
         duration_ms = int((datetime.utcnow() - start_time).total_seconds() * 1000)
         await update_state(
-            conn, doc_id, "READY",
+            conn,
+            doc_id,
+            "READY",
             last_success_stage="INDEXING",
             extra_updates={
                 "processing_duration_ms": duration_ms,
                 "ocr_confidence_score": 0.95,
                 "embedding_model_version": EMBEDDING_MODEL,
-                "embedding_status": "done"
-            }
+                "embedding_status": "done",
+            },
         )
 
     return {
         "status": "completed",
         "doc_id": str(doc_id),
         "chunks_indexed": len(points),
-        "tender_id": req.tender_id
+        "tender_id": req.tender_id,
     }
 
 

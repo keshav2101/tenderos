@@ -1,15 +1,22 @@
 """Admin service FastAPI application."""
+
 from __future__ import annotations
+
 from datetime import datetime
-from typing import Optional, List, Dict
 from uuid import uuid4
-from fastapi import FastAPI, Query
+
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 app = FastAPI(title="TenderOS Admin Service")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
-                   allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 class UpdateRoleRequest(BaseModel):
@@ -82,7 +89,7 @@ async def list_sync_jobs(page: int = 1, page_size: int = 20):
                 "tenders_found": 8,
                 "status": "COMPLETED",
             },
-        ]
+        ],
     }
 
 
@@ -92,15 +99,30 @@ async def list_users(page: int = 1, page_size: int = 20):
         "page": page,
         "page_size": page_size,
         "users": [
-            {"id": "usr-001", "email": "admin@tenderos.in", "name": "System Admin", "role": "admin", "plan": "enterprise"},
-            {"id": "usr-002", "email": "user@democorp.com", "name": "John Doe", "role": "viewer", "plan": "sme"},
-        ]
+            {
+                "id": "usr-001",
+                "email": "admin@tenderos.in",
+                "name": "System Admin",
+                "role": "admin",
+                "plan": "enterprise",
+            },
+            {
+                "id": "usr-002",
+                "email": "user@democorp.com",
+                "name": "John Doe",
+                "role": "viewer",
+                "plan": "sme",
+            },
+        ],
     }
 
 
 @app.put("/users/{user_id}/role")
 async def update_user_role(user_id: str, req: UpdateRoleRequest):
-    return {"status": "success", "message": f"User {user_id} role updated to {req.role}"}
+    return {
+        "status": "success",
+        "message": f"User {user_id} role updated to {req.role}",
+    }
 
 
 @app.get("/stats")
@@ -120,7 +142,17 @@ async def get_logs(page: int = 1, page_size: int = 50):
         "page": page,
         "page_size": page_size,
         "logs": [
-            {"timestamp": datetime.utcnow().isoformat(), "user_id": "usr-001", "action": "connector_sync_trigger", "resource": "gem"},
-            {"timestamp": datetime.utcnow().isoformat(), "user_id": "usr-002", "action": "tender_qualification", "resource": "t-001"},
-        ]
+            {
+                "timestamp": datetime.utcnow().isoformat(),
+                "user_id": "usr-001",
+                "action": "connector_sync_trigger",
+                "resource": "gem",
+            },
+            {
+                "timestamp": datetime.utcnow().isoformat(),
+                "user_id": "usr-002",
+                "action": "tender_qualification",
+                "resource": "t-001",
+            },
+        ],
     }

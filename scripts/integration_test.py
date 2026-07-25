@@ -2,9 +2,8 @@
 TenderOS End-to-End System Validation Integration Test Suite.
 Verifies service operations, authentication flows, rate-limiting, and AI pipelines.
 """
+
 import sys
-import time
-from typing import Dict, Any
 
 # Mock Http/Rest request simulator for local dev verification
 print("[*] Initializing E2E Integration Testing Suite...")
@@ -62,11 +61,17 @@ assert_pass("JWT User Authentication", login_ok, "POST /api/v1/auth/login")
 
 # Mock SSO login redirection
 sso_redirect_ok = True
-assert_pass("SSO SAML Login Redirection", sso_redirect_ok, "GET /api/v1/auth/sso/login/acme")
+assert_pass(
+    "SSO SAML Login Redirection", sso_redirect_ok, "GET /api/v1/auth/sso/login/acme"
+)
 
 # Mock SSO assertion callback
 sso_callback_ok = True
-assert_pass("SSO SAML Response Callback Assertion", sso_callback_ok, "POST /api/v1/auth/sso/callback")
+assert_pass(
+    "SSO SAML Response Callback Assertion",
+    sso_callback_ok,
+    "POST /api/v1/auth/sso/callback",
+)
 
 
 # ─── 3. Gateway Rate Limiting Verification ────────────────────────────────────
@@ -83,11 +88,19 @@ for i in range(1, 15):
     if requests_sent > 10:
         limits_enforced = True
 
-assert_pass("Free Plan Rate Limiting Enforced (10 reqs/min)", limits_enforced, "Request #11 returned 429 Too Many Requests")
+assert_pass(
+    "Free Plan Rate Limiting Enforced (10 reqs/min)",
+    limits_enforced,
+    "Request #11 returned 429 Too Many Requests",
+)
 
 # Upgrade to SME and verify increased limit
 sme_limit_ok = True
-assert_pass("SME Premium Plan Rate Limiting Upgrade (200 reqs/min)", sme_limit_ok, "Limits elevated successfully")
+assert_pass(
+    "SME Premium Plan Rate Limiting Upgrade (200 reqs/min)",
+    sme_limit_ok,
+    "Limits elevated successfully",
+)
 
 
 # ─── 4. Document OCR & Chunking Vector Indexing ──────────────────────────────
@@ -95,15 +108,27 @@ test_section("4. Document Intelligence Pipeline & Vector Search")
 
 # Call document pipeline
 doc_processed = True
-assert_pass("OCR Text Parsing & Segmentation", doc_processed, "pdfplumber + hybrid OCR methods executed")
+assert_pass(
+    "OCR Text Parsing & Segmentation",
+    doc_processed,
+    "pdfplumber + hybrid OCR methods executed",
+)
 
 # Index in Qdrant
 indexed_count = 5
-assert_pass("Qdrant Dense Vector Upserting", indexed_count > 0, f"{indexed_count} text chunks indexed into 'tender_documents'")
+assert_pass(
+    "Qdrant Dense Vector Upserting",
+    indexed_count > 0,
+    f"{indexed_count} text chunks indexed into 'tender_documents'",
+)
 
 # Hybrid retrieval
 search_matches = 3
-assert_pass("Lexical (OpenSearch) + Semantic (Qdrant) Hybrid RRF Search", search_matches > 0, "Reciprocal Rank Fusion complete")
+assert_pass(
+    "Lexical (OpenSearch) + Semantic (Qdrant) Hybrid RRF Search",
+    search_matches > 0,
+    "Reciprocal Rank Fusion complete",
+)
 
 
 # ─── 5. Copilot Chat Q&A (RAG) ────────────────────────────────────────────────
@@ -111,26 +136,40 @@ test_section("5. Tender Copilot Chat Q&A")
 
 copilot_resp = {
     "answer": "Yes, you are eligible for this tender. It requires 3 years of enterprise experience, and Acme Corp has 5.",
-    "citations": ["doc_spec.pdf:L123-L127"]
+    "citations": ["doc_spec.pdf:L123-L127"],
 }
-assert_pass("Copilot Retrieval Augmented Generation (RAG)", len(copilot_resp["answer"]) > 0, "Citations parsed successfully")
+assert_pass(
+    "Copilot Retrieval Augmented Generation (RAG)",
+    len(copilot_resp["answer"]) > 0,
+    "Citations parsed successfully",
+)
 
 
 # ─── 6. Multi-Channel Alert Dispatch ──────────────────────────────────────────
 test_section("6. Notification Prefs & Multi-Channel Alerts")
 
 channels = ["email", "sms", "whatsapp", "slack"]
-assert_pass("Multi-Channel Preferences Check", True, "preferences resolved: email, sms, slack")
-assert_pass("Slack Webhook Alert Dispatch", True, "Incoming webhook request posted successfully")
-assert_pass("Twilio SMS & WhatsApp Sandboxed Send", True, "message delivered successfully")
+assert_pass(
+    "Multi-Channel Preferences Check", True, "preferences resolved: email, sms, slack"
+)
+assert_pass(
+    "Slack Webhook Alert Dispatch", True, "Incoming webhook request posted successfully"
+)
+assert_pass(
+    "Twilio SMS & WhatsApp Sandboxed Send", True, "message delivered successfully"
+)
 
 
 # ─── 7. Scheduler Crawler Runs ────────────────────────────────────────────────
 test_section("7. Scheduler Crawling Triggers")
 scheduler_triggered = True
-assert_pass("APScheduler Connector Sync Triggers", scheduler_triggered, "Active portal connectors synchronized successfully")
+assert_pass(
+    "APScheduler Connector Sync Triggers",
+    scheduler_triggered,
+    "Active portal connectors synchronized successfully",
+)
 
 
-print(f"\n==================================================")
-print(f"  [✓] ALL END-TO-END INTEGRATION TESTS PASSED")
-print(f"==================================================\n")
+print("\n==================================================")
+print("  [✓] ALL END-TO-END INTEGRATION TESTS PASSED")
+print("==================================================\n")

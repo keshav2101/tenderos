@@ -4,13 +4,13 @@ Service classification:
   CRITICAL  — must all be healthy for overall status = healthy
   OPTIONAL  — tolerated failures; degraded does not affect overall status
 """
+
 import asyncio
-from typing import Dict
+
 import httpx
+from app.config import settings
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
-
-from app.config import settings
 
 router = APIRouter()
 
@@ -35,7 +35,7 @@ OPTIONAL_SERVICES = {
 }
 
 
-async def check_service(name: str, url: str) -> Dict:
+async def check_service(name: str, url: str) -> dict:
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.get(f"{url}/health")
@@ -71,7 +71,9 @@ async def deep_health_check():
     overall_status = "healthy" if critical_healthy else "degraded"
 
     # Count optional degradation for transparency
-    optional_down = [k for k, v in optional_services.items() if v["status"] != "healthy"]
+    optional_down = [
+        k for k, v in optional_services.items() if v["status"] != "healthy"
+    ]
 
     return JSONResponse(
         status_code=200,  # Always return 200; callers check body for status
@@ -81,9 +83,13 @@ async def deep_health_check():
             "optional_services": optional_services,
             "optional_degraded": optional_down,
             "summary": {
-                "critical_healthy": sum(1 for v in critical_services.values() if v["status"] == "healthy"),
+                "critical_healthy": sum(
+                    1 for v in critical_services.values() if v["status"] == "healthy"
+                ),
                 "critical_total": len(critical_services),
-                "optional_healthy": sum(1 for v in optional_services.values() if v["status"] == "healthy"),
+                "optional_healthy": sum(
+                    1 for v in optional_services.values() if v["status"] == "healthy"
+                ),
                 "optional_total": len(optional_services),
             },
         },

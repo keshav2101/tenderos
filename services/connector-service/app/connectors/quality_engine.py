@@ -7,16 +7,19 @@ Provides:
   - Connector-level quality aggregation
   - DLQ routing for low-quality records
 """
+
 from __future__ import annotations
+
 import hashlib
-from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
+from typing import Any
+
 import structlog
 
 logger = structlog.get_logger()
 
 
-def compute_quality_score(tender_data: Dict[str, Any]) -> int:
+def compute_quality_score(tender_data: dict[str, Any]) -> int:
     """
     Compute a 0-100 quality score for a tender record.
 
@@ -90,7 +93,7 @@ class ConnectorQualityReport:
         self.passed = 0
         self.rejected = 0
         self.score_sum = 0
-        self.scores: List[int] = []
+        self.scores: list[int] = []
 
     def record(self, score: int, passed: bool):
         self.total += 1
@@ -109,7 +112,7 @@ class ConnectorQualityReport:
     def pass_rate(self) -> float:
         return round(self.passed / self.total, 4) if self.total > 0 else 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "source_id": self.source_id,
             "total": self.total,

@@ -1,27 +1,34 @@
 """Notification service FastAPI application."""
+
 from __future__ import annotations
+
 from datetime import datetime
-from typing import Optional, List, Dict
 from uuid import UUID, uuid4
-import structlog
+
 import asyncpg
-from fastapi import FastAPI, Query, HTTPException
+import structlog
+from app.config import settings
+from app.dispatcher import SlackDispatcher, TwilioDispatcher
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from app.dispatcher import SlackDispatcher, TwilioDispatcher
-from app.config import settings
-
 logger = structlog.get_logger()
 app = FastAPI(title="TenderOS Notification Service")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
-                   allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Instantiate Twilio dispatcher (can read from env or use defaults)
 twilio_dispatcher = TwilioDispatcher()
 
 # Connection pool cache
 _pool: asyncpg.Pool | None = None
+
 
 async def get_pool() -> asyncpg.Pool:
     global _pool
@@ -50,7 +57,7 @@ class UpdatePreferencesRequest(BaseModel):
     email_alerts: bool
     whatsapp_alerts: bool
     weekly_digest: bool
-    categories: List[str]
+    categories: list[str]
 
 
 @app.get("/health")
@@ -71,7 +78,7 @@ async def list_notifications(user_id: str):
                 ORDER BY created_at DESC
                 LIMIT 50
                 """,
-                UUID(user_id)
+                UUID(user_id),
             )
             return [
                 {
@@ -81,7 +88,9 @@ async def list_notifications(user_id: str):
                     "body": r["body"],
                     "read": r["is_read"],
                     "type": r["type"],
-                    "created_at": r["created_at"].isoformat() if r["created_at"] else datetime.utcnow().isoformat(),
+                    "created_at": r["created_at"].isoformat()
+                    if r["created_at"]
+                    else datetime.utcnow().isoformat(),
                 }
                 for r in rows
             ]
@@ -99,9 +108,12 @@ async def mark_read(notification_id: str, body: dict = None):
         async with pool.acquire() as conn:
             result = await conn.execute(
                 "UPDATE notifications SET is_read = TRUE WHERE id = $1",
-                UUID(notification_id)
+                UUID(notification_id),
             )
-            return {"status": "success", "message": f"Notification {notification_id} marked as read"}
+            return {
+                "status": "success",
+                "message": f"Notification {notification_id} marked as read",
+            }
     except Exception as e:
         logger.error("Failed to mark notification as read", error=str(e))
         raise HTTPException(status_code=500, detail="Database update error")
@@ -114,7 +126,7 @@ async def get_preferences(user_id: str):
         async with pool.acquire() as conn:
             row = await conn.fetchrow(
                 "SELECT email_enabled, sms_enabled, whatsapp_enabled, slack_webhook_url FROM notification_preferences WHERE user_id = $1",
-                UUID(user_id)
+                UUID(user_id),
             )
             if not row:
                 return {
@@ -122,14 +134,14 @@ async def get_preferences(user_id: str):
                     "email_alerts": True,
                     "whatsapp_alerts": False,
                     "weekly_digest": True,
-                    "categories": []
+                    "categories": [],
                 }
             return {
                 "user_id": user_id,
                 "email_alerts": row["email_enabled"],
                 "whatsapp_alerts": row["whatsapp_enabled"],
                 "weekly_digest": True,
-                "categories": []
+                "categories": [],
             }
     except Exception as e:
         logger.error("Failed to fetch preferences", error=str(e))
@@ -138,7 +150,7 @@ async def get_preferences(user_id: str):
             "email_alerts": True,
             "whatsapp_alerts": False,
             "weekly_digest": True,
-            "categories": []
+            "categories": [],
         }
 
 
@@ -156,12 +168,16 @@ async def update_preferences(req: UpdatePreferencesRequest):
                     whatsapp_enabled = EXCLUDED.whatsapp_enabled,
                     updated_at = NOW()
                 """,
-                UUID(req.user_id), req.email_alerts, req.whatsapp_alerts
+                UUID(req.user_id),
+                req.email_alerts,
+                req.whatsapp_alerts,
             )
             return {"status": "success", "message": "Preferences updated successfully"}
     except Exception as e:
         logger.error("Failed to save preferences", error=str(e))
-        raise HTTPException(status_code=500, detail="Failed to save preferences to database")
+        raise HTTPException(
+            status_code=500, detail="Failed to save preferences to database"
+        )
 
 
 @app.post("/notifications/send")
@@ -173,13 +189,13 @@ async def send_notification(req: SendNotificationRequest):
             "sms_enabled": True,
             "whatsapp_enabled": False,
             "slack_webhook_url": "",
-            "phone_number": ""
+            "phone_number": "",
         }
-        
+
         async with pool.acquire() as conn:
             row = await conn.fetchrow(
                 "SELECT email_enabled, sms_enabled, whatsapp_enabled, slack_webhook_url FROM notification_preferences WHERE user_id = $1",
-                UUID(req.user_id)
+                UUID(req.user_id),
             )
             if row:
                 prefs["email_enabled"] = row["email_enabled"]
@@ -193,10 +209,17 @@ async def send_notification(req: SendNotificationRequest):
                 INSERT INTO notifications (id, user_id, title, body, is_read, type, created_at)
                 VALUES ($1, $2, $3, $4, FALSE, $5, NOW())
                 """,
-                uuid4(), UUID(req.user_id), req.title, req.body, req.notification_type
+                uuid4(),
+                UUID(req.user_id),
+                req.title,
+                req.body,
+                req.notification_type,
             )
     except Exception as e:
-        logger.warning("Database interaction failed for notification send, using default channels", error=str(e))
+        logger.warning(
+            "Database interaction failed for notification send, using default channels",
+            error=str(e),
+        )
 
     channels_sent = []
 
@@ -207,8 +230,7 @@ async def send_notification(req: SendNotificationRequest):
     # 2. SMS Channel
     if prefs["sms_enabled"] and prefs.get("phone_number"):
         sms_ok = await twilio_dispatcher.send_sms(
-            to_number=prefs["phone_number"],
-            text=f"{req.title}: {req.body}"
+            to_number=prefs["phone_number"], text=f"{req.title}: {req.body}"
         )
         if sms_ok:
             channels_sent.append("sms")
@@ -216,8 +238,7 @@ async def send_notification(req: SendNotificationRequest):
     # 3. WhatsApp Channel
     if prefs["whatsapp_enabled"] and prefs.get("phone_number"):
         wa_ok = await twilio_dispatcher.send_whatsapp(
-            to_number=prefs["phone_number"],
-            text=f"{req.title}: {req.body}"
+            to_number=prefs["phone_number"], text=f"{req.title}: {req.body}"
         )
         if wa_ok:
             channels_sent.append("whatsapp")
@@ -225,9 +246,7 @@ async def send_notification(req: SendNotificationRequest):
     # 4. Slack Channel
     if prefs["slack_webhook_url"]:
         slack_ok = await SlackDispatcher.send_message(
-            webhook_url=prefs["slack_webhook_url"],
-            title=req.title,
-            body=req.body
+            webhook_url=prefs["slack_webhook_url"], title=req.title, body=req.body
         )
         if slack_ok:
             channels_sent.append("slack")
@@ -235,5 +254,5 @@ async def send_notification(req: SendNotificationRequest):
     return {
         "status": "completed",
         "channels_attempted": channels_sent,
-        "message": "Notifications processed"
+        "message": "Notifications processed",
     }

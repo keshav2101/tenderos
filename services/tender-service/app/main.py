@@ -1,32 +1,40 @@
 """Tender Service FastAPI application — CRUD, filtering, watchlist."""
+
 from __future__ import annotations
+
 from datetime import datetime
-from typing import Optional, List
 from uuid import UUID
 
 import asyncpg
 import structlog
+from app.config import settings
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-
-from app.config import settings
 
 logger = structlog.get_logger()
 app = FastAPI(title="TenderOS Tender Service", version=settings.VERSION)
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
-                   allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-_pool: Optional[asyncpg.Pool] = None
+_pool: asyncpg.Pool | None = None
 
 
 async def get_pool() -> asyncpg.Pool:
     global _pool
     if _pool is None:
         _pool = await asyncpg.create_pool(
-            host=settings.POSTGRES_HOST, port=settings.POSTGRES_PORT,
-            database=settings.POSTGRES_DB, user=settings.POSTGRES_USER,
-            password=settings.POSTGRES_PASSWORD, min_size=3, max_size=20,
+            host=settings.POSTGRES_HOST,
+            port=settings.POSTGRES_PORT,
+            database=settings.POSTGRES_DB,
+            user=settings.POSTGRES_USER,
+            password=settings.POSTGRES_PASSWORD,
+            min_size=3,
+            max_size=20,
         )
     return _pool
 
@@ -35,30 +43,32 @@ async def get_pool() -> asyncpg.Pool:
 async def startup_event():
     await get_pool()
     import asyncio
+
     from app.worker import start_queue_worker
+
     asyncio.create_task(start_queue_worker())
+
 
 @app.get("/health")
 async def health():
     return {"status": "healthy", "service": "tender-service"}
 
 
-
 @app.get("/tenders")
 async def list_tenders(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    state: Optional[str] = None,
-    ministry: Optional[str] = None,
-    department: Optional[str] = None,
-    category: Optional[str] = None,
-    status: Optional[str] = "active",
-    msme_eligible: Optional[bool] = None,
-    cost_min: Optional[float] = None,
-    cost_max: Optional[float] = None,
-    deadline_from: Optional[str] = None,
-    deadline_to: Optional[str] = None,
-    source: Optional[str] = None,
+    state: str | None = None,
+    ministry: str | None = None,
+    department: str | None = None,
+    category: str | None = None,
+    status: str | None = "active",
+    msme_eligible: bool | None = None,
+    cost_min: float | None = None,
+    cost_max: float | None = None,
+    deadline_from: str | None = None,
+    deadline_to: str | None = None,
+    source: str | None = None,
     sort_by: str = "published",
 ):
     pool = await get_pool()
@@ -146,7 +156,9 @@ async def list_tenders(
             ORDER BY {order_by}
             LIMIT ${idx} OFFSET ${idx + 1}
             """,
-            *params, page_size, offset,
+            *params,
+            page_size,
+            offset,
         )
 
     tenders = [dict(r) for r in rows]
@@ -169,6 +181,7 @@ async def list_tenders(
 
 # ─── PHASE 5: PROCUREMENT INTELLIGENCE ENGINE ENDPOINTS ──────────────────────
 
+
 @app.get("/tenders/intelligence/buyers")
 async def get_buyer_profiles(limit: int = 20):
     """Nightly aggregated buyer profiles across Indian ministries, PSUs, and state bodies."""
@@ -189,13 +202,21 @@ async def get_buyer_profiles(limit: int = 20):
             ORDER BY total_tenders DESC
             LIMIT $1
             """,
-            limit
+            limit,
         )
         profiles = []
         for r in rows:
             d = dict(r)
-            d["total_value_lakhs"] = float(d["total_value_lakhs"]) if d["total_value_lakhs"] is not None else 0.0
-            d["avg_tender_val_lakhs"] = float(d["avg_tender_val_lakhs"]) if d["avg_tender_val_lakhs"] is not None else 0.0
+            d["total_value_lakhs"] = (
+                float(d["total_value_lakhs"])
+                if d["total_value_lakhs"] is not None
+                else 0.0
+            )
+            d["avg_tender_val_lakhs"] = (
+                float(d["avg_tender_val_lakhs"])
+                if d["avg_tender_val_lakhs"] is not None
+                else 0.0
+            )
             profiles.append(d)
         return {"buyer_profiles": profiles, "total": len(profiles)}
 
@@ -222,14 +243,16 @@ async def get_market_trends():
             ORDER BY tender_count DESC
             """
         )
-        msme_count = await conn.fetchval("SELECT COUNT(*) FROM tenders WHERE msme_eligible = true")
+        msme_count = await conn.fetchval(
+            "SELECT COUNT(*) FROM tenders WHERE msme_eligible = true"
+        )
         total_tenders = await conn.fetchval("SELECT COUNT(*) FROM tenders")
-        
+
         return {
             "total_tenders": total_tenders,
             "msme_exemption_rate": round((msme_count / max(1, total_tenders)) * 100, 1),
             "state_distribution": [dict(r) for r in state_rows],
-            "source_distribution": [dict(r) for r in source_rows]
+            "source_distribution": [dict(r) for r in source_rows],
         }
 
 
@@ -238,34 +261,58 @@ async def calculate_opportunity_score(tender_id: str):
     """Calculate 0-100 win probability and qualification fit score for a specific tender."""
     pool = await get_pool()
     async with pool.acquire() as conn:
-        row = await conn.fetchrow("SELECT * FROM tenders WHERE id = $1", UUID(tender_id))
+        row = await conn.fetchrow(
+            "SELECT * FROM tenders WHERE id = $1", UUID(tender_id)
+        )
         if not row:
             raise HTTPException(status_code=404, detail="Tender not found")
-        
+
         t = dict(row)
-        score = 70 # Baseline score for verified live tenders
+        score = 70  # Baseline score for verified live tenders
         factors = []
-        
+
         if t.get("msme_eligible"):
             score += 12
-            factors.append({"factor": "MSME / Udyam Benefits", "impact": "+12", "detail": "EMD Waiver & 15% Purchase Preference applicable"})
-        
+            factors.append(
+                {
+                    "factor": "MSME / Udyam Benefits",
+                    "impact": "+12",
+                    "detail": "EMD Waiver & 15% Purchase Preference applicable",
+                }
+            )
+
         if t.get("source") in ["gem", "cppp", "ireps"]:
             score += 8
-            factors.append({"factor": "Tier-1 Central Portal", "impact": "+8", "detail": "Direct e-bidding & transparent evaluation"})
+            factors.append(
+                {
+                    "factor": "Tier-1 Central Portal",
+                    "impact": "+8",
+                    "detail": "Direct e-bidding & transparent evaluation",
+                }
+            )
 
         if t.get("estimated_cost_lakhs") and t["estimated_cost_lakhs"] > 0:
             score += 5
-            factors.append({"factor": "Clear Value Disclosed", "impact": "+5", "detail": f"Budget: ₹{t['estimated_cost_lakhs']} Lakhs"})
-            
+            factors.append(
+                {
+                    "factor": "Clear Value Disclosed",
+                    "impact": "+5",
+                    "detail": f"Budget: ₹{t['estimated_cost_lakhs']} Lakhs",
+                }
+            )
+
         final_score = min(98, score)
         return {
             "tender_id": tender_id,
             "opportunity_score": final_score,
-            "match_grade": "A+" if final_score >= 85 else "A" if final_score >= 75 else "B",
+            "match_grade": "A+"
+            if final_score >= 85
+            else "A"
+            if final_score >= 75
+            else "B",
             "scoring_factors": factors,
             "mii_compliance": "Class-I Local Supplier Preference",
-            "emd_waiver_eligible": t.get("msme_eligible", False)
+            "emd_waiver_eligible": t.get("msme_eligible", False),
         }
 
 
@@ -273,7 +320,9 @@ async def calculate_opportunity_score(tender_id: str):
 async def get_tender(tender_id: str):
     pool = await get_pool()
     async with pool.acquire() as conn:
-        row = await conn.fetchrow("SELECT * FROM tenders WHERE id = $1", UUID(tender_id))
+        row = await conn.fetchrow(
+            "SELECT * FROM tenders WHERE id = $1", UUID(tender_id)
+        )
         if not row:
             raise HTTPException(status_code=404, detail="Tender not found")
         data = dict(row)
@@ -320,7 +369,9 @@ async def get_similar_tenders(tender_id: str, limit: int = 5):
             ORDER BY (SELECT COUNT(*) FROM unnest(categories) c WHERE c = ANY($2)) DESC, published_at DESC
             LIMIT $3
             """,
-            UUID(tender_id), source["categories"], limit,
+            UUID(tender_id),
+            source["categories"],
+            limit,
         )
         return [dict(r) for r in rows]
 
@@ -336,7 +387,10 @@ async def add_to_watchlist(tender_id: str, body: dict):
             VALUES ($1, $2, $3, $4)
             ON CONFLICT (user_id, tender_id) DO NOTHING
             """,
-            UUID(body["user_id"]), UUID(tender_id), body.get("notes", ""), datetime.utcnow(),
+            UUID(body["user_id"]),
+            UUID(tender_id),
+            body.get("notes", ""),
+            datetime.utcnow(),
         )
     return {"message": "Added to watchlist"}
 
@@ -348,7 +402,8 @@ async def remove_from_watchlist(tender_id: str, user_id: str):
         # FIX: table is `watchlists`
         await conn.execute(
             "DELETE FROM watchlists WHERE user_id = $1 AND tender_id = $2",
-            UUID(user_id), UUID(tender_id),
+            UUID(user_id),
+            UUID(tender_id),
         )
     return {"message": "Removed from watchlist"}
 
@@ -356,8 +411,9 @@ async def remove_from_watchlist(tender_id: str, user_id: str):
 @app.get("/tenders/watchlist/{user_id}")
 async def list_watchlist(user_id: str):
     pool = await get_pool()
-    from uuid import UUID
     from datetime import datetime
+    from uuid import UUID
+
     async with pool.acquire() as conn:
         rows = await conn.fetch(
             """
@@ -370,7 +426,7 @@ async def list_watchlist(user_id: str):
             WHERE w.user_id = $1
             ORDER BY w.created_at DESC
             """,
-            UUID(user_id)
+            UUID(user_id),
         )
     tenders = [dict(r) for r in rows]
     for t in tenders:

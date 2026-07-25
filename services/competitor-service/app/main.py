@@ -1,12 +1,18 @@
 """Competitor service FastAPI application."""
+
 from __future__ import annotations
-from typing import Optional, List, Dict
-from fastapi import FastAPI, Query
+
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="TenderOS Competitor Service")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
-                   allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/health")
@@ -16,8 +22,8 @@ async def health():
 
 @app.get("/competitors")
 async def get_competitors(
-    category: Optional[str] = None,
-    ministry: Optional[str] = None,
+    category: str | None = None,
+    ministry: str | None = None,
     period: str = "24m",
 ):
     # Returns competitors and their win rates in the given category/ministry
@@ -58,7 +64,7 @@ async def get_competitors(
                 "avg_bid_value_cr": 22.4,
                 "avg_discount_pct": 5.2,
             },
-        ]
+        ],
     }
 
 
@@ -72,11 +78,23 @@ async def get_tender_competitors(tender_id: str):
         "historical_winner_win_rate_pct": 63,
         "avg_discount_pct": 10.5,
         "projected_bidders": [
-            {"name": "ABC Tech Solutions Private Limited", "probability": 85, "reason": "Won 4/8 similar tenders Issuing from the same dept"},
-            {"name": "Infra Systems and Services", "probability": 60, "reason": "Bids regularly on IT/Security tenders in Delhi"},
-            {"name": "Vikas Enterprise", "probability": 40, "reason": "SME bidder with MSME EMD exemptions"},
+            {
+                "name": "ABC Tech Solutions Private Limited",
+                "probability": 85,
+                "reason": "Won 4/8 similar tenders Issuing from the same dept",
+            },
+            {
+                "name": "Infra Systems and Services",
+                "probability": 60,
+                "reason": "Bids regularly on IT/Security tenders in Delhi",
+            },
+            {
+                "name": "Vikas Enterprise",
+                "probability": 40,
+                "reason": "SME bidder with MSME EMD exemptions",
+            },
         ],
-        "disclaimer": "Based on publicly available procurement records only."
+        "disclaimer": "Based on publicly available procurement records only.",
     }
 
 
@@ -86,10 +104,18 @@ async def get_market_share(category: str, period: str = "12m"):
         "category": category,
         "period": period,
         "market_share": [
-            {"vendor": "ABC Tech Solutions Private Limited", "share_pct": 34.2, "value_cr": 145.5},
-            {"vendor": "Infra Systems and Services", "share_pct": 21.0, "value_cr": 89.2},
+            {
+                "vendor": "ABC Tech Solutions Private Limited",
+                "share_pct": 34.2,
+                "value_cr": 145.5,
+            },
+            {
+                "vendor": "Infra Systems and Services",
+                "share_pct": 21.0,
+                "value_cr": 89.2,
+            },
             {"vendor": "National Digital Systems", "share_pct": 18.5, "value_cr": 78.6},
             {"vendor": "Vikas Enterprise", "share_pct": 12.1, "value_cr": 51.4},
             {"vendor": "Others", "share_pct": 14.2, "value_cr": 60.3},
-        ]
+        ],
     }

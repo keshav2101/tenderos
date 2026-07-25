@@ -1,4 +1,5 @@
 """AI extraction configuration."""
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -22,7 +23,9 @@ class Settings(BaseSettings):
     @property
     def redis_url(self) -> str:
         if self.REDIS_PASSWORD:
-            return f"redis://:{self.REDIS_PASSWORD}@{self.REDIS_HOST}:{self.REDIS_PORT}/0"
+            return (
+                f"redis://:{self.REDIS_PASSWORD}@{self.REDIS_HOST}:{self.REDIS_PORT}/0"
+            )
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/0"
 
 

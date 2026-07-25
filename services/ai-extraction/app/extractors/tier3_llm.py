@@ -3,14 +3,15 @@ Tier 3 Cloud LLM Extraction — used only when Tier 1 + 2 confidence < 0.8.
 Supports Gemini (default), OpenAI, and Anthropic Claude.
 All results are cached in Redis for 7 days to minimize repeat cost.
 """
+
 from __future__ import annotations
+
 import hashlib
 import json
-from typing import Any, Dict, Optional
+from typing import Any
 
 import redis.asyncio as aioredis
 import structlog
-
 from app.config import settings
 
 logger = structlog.get_logger()
@@ -64,7 +65,7 @@ class Tier3LLMExtractor:
     """
 
     def __init__(self):
-        self._redis: Optional[aioredis.Redis] = None
+        self._redis: aioredis.Redis | None = None
 
     async def _get_redis(self) -> aioredis.Redis:
         if self._redis is None:
@@ -77,7 +78,7 @@ class Tier3LLMExtractor:
         h = hashlib.sha256(text[:2000].encode()).hexdigest()
         return f"extraction:v1:{h}"
 
-    async def extract(self, text: str, provider: Optional[str] = None) -> Dict[str, Any]:
+    async def extract(self, text: str, provider: str | None = None) -> dict[str, Any]:
         """Extract using cloud LLM with Redis caching."""
         provider = provider or settings.LLM_PROVIDER
         cache_key = self._cache_key(text)
@@ -124,8 +125,9 @@ class Tier3LLMExtractor:
             logger.error("Tier3 LLM extraction failed", provider=provider, error=str(e))
             return {"_extraction_tier": 3, "_error": str(e)}
 
-    async def _call_gemini(self, prompt: str) -> Dict:
+    async def _call_gemini(self, prompt: str) -> dict:
         import google.generativeai as genai
+
         genai.configure(api_key=settings.GEMINI_API_KEY)
         model = genai.GenerativeModel(
             "gemini-2.0-flash",
@@ -134,8 +136,9 @@ class Tier3LLMExtractor:
         response = model.generate_content(prompt)
         return json.loads(response.text)
 
-    async def _call_openai(self, prompt: str) -> Dict:
+    async def _call_openai(self, prompt: str) -> dict:
         from openai import AsyncOpenAI
+
         client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
         response = await client.chat.completions.create(
             model="gpt-4o-mini",
@@ -145,8 +148,9 @@ class Tier3LLMExtractor:
         )
         return json.loads(response.choices[0].message.content)
 
-    async def _call_anthropic(self, prompt: str) -> Dict:
+    async def _call_anthropic(self, prompt: str) -> dict:
         import anthropic
+
         client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
         response = await client.messages.create(
             model="claude-sonnet-4-5",
@@ -156,7 +160,8 @@ class Tier3LLMExtractor:
         text = response.content[0].text
         # Extract JSON from response
         import re
-        json_match = re.search(r'\{.*\}', text, re.DOTALL)
+
+        json_match = re.search(r"\{.*\}", text, re.DOTALL)
         if json_match:
             return json.loads(json_match.group())
         return json.loads(text)

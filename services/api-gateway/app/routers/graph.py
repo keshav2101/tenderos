@@ -1,12 +1,15 @@
 """Knowledge Graph routes — proxy to knowledge-graph-service."""
-from fastapi import APIRouter, Request, Query
-from app.proxy import ServiceProxy
+
 from app.config import settings
+from app.proxy import ServiceProxy
+from fastapi import APIRouter, Query, Request
 
 router = APIRouter()
 # We target the knowledge-graph-service URL (we assume KNOWLEDGE_GRAPH_SERVICE_URL config var exists or can map to port 8009)
 # Let's verify port or define downstream proxy URL.
-_graph = ServiceProxy(settings.ADMIN_SERVICE_URL.replace(":8019", ":8009"), timeout=30.0)
+_graph = ServiceProxy(
+    settings.ADMIN_SERVICE_URL.replace(":8019", ":8009"), timeout=30.0
+)
 
 
 @router.post("/ingest/award", summary="Ingest tender award relations")

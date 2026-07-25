@@ -1,32 +1,40 @@
 """Company Digital Twin service FastAPI application."""
+
 from __future__ import annotations
+
 from datetime import datetime
-from typing import Optional, List, Dict
 from uuid import UUID, uuid4
 
 import asyncpg
 import structlog
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-
 from app.config import settings
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 
 logger = structlog.get_logger()
 app = FastAPI(title="TenderOS Digital Twin Service")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
-                   allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-_pool: Optional[asyncpg.Pool] = None
+_pool: asyncpg.Pool | None = None
 
 
 async def get_pool() -> asyncpg.Pool:
     global _pool
     if _pool is None:
         _pool = await asyncpg.create_pool(
-            host=settings.POSTGRES_HOST, port=settings.POSTGRES_PORT,
-            database=settings.POSTGRES_DB, user=settings.POSTGRES_USER,
-            password=settings.POSTGRES_PASSWORD, min_size=2, max_size=10,
+            host=settings.POSTGRES_HOST,
+            port=settings.POSTGRES_PORT,
+            database=settings.POSTGRES_DB,
+            user=settings.POSTGRES_USER,
+            password=settings.POSTGRES_PASSWORD,
+            min_size=2,
+            max_size=10,
         )
     return _pool
 
@@ -46,11 +54,15 @@ async def get_profile(user_id: str):
             JOIN users u ON u.company_id = c.id
             WHERE u.id = $1
             """,
-            UUID(user_id)
+            UUID(user_id),
         )
         if not row:
             from fastapi import HTTPException
-            raise HTTPException(status_code=404, detail="Company profile not found for the specified user.")
+
+            raise HTTPException(
+                status_code=404,
+                detail="Company profile not found for the specified user.",
+            )
         return dict(row)
 
 
@@ -60,7 +72,9 @@ async def upsert_profile(body: dict):
     user_id = UUID(body["user_id"])
     async with pool.acquire() as conn:
         # Check if user has company_id
-        user = await conn.fetchrow("SELECT company_id FROM users WHERE id = $1", user_id)
+        user = await conn.fetchrow(
+            "SELECT company_id FROM users WHERE id = $1", user_id
+        )
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
 
@@ -74,20 +88,29 @@ async def upsert_profile(body: dict):
             # FIX: column is `legal_name` not `name`; include required `user_id`
             await conn.execute(
                 "INSERT INTO companies (id, user_id, legal_name, gstin, pan, entity_type, cin, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-                company_id, user_id,
+                company_id,
+                user_id,
                 body.get("legal_name", body.get("name", "New Company")),
-                body.get("gstin", ""), body.get("pan", ""),
-                entity_type, body.get("cin", ""), datetime.utcnow()
+                body.get("gstin", ""),
+                body.get("pan", ""),
+                entity_type,
+                body.get("cin", ""),
+                datetime.utcnow(),
             )
             # Link to user
-            await conn.execute("UPDATE users SET company_id = $1 WHERE id = $2", company_id, user_id)
+            await conn.execute(
+                "UPDATE users SET company_id = $1 WHERE id = $2", company_id, user_id
+            )
         else:
             # FIX: column is `legal_name` not `name`
             await conn.execute(
                 "UPDATE companies SET legal_name = $1, gstin = $2, pan = $3, entity_type = $4, cin = $5 WHERE id = $6",
                 body.get("legal_name", body.get("name", "")),
-                body.get("gstin", ""), body.get("pan", ""),
-                entity_type, body.get("cin", ""), company_id
+                body.get("gstin", ""),
+                body.get("pan", ""),
+                entity_type,
+                body.get("cin", ""),
+                company_id,
             )
         return {"status": "success", "company_id": str(company_id)}
 
@@ -99,15 +122,15 @@ async def get_profile_score(user_id: str):
         async with pool.acquire() as conn:
             c_row = await conn.fetchrow(
                 "SELECT id, legal_name, gstin, pan, entity_type, states_active, target_categories FROM companies WHERE user_id = $1",
-                UUID(user_id)
+                UUID(user_id),
             )
             if not c_row:
                 return {"profile_score": 30, "completeness_percentage": 30}
-            
+
             company_id = c_row["id"]
             fields_filled = 0
             total_fields = 9
-            
+
             if c_row["legal_name"] and len(c_row["legal_name"].strip()) > 0:
                 fields_filled += 1
             if c_row["gstin"] and len(c_row["gstin"].strip()) > 0:
@@ -120,22 +143,33 @@ async def get_profile_score(user_id: str):
                 fields_filled += 1
             if c_row["target_categories"] and len(c_row["target_categories"]) > 0:
                 fields_filled += 1
-                
-            turnover_count = await conn.fetchval("SELECT COUNT(*) FROM company_turnover WHERE company_id = $1", company_id)
+
+            turnover_count = await conn.fetchval(
+                "SELECT COUNT(*) FROM company_turnover WHERE company_id = $1",
+                company_id,
+            )
             if turnover_count > 0:
                 fields_filled += 1
-                
-            exp_count = await conn.fetchval("SELECT COUNT(*) FROM company_experience WHERE company_id = $1", company_id)
+
+            exp_count = await conn.fetchval(
+                "SELECT COUNT(*) FROM company_experience WHERE company_id = $1",
+                company_id,
+            )
             if exp_count > 0:
                 fields_filled += 1
-                
-            cert_count = await conn.fetchval("SELECT COUNT(*) FROM company_certifications WHERE company_id = $1", company_id)
+
+            cert_count = await conn.fetchval(
+                "SELECT COUNT(*) FROM company_certifications WHERE company_id = $1",
+                company_id,
+            )
             if cert_count > 0:
                 fields_filled += 1
-                
+
             pct = int((fields_filled / total_fields) * 100)
-            await conn.execute("UPDATE companies SET profile_score = $1 WHERE id = $2", pct, company_id)
-            
+            await conn.execute(
+                "UPDATE companies SET profile_score = $1 WHERE id = $2", pct, company_id
+            )
+
             return {"profile_score": pct, "completeness_percentage": pct}
     except Exception as e:
         logger.error("Failed to calculate profile score", error=str(e))
@@ -144,11 +178,10 @@ async def get_profile_score(user_id: str):
 
 @app.post("/documents")
 async def upload_document(
-    user_id: str = Form(...),
-    doc_type: str = Form(...),
-    file: UploadFile = File(...)
+    user_id: str = Form(...), doc_type: str = Form(...), file: UploadFile = File(...)
 ):
     import re
+
     logger.info("Uploading document", filename=file.filename, doc_type=doc_type)
     content = await file.read()
 
@@ -160,7 +193,10 @@ async def upload_document(
             INSERT INTO company_documents (id, user_id, name, type, uploaded_at, verified)
             VALUES ($1, $2, $3, $4, NOW(), TRUE)
             """,
-            doc_id, UUID(user_id), file.filename, doc_type
+            doc_id,
+            UUID(user_id),
+            file.filename,
+            doc_type,
         )
 
     # Dynamic extraction matching Udyam and GSTIN standard Indian patterns
@@ -169,23 +205,30 @@ async def upload_document(
         content_str = content.decode("utf-8", errors="ignore")
     except Exception:
         pass
-        
+
     extracted = {}
     gstin_pattern = r"\d{2}[A-Z]{5}\d{4}[A-Z]{1}[A-Z\d]{1}[Z]{1}[A-Z\d]{1}"
     udyam_pattern = r"UDYAM-[A-Z]{2}-\d{2}-\d{7}"
     text_to_search = f"{file.filename} {content_str}"
-    
+
     if doc_type == "gst":
         gst_match = re.search(gstin_pattern, text_to_search)
         gstin = gst_match.group(0) if gst_match else "29AAACD1234A1Z1"
         pan = gstin[2:12] if len(gstin) >= 12 else "AAACD1234A"
         extracted = {"gstin": gstin, "legal_name": "Demo Corporation Private Limited"}
-        
+
         async with pool.acquire() as conn:
-            user = await conn.fetchrow("SELECT company_id FROM users WHERE id = $1", UUID(user_id))
+            user = await conn.fetchrow(
+                "SELECT company_id FROM users WHERE id = $1", UUID(user_id)
+            )
             if user and user["company_id"]:
-                await conn.execute("UPDATE companies SET gstin = $1, pan = $2 WHERE id = $3", gstin, pan, user["company_id"])
-                
+                await conn.execute(
+                    "UPDATE companies SET gstin = $1, pan = $2 WHERE id = $3",
+                    gstin,
+                    pan,
+                    user["company_id"],
+                )
+
     elif doc_type == "msme":
         udyam_match = re.search(udyam_pattern, text_to_search)
         udyam = udyam_match.group(0) if udyam_match else "UDYAM-KR-03-0012345"
@@ -196,13 +239,19 @@ async def upload_document(
             ent_type = "MSME_Small"
         elif "medium" in text_to_search.lower():
             ent_type = "MSME_Medium"
-            
+
         extracted = {"udyam_registration_no": udyam, "enterprise_type": ent_type}
-        
+
         async with pool.acquire() as conn:
-            user = await conn.fetchrow("SELECT company_id FROM users WHERE id = $1", UUID(user_id))
+            user = await conn.fetchrow(
+                "SELECT company_id FROM users WHERE id = $1", UUID(user_id)
+            )
             if user and user["company_id"]:
-                await conn.execute("UPDATE companies SET entity_type = $1 WHERE id = $2", ent_type, user["company_id"])
+                await conn.execute(
+                    "UPDATE companies SET entity_type = $1 WHERE id = $2",
+                    ent_type,
+                    user["company_id"],
+                )
 
     return {
         "status": "success",
@@ -214,22 +263,23 @@ async def upload_document(
     }
 
 
-
 @app.get("/documents")
 async def list_documents(user_id: str):
     pool = await get_pool()
     async with pool.acquire() as conn:
         rows = await conn.fetch(
             "SELECT id, name, type, uploaded_at, verified FROM company_documents WHERE user_id = $1",
-            UUID(user_id)
+            UUID(user_id),
         )
         return [
             {
                 "id": str(row["id"]),
                 "name": row["name"],
                 "type": row["type"],
-                "uploaded_at": row["uploaded_at"].isoformat() if isinstance(row["uploaded_at"], datetime) else row["uploaded_at"],
-                "verified": row["verified"]
+                "uploaded_at": row["uploaded_at"].isoformat()
+                if isinstance(row["uploaded_at"], datetime)
+                else row["uploaded_at"],
+                "verified": row["verified"],
             }
             for row in rows
         ]
@@ -241,9 +291,9 @@ async def delete_document(doc_id: str, user_id: str):
     async with pool.acquire() as conn:
         result = await conn.execute(
             "DELETE FROM company_documents WHERE id = $1 AND user_id = $2",
-            UUID(doc_id), UUID(user_id)
+            UUID(doc_id),
+            UUID(user_id),
         )
         if result == "DELETE 0":
             raise HTTPException(status_code=404, detail="Document not found")
     return {"status": "success", "message": "Document deleted"}
-

@@ -1,16 +1,16 @@
 """Document chunker for indexing PDFs for RAG retrieval."""
+
 import uuid
-from typing import List, Dict
 
 
 def chunk_document(
     text: str,
     tender_id: str,
     doc_type: str = "notice",
-    page_data: List[Dict] = None,
+    page_data: list[dict] = None,
     chunk_size: int = 512,
     overlap: int = 50,
-) -> List[Dict]:
+) -> list[dict]:
     """
     Split text into overlapping chunks.
     Preserves page references when page_data is provided.
@@ -33,14 +33,16 @@ def chunk_document(
                 if not chunk_words:
                     break
                 chunk_text = " ".join(chunk_words)
-                chunks.append({
-                    "id": str(uuid.uuid4()),
-                    "tender_id": tender_id,
-                    "doc_type": doc_type,
-                    "page": page_num,
-                    "section": page.get("section", ""),
-                    "text": chunk_text,
-                })
+                chunks.append(
+                    {
+                        "id": str(uuid.uuid4()),
+                        "tender_id": tender_id,
+                        "doc_type": doc_type,
+                        "page": page_num,
+                        "section": page.get("section", ""),
+                        "text": chunk_text,
+                    }
+                )
     else:
         # Fallback to simple text splitting
         words = text.split()
@@ -49,13 +51,15 @@ def chunk_document(
             if not chunk_words:
                 break
             chunk_text = " ".join(chunk_words)
-            chunks.append({
-                "id": str(uuid.uuid4()),
-                "tender_id": tender_id,
-                "doc_type": doc_type,
-                "page": "?",
-                "section": "",
-                "text": chunk_text,
-            })
+            chunks.append(
+                {
+                    "id": str(uuid.uuid4()),
+                    "tender_id": tender_id,
+                    "doc_type": doc_type,
+                    "page": "?",
+                    "section": "",
+                    "text": chunk_text,
+                }
+            )
 
     return chunks

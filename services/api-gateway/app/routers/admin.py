@@ -1,7 +1,8 @@
 """Admin router — requires admin role."""
-from fastapi import APIRouter, Request, HTTPException, status
-from app.proxy import ServiceProxy
+
 from app.config import settings
+from app.proxy import ServiceProxy
+from fastapi import APIRouter, HTTPException, Request, status
 
 router = APIRouter()
 _proxy = ServiceProxy(settings.ADMIN_SERVICE_URL)
@@ -12,7 +13,9 @@ _scheduler_proxy = ServiceProxy(settings.SCHEDULER_SERVICE_URL)
 def require_admin(request: Request):
     user = getattr(request.state, "user", None)
     if not user or user.get("role") != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required"
+        )
 
 
 @router.get("/connectors", summary="List all connectors and their health")
@@ -21,7 +24,9 @@ async def list_connectors(request: Request):
     return await _connector_proxy.get("/connectors")
 
 
-@router.post("/connectors/{source_id}/sync", summary="Trigger manual sync for a connector")
+@router.post(
+    "/connectors/{source_id}/sync", summary="Trigger manual sync for a connector"
+)
 async def trigger_sync(request: Request, source_id: str):
     require_admin(request)
     return await _connector_proxy.post(f"/connectors/{source_id}/sync")
@@ -38,7 +43,6 @@ async def list_sync_jobs(request: Request):
 async def get_sync_job_logs(request: Request, job_id: str):
     require_admin(request)
     return await _scheduler_proxy.get(f"/scheduler/jobs/{job_id}/logs")
-
 
 
 @router.get("/users", summary="List all users")

@@ -1,5 +1,5 @@
 """API Gateway configuration."""
-from typing import List
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     SERVICE_PORT: int = 8000
 
     # CORS
-    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:3001"]
+    CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:3001"]
 
     # JWT
     JWT_SECRET: str = "change-me-in-production"
@@ -49,7 +49,6 @@ class Settings(BaseSettings):
     SCHEDULER_SERVICE_URL: str = "http://scheduler-service:8004"
     BILLING_SERVICE_URL: str = "http://billing-service:8020"
 
-
     # Rate limit defaults (requests per minute)
     RATE_LIMIT_FREE: int = 10
     RATE_LIMIT_SME: int = 200
@@ -61,7 +60,9 @@ class Settings(BaseSettings):
     @property
     def redis_url(self) -> str:
         if self.REDIS_PASSWORD:
-            return f"redis://:{self.REDIS_PASSWORD}@{self.REDIS_HOST}:{self.REDIS_PORT}/0"
+            return (
+                f"redis://:{self.REDIS_PASSWORD}@{self.REDIS_HOST}:{self.REDIS_PORT}/0"
+            )
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/0"
 
     @property

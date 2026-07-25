@@ -2,6 +2,7 @@
 14 Real PSU Connectors — Phase 14.5.
 All extend PSUBaseConnector — no fixture data.
 """
+
 from app.connectors.plugins.psu.psu_base import PSUBaseConnector
 
 
@@ -132,7 +133,14 @@ class SAILConnector(PSUBaseConnector):
     display_name = "SAIL — Steel Authority of India Limited"
     description = "Steel plant equipment and raw material procurement"
     PSU_NAME = "Steel Authority of India"
-    PSU_KEYWORDS = ["sail ", "steel authority of india", "bhilai steel", "bokaro", "rourkela steel", "durgapur"]
+    PSU_KEYWORDS = [
+        "sail ",
+        "steel authority of india",
+        "bhilai steel",
+        "bokaro",
+        "rourkela steel",
+        "durgapur",
+    ]
     MINISTRY = "Ministry of Steel"
     STATE = "Delhi"
     TENDER_URL = "https://sail.co.in/tenders"
@@ -236,4 +244,3 @@ class BPCLConnector(PSUBaseConnector):
     STATE = "Maharashtra"
     TENDER_URL = "https://bpcltenders.bpcl.in"
     TENDER_URL_ALT = ["https://bpcl.in/tenders"]
-

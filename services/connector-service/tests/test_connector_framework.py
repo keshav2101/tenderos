@@ -10,13 +10,12 @@ Tests cover:
   - Registry auto-discovery
   - Individual connector health_check() mocks
 """
+
 from __future__ import annotations
-import asyncio
-import hashlib
-import sys
+
 import os
+import sys
 from datetime import datetime, timedelta
-from typing import AsyncIterator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -24,19 +23,14 @@ import pytest
 # Ensure service root is in path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from app.connectors.base import (
-    BaseConnector, CadenceConfig, ConnectorState, HealthStatus,
-    RateLimitConfig, RawTender, RetryPolicy,
-)
-from app.connectors.normalization import normalize_tender, normalize_state
+from app.connectors.base import BaseConnector, ConnectorState, HealthStatus, RawTender
+from app.connectors.normalization import normalize_state, normalize_tender
+from app.connectors.quality_engine import (QUALITY_THRESHOLD, ConnectorQualityReport, compute_dedup_key,
+                                           compute_quality_score, is_quality_acceptable)
 from app.connectors.validation import validate_tender
-from app.connectors.quality_engine import (
-    compute_quality_score, compute_dedup_key, is_quality_acceptable,
-    ConnectorQualityReport, QUALITY_THRESHOLD,
-)
-
 
 # ─── Fixtures ────────────────────────────────────────────────────────────────
+
 
 def make_raw_tender(source_id: str = "cppp", raw_json: dict = None) -> RawTender:
     now = datetime.utcnow()
@@ -44,7 +38,8 @@ def make_raw_tender(source_id: str = "cppp", raw_json: dict = None) -> RawTender
         source_id=source_id,
         source_tender_id=f"{source_id.upper()}/2026/0001",
         source_url=f"https://{source_id}.gov.in/tenders/0001",
-        raw_json=raw_json or {
+        raw_json=raw_json
+        or {
             "title": "Construction of District Hospital — CPWD",
             "ministry": "Ministry of Health and Family Welfare",
             "department": "CPWD Health Division",
@@ -66,6 +61,7 @@ def make_raw_tender(source_id: str = "cppp", raw_json: dict = None) -> RawTender
 
 
 # ─── Normalization Tests ──────────────────────────────────────────────────────
+
 
 class TestNormalization:
     def test_state_normalization_exact_match(self):
@@ -97,12 +93,16 @@ class TestNormalization:
             source_url="https://gem.gov.in/bid/001",
             raw_json={
                 "b_category_name": ["Laptop Computers"],
-                "ba_official_details_minName": ["Ministry of Electronics and Information Technology"],
+                "ba_official_details_minName": [
+                    "Ministry of Electronics and Information Technology"
+                ],
                 "ba_official_details_deptName": ["NIC Delhi"],
                 "ba_official_details_officeName": ["NIC HQ"],
                 "b_total_quantity": [100],
                 "final_start_date_sort": [(datetime.utcnow()).isoformat()],
-                "final_end_date_sort": [(datetime.utcnow() + timedelta(days=7)).isoformat()],
+                "final_end_date_sort": [
+                    (datetime.utcnow() + timedelta(days=7)).isoformat()
+                ],
                 "ba_official_details_email": ["nic@gem.gov.in"],
                 "ba_official_details_name": ["GeM Buyer NIC"],
                 "ba_official_details_desg": ["Deputy Director"],
@@ -138,6 +138,7 @@ class TestNormalization:
 
 
 # ─── Validation Tests ─────────────────────────────────────────────────────────
+
 
 class TestValidation:
     def test_valid_tender_passes(self):
@@ -194,6 +195,7 @@ class TestValidation:
 
 
 # ─── Quality Engine Tests ─────────────────────────────────────────────────────
+
 
 class TestQualityEngine:
     def _make_complete_tender_dict(self) -> dict:
@@ -257,6 +259,7 @@ class TestQualityEngine:
 
 # ─── ConnectorState Tests ─────────────────────────────────────────────────────
 
+
 class TestConnectorState:
     def test_initial_state_enabled(self):
         state = ConnectorState(source_id="test")
@@ -273,6 +276,7 @@ class TestConnectorState:
 
 # ─── RawTender Content Hash Tests ─────────────────────────────────────────────
 
+
 class TestRawTender:
     def test_content_hash_deterministic(self):
         raw = make_raw_tender("cppp")
@@ -288,51 +292,66 @@ class TestRawTender:
 
 # ─── Registry Tests ───────────────────────────────────────────────────────────
 
+
 class TestRegistry:
     def test_registry_loads_connectors(self):
-        from app.connectors.registry import list_connectors, get_all_source_ids
+        from app.connectors.registry import get_all_source_ids, list_connectors
+
         connectors = list_connectors()
         all_ids = get_all_source_ids()
-        assert len(connectors) >= 5, f"Expected at least 5 connectors, got {len(connectors)}"
+        assert len(connectors) >= 5, (
+            f"Expected at least 5 connectors, got {len(connectors)}"
+        )
         assert len(all_ids) >= 5
 
     def test_get_connector_returns_instance(self):
         from app.connectors.registry import get_connector
+
         connector = get_connector("cppp")
         assert isinstance(connector, BaseConnector)
         assert connector.source_id == "cppp"
 
     def test_get_connector_unknown_raises(self):
         from app.connectors.registry import get_connector
+
         with pytest.raises(ValueError):
             get_connector("nonexistent_source_xyz")
 
     def test_registry_includes_gem(self):
         from app.connectors.registry import get_all_source_ids
+
         assert "gem" in get_all_source_ids()
 
     def test_registry_includes_railways(self):
         from app.connectors.registry import get_all_source_ids
+
         assert "railways" in get_all_source_ids()
 
 
 # ─── Connector Health Check Tests (mocked network) ────────────────────────────
 
+
 class TestConnectorHealthChecks:
     @pytest.mark.asyncio
     async def test_cppp_health_check_healthy(self):
         from app.connectors.registry import get_connector
+
         connector = get_connector("cppp")
         with patch("httpx.AsyncClient.head", new_callable=AsyncMock) as mock_head:
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_head.return_value = mock_response
             result = await connector.health_check()
-        assert result in (HealthStatus.HEALTHY, HealthStatus.DEGRADED, HealthStatus.FAILED)
+        assert result in (
+            HealthStatus.HEALTHY,
+            HealthStatus.DEGRADED,
+            HealthStatus.FAILED,
+        )
 
     @pytest.mark.asyncio
     async def test_gem_connector_enable_disable(self):
         from app.connectors.registry import get_connector
+
         connector = get_connector("gem")
         connector.enable()
         assert connector._state.enabled is True
@@ -343,10 +362,13 @@ class TestConnectorHealthChecks:
     @pytest.mark.asyncio
     async def test_record_run_success(self):
         from app.connectors.registry import get_connector
+
         connector = get_connector("cppp")
         connector.record_run_start()
         assert connector._state.status == "running"
-        connector.record_run_success(new=5, updated=2, total=10, duration=3.5, quality_score=80.0)
+        connector.record_run_success(
+            new=5, updated=2, total=10, duration=3.5, quality_score=80.0
+        )
         assert connector._state.success_count == 1
         assert connector._state.new_tenders == 5
         assert connector._state.quality_score == 80.0
@@ -354,6 +376,7 @@ class TestConnectorHealthChecks:
     @pytest.mark.asyncio
     async def test_record_run_failure(self):
         from app.connectors.registry import get_connector
+
         connector = get_connector("cppp")
         connector.record_run_failure("Network timeout")
         assert connector._state.failure_count >= 1

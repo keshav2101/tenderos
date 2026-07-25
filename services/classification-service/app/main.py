@@ -1,4 +1,5 @@
 """Classification service performing sector tagging on tender documents."""
+
 import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -6,8 +7,13 @@ from pydantic import BaseModel
 
 logger = structlog.get_logger()
 app = FastAPI(title="TenderOS Classification Service")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
-                   allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 class ClassificationRequest(BaseModel):
@@ -18,10 +24,59 @@ class ClassificationRequest(BaseModel):
 
 # Predefined domain keywords for classification rules (Zero-Shot mock mapping)
 CATEGORIES_MAPPING = {
-    "IT & Software": ["software", "cloud", "security", "saas", "application", "database", "it support", "developer", "coding", "intelligence", "ai", "machine learning"],
-    "Medical & Healthcare": ["hospital", "medical", "drug", "medicine", "surgical", "vaccine", "clinical", "health", "doctor", "nurse", "patient", "aiims"],
-    "Civil & Construction": ["road", "bridge", "building", "construction", "civil", "concrete", "steel", "excavation", "highway", "cement", "painting"],
-    "Consultancy & Professional Services": ["audit", "consultant", "advisory", "management", "financial", "legal", "compliance", "assessment", "training", "feasibility"]
+    "IT & Software": [
+        "software",
+        "cloud",
+        "security",
+        "saas",
+        "application",
+        "database",
+        "it support",
+        "developer",
+        "coding",
+        "intelligence",
+        "ai",
+        "machine learning",
+    ],
+    "Medical & Healthcare": [
+        "hospital",
+        "medical",
+        "drug",
+        "medicine",
+        "surgical",
+        "vaccine",
+        "clinical",
+        "health",
+        "doctor",
+        "nurse",
+        "patient",
+        "aiims",
+    ],
+    "Civil & Construction": [
+        "road",
+        "bridge",
+        "building",
+        "construction",
+        "civil",
+        "concrete",
+        "steel",
+        "excavation",
+        "highway",
+        "cement",
+        "painting",
+    ],
+    "Consultancy & Professional Services": [
+        "audit",
+        "consultant",
+        "advisory",
+        "management",
+        "financial",
+        "legal",
+        "compliance",
+        "assessment",
+        "training",
+        "feasibility",
+    ],
 }
 
 
@@ -45,9 +100,13 @@ async def classify_tender(req: ClassificationRequest):
     if not matched_categories:
         matched_categories.append("General Procurement")
 
-    logger.info("Classification complete", tender_id=req.tender_id, categories=matched_categories)
+    logger.info(
+        "Classification complete",
+        tender_id=req.tender_id,
+        categories=matched_categories,
+    )
     return {
         "tender_id": req.tender_id,
         "primary_category": matched_categories[0],
-        "all_categories": matched_categories
+        "all_categories": matched_categories,
     }
