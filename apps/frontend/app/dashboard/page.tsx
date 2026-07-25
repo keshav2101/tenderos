@@ -169,11 +169,18 @@ function TenderCard({
               {tender.title}
             </Link>
             <div className="flex items-center gap-2 flex-shrink-0" onClick={e => e.stopPropagation()}>
-              {/* Portal badge */}
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md"
-                style={{ color: portal.color, background: portal.bg }}>
+              {/* Direct Portal Redirect badge */}
+              <a
+                href={portalUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={`Open official ${portal.label} tender portal`}
+                className="text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 hover:opacity-90 transition-opacity"
+                style={{ color: portal.color, background: portal.bg }}
+              >
                 {portal.label}
-              </span>
+                <ExternalLink className="w-2.5 h-2.5" />
+              </a>
               {tender.recommendation && <RecBadge rec={tender.recommendation} />}
               <button
                 onClick={handleWatchlist}
@@ -231,17 +238,20 @@ function TenderCard({
           )}
 
           {/* View on Portal */}
-          <div className="mt-2 pt-2 border-t border-white/5" onClick={e => e.stopPropagation()}>
+          <div className="mt-2 pt-2 border-t border-white/5 flex items-center justify-between" onClick={e => e.stopPropagation()}>
             <a
               href={portalUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-[11px] font-medium hover:underline transition-colors"
+              className="inline-flex items-center gap-1.5 text-[11px] font-semibold hover:underline transition-colors"
               style={{ color: portal.color }}
             >
-              <ExternalLink className="w-3 h-3" />
-              View on {portal.label} Portal
+              <ExternalLink className="w-3.5 h-3.5" />
+              Open Official {portal.label} Portal Website →
             </a>
+            {tender.source_tender_id && (
+              <span className="text-[10px] text-muted font-mono">{tender.source_tender_id}</span>
+            )}
           </div>
         </div>
       </div>
@@ -516,6 +526,8 @@ function DashboardContent() {
                   <option value={20}>20</option>
                   <option value={50}>50</option>
                   <option value={100}>100</option>
+                  <option value={250}>250</option>
+                  <option value={500}>500</option>
                 </select>
               </div>
             </div>

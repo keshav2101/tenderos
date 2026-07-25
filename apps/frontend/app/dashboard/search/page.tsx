@@ -96,6 +96,7 @@ function SearchContent() {
   
   // Pagination & Sorting
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [sortBy, setSortBy] = useState("published_at_desc");
 
   // Load recent searches from localStorage
@@ -145,7 +146,7 @@ function SearchContent() {
         msme_eligible: msmeOnly ? true : undefined,
         startup_eligible: startupOnly ? true : undefined,
         page,
-        limit: 10,
+        limit: pageSize,
         sort: sortBy,
       };
 
@@ -388,80 +389,112 @@ function SearchContent() {
         ) : (
           <>
             <div className="space-y-3">
-              {tenders.map((tender) => (
-                <div key={tender.id} className="card p-5 hover:-translate-y-0.5 transition-all duration-200 group">
-                  <div className="flex gap-4">
-                    {tender.match_score != null && (
-                      <div className="w-9 h-9 rounded-full border border-emerald-400/20 bg-emerald-400/10 text-emerald-400 text-xs font-bold flex items-center justify-center flex-shrink-0">
-                        {tender.match_score}
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-3 mb-1">
-                        <Link href={`/dashboard/tenders/${tender.id}`} className="text-sm font-semibold text-primary hover:text-indigo-300 leading-tight line-clamp-1">
-                          {tender.title}
-                        </Link>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          {(() => {
-                            const p = getPortal(tender.source);
-                            return (
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md"
-                                style={{ color: p.color, background: p.bg }}>
-                                {p.label}
-                              </span>
-                            );
-                          })()}
+              {tenders.map((tender) => {
+                const portal = getPortal(tender.source);
+                const portalUrl = tender.source_url || portal.defaultUrl;
+                return (
+                  <div
+                    key={tender.id}
+                    onClick={() => router.push(`/dashboard/tenders/${tender.id}`)}
+                    className="card p-5 hover:-translate-y-0.5 transition-all duration-200 group cursor-pointer"
+                  >
+                    <div className="flex gap-4">
+                      {tender.match_score != null && (
+                        <div className="w-9 h-9 rounded-full border border-emerald-400/20 bg-emerald-400/10 text-emerald-400 text-xs font-bold flex items-center justify-center flex-shrink-0">
+                          {tender.match_score}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-3 mb-1">
+                          <Link
+                            href={`/dashboard/tenders/${tender.id}`}
+                            onClick={e => e.stopPropagation()}
+                            className="text-sm font-semibold text-primary hover:text-indigo-300 transition-colors leading-tight line-clamp-1 flex-1"
+                          >
+                            {tender.title}
+                          </Link>
+                          <div className="flex items-center gap-2 flex-shrink-0" onClick={e => e.stopPropagation()}>
+                            <a
+                              href={portalUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title={`Open official ${portal.label} tender portal`}
+                              className="text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 hover:opacity-90 transition-opacity"
+                              style={{ color: portal.color, background: portal.bg }}
+                            >
+                              {portal.label}
+                              <ExternalLink className="w-2.5 h-2.5" />
+                            </a>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-secondary mb-2">
+                          <span>{tender.ministry || "Ministry"}</span>
+                          <span>·</span>
+                          <span>{tender.state || "State"}</span>
+                          <span>·</span>
+                          {tender.estimated_cost_lakhs && (
+                            <span className="font-semibold text-primary">₹{(tender.estimated_cost_lakhs / 100).toFixed(2)} Cr</span>
+                          )}
+                          {tender.submission_deadline && (
+                            <span>· {new Date(tender.submission_deadline).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</span>
+                          )}
+                          {tender.msme_eligible && <span className="text-emerald-400 font-medium">· MSME Exempt</span>}
+                        </div>
+                        {tender.ai_summary && (
+                          <p className="text-xs text-muted line-clamp-2 mb-2">{tender.ai_summary}</p>
+                        )}
+                        <div className="mt-2 pt-2 border-t border-white/5 flex items-center justify-between" onClick={e => e.stopPropagation()}>
+                          <a
+                            href={portalUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-[11px] font-semibold hover:underline transition-colors"
+                            style={{ color: portal.color }}
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            Open Official {portal.label} Portal Website →
+                          </a>
+                          {tender.source_tender_id && (
+                            <span className="text-[10px] text-muted font-mono">{tender.source_tender_id}</span>
+                          )}
                         </div>
                       </div>
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-secondary mb-2">
-                        <span>{tender.ministry || "Ministry"}</span>
-                        <span>·</span>
-                        <span>{tender.state || "State"}</span>
-                        <span>·</span>
-                        {tender.estimated_cost_lakhs && (
-                          <span className="font-semibold text-primary">₹{(tender.estimated_cost_lakhs / 100).toFixed(2)} Cr</span>
-                        )}
-                        {tender.submission_deadline && (
-                          <span>· {new Date(tender.submission_deadline).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</span>
-                        )}
-                        {tender.msme_eligible && <span className="text-emerald-400 font-medium">· MSME Exempt</span>}
-                      </div>
-                      {tender.ai_summary && (
-                        <p className="text-xs text-muted line-clamp-2 mb-2">{tender.ai_summary}</p>
-                      )}
-                      {tender.source_url && (
-                        <a
-                          href={tender.source_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={e => e.stopPropagation()}
-                          className="inline-flex items-center gap-1 text-[11px] font-medium hover:underline"
-                          style={{ color: getPortal(tender.source).color }}
-                        >
-                          <ExternalLink className="w-3 h-3" />
-                          View on {getPortal(tender.source).label} Portal
-                        </a>
-                      )}
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Pagination controls */}
-            {total > 10 && (
-              <div className="flex items-center justify-between text-xs text-secondary pt-4">
-                <span>Page {page} of {Math.ceil(total / 10)}</span>
-                <div className="flex gap-2">
-                  <button disabled={page === 1} onClick={() => setPage(p => p - 1)} className="btn btn-secondary py-1 px-3 disabled:opacity-40">
-                    Previous
-                  </button>
-                  <button disabled={page * 10 >= total} onClick={() => setPage(p => p + 1)} className="btn btn-secondary py-1 px-3 disabled:opacity-40">
-                    Next
-                  </button>
+            <div className="flex items-center justify-between text-xs text-secondary pt-4 border-t border-white/5">
+              <div className="flex items-center gap-3">
+                <span>Showing {total > 0 ? (page - 1) * pageSize + 1 : 0}–{Math.min(page * pageSize, total)} of {total.toLocaleString("en-IN")} live tenders</span>
+                <div className="flex items-center gap-1.5 text-xs text-muted">
+                  <span>Per page:</span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
+                    className="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-secondary focus:outline-none focus:border-indigo-500"
+                  >
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                    <option value={250}>250</option>
+                    <option value={500}>500</option>
+                  </select>
                 </div>
               </div>
-            )}
+              {total > pageSize && (
+                <div className="flex gap-2">
+                  <button disabled={page === 1} onClick={() => setPage(p => p - 1)} className="btn btn-secondary py-1 px-3 disabled:opacity-40">
+                    ← Previous
+                  </button>
+                  <button disabled={page * pageSize >= total} onClick={() => setPage(p => p + 1)} className="btn btn-secondary py-1 px-3 disabled:opacity-40">
+                    Next →
+                  </button>
+                </div>
+              )}
+            </div>
           </>
         )}
       </div>
