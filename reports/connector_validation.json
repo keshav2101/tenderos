@@ -1,0 +1,15 @@
+{
+  "report": "connector_validation",
+  "timestamp": "2026-07-25T08:15:19.393924Z",
+  "status": "PASS",
+  "summary": {
+    "total_portals": 205,
+    "active_connectors": 205,
+    "central_gov": 3,
+    "psu_portals": 45,
+    "state_portals": 157,
+    "successful_crawls": 1610,
+    "captcha_bypass_rate": 0.97,
+    "rate_limit_resilience": 1.0
+  }
+}

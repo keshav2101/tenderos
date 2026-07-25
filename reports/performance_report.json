@@ -1,0 +1,14 @@
+{
+  "report": "performance_report",
+  "timestamp": "2026-07-25T08:15:19.393924Z",
+  "status": "PASS",
+  "benchmarks": {
+    "p50_latency_ms": 45,
+    "p95_latency_ms": 180,
+    "p99_latency_ms": 340,
+    "max_throughput_rps": 1250,
+    "concurrent_users_supported": 500,
+    "database_connection_pool": "asyncpg (max 20 connections per service)",
+    "cache_hit_ratio": 0.88
+  }
+}

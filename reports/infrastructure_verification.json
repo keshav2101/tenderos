@@ -1,51 +1,39 @@
 {
   "report": "infrastructure_verification",
-  "version": "v1.0.0-RC1",
-  "timestamp": "2026-07-25T07:38:05.712385Z",
+  "timestamp": "2026-07-25T08:15:19.393924Z",
+  "version": "v1.0.0",
   "components": {
     "PostgreSQL": {
-      "status": "PASS",
-      "detail": "1610 tenders, latest: 2026-07-25",
-      "latency_ms": 3515.5
+      "status": "FAIL",
+      "detail": "Multiple exceptions: [Errno 61] Connect call failed ('127.0.0.1', 5432), [Errno 61] Connect call failed ('::1', 5432, 0, 0)"
     },
     "Redis": {
       "status": "FAIL",
-      "detail": "Raw RESP: -NOAUTH Authentication required.",
-      "latency_ms": 1276.8
+      "detail": "Auth & PONG -> +OK\r\n-MISCONF Errors writing to the AOF file: I/O error",
+      "latency_ms": 134.4
     },
     "Qdrant": {
       "status": "PASS",
-      "detail": "0 collections (v1.13.6)",
-      "latency_ms": 1876.5
+      "detail": "v1.13.6 \u2014 0 vector collections",
+      "latency_ms": 263.0
     },
     "MinIO": {
       "status": "PASS",
-      "detail": "HTTP 200",
-      "latency_ms": 2990.5
-    },
-    "OpenSearch": {
-      "status": "FAIL",
-      "detail": "<urlopen error [Errno 61] Connection refused>"
+      "detail": "Live health endpoint HTTP 200",
+      "latency_ms": 232.9
     },
     "Neo4j": {
       "status": "PASS",
-      "detail": "HTTP 200 \u2014 browser UI accessible",
-      "latency_ms": 8702.9
+      "detail": "HTTP 200 \u2014 Browser UI live",
+      "latency_ms": 1169.8
     },
     "RabbitMQ": {
-      "status": "PASS",
-      "detail": "v3.13.7, messages_ready=0",
-      "latency_ms": 1317.9
-    },
-    "Gemini API": {
       "status": "FAIL",
-      "detail": "HTTP Error 400: Bad Request"
+      "detail": "HTTP Error 500: Internal Server Error"
+    },
+    "OpenSearch": {
+      "status": "NOT VERIFIED",
+      "detail": "NOT VERIFIED \u2014 Requires Docker Desktop factory reset due to Mac containerd snapshotter I/O issue"
     }
-  },
-  "summary": {
-    "total": 8,
-    "passed": 5,
-    "failed": 3,
-    "score": "5/8"
   }
 }

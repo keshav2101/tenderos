@@ -1,0 +1,77 @@
+{
+  "report": "api_validation",
+  "timestamp": "2026-07-25T08:15:19.393924Z",
+  "services": {
+    "tender-service": {
+      "port": 8002,
+      "status": "PASS",
+      "http_code": 200,
+      "latency_ms": 184.5
+    },
+    "connector-service": {
+      "port": 8003,
+      "status": "PASS",
+      "http_code": 200,
+      "latency_ms": 168.9
+    },
+    "scheduler-service": {
+      "port": 8004,
+      "status": "PASS",
+      "http_code": 200,
+      "latency_ms": 204.0
+    },
+    "document-pipeline": {
+      "port": 8005,
+      "status": "FAIL",
+      "error": "HTTP Error 404: Not Found"
+    },
+    "classification-service": {
+      "port": 8008,
+      "status": "PASS",
+      "http_code": 200,
+      "latency_ms": 295.9
+    },
+    "knowledge-graph-service": {
+      "port": 8009,
+      "status": "PASS",
+      "http_code": 200,
+      "latency_ms": 139.4
+    },
+    "copilot-service": {
+      "port": 8011,
+      "status": "PASS",
+      "http_code": 200,
+      "latency_ms": 468.0
+    },
+    "market-intelligence-service": {
+      "port": 8014,
+      "status": "PASS",
+      "http_code": 200,
+      "latency_ms": 550.9
+    },
+    "proposal-service": {
+      "port": 8017,
+      "status": "PASS",
+      "http_code": 200,
+      "latency_ms": 674.2
+    },
+    "billing-service": {
+      "port": 8020,
+      "status": "PASS",
+      "http_code": 200,
+      "latency_ms": 335.1
+    },
+    "governance-service": {
+      "port": 8021,
+      "status": "PASS",
+      "http_code": 200,
+      "latency_ms": 156.2
+    },
+    "data-quality-service": {
+      "port": 8022,
+      "status": "PASS",
+      "http_code": 200,
+      "latency_ms": 204.8
+    }
+  }
+}

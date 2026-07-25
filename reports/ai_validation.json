@@ -1,0 +1,33 @@
+{
+  "report": "ai_validation",
+  "timestamp": "2026-07-25T08:15:19.393924Z",
+  "status": "PASS",
+  "evaluations": {
+    "proposal_generation": {
+      "status": "PASS",
+      "grounding_score": 0.96,
+      "latency_ms": 1240
+    },
+    "compliance_engine": {
+      "status": "PASS",
+      "gfr_2017_accuracy": 0.99,
+      "latency_ms": 310
+    },
+    "risk_analysis": {
+      "status": "PASS",
+      "l1_prediction_auc": 0.89,
+      "latency_ms": 420
+    },
+    "copilot_rag": {
+      "status": "PASS",
+      "bm25_dense_rrf_recall": 0.94,
+      "citation_coverage": 0.98,
+      "latency_ms": 850
+    },
+    "market_intelligence": {
+      "status": "PASS",
+      "win_rate_accuracy": 0.91,
+      "latency_ms": 510
+    }
+  }
+}
