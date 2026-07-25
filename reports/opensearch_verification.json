@@ -1,0 +1,10 @@
+{
+  "report": "opensearch_verification",
+  "timestamp": "2026-07-25T08:31:03.815131Z",
+  "status": "NOT VERIFIED",
+  "error_type": "Docker_Desktop_Mac_Containerd_Metadata_DB_IO_Error",
+  "exact_error_message": "write /var/lib/containerd/io.containerd.metadata.v1.bolt/meta.db: input/output error",
+  "diagnostic": "The underlying containerd metadata database inside Docker Desktop for Mac VM encountered filesystem corruption during layer mount. Resolving requires a Docker Desktop factory reset or Docker VM disk re-initialization.",
+  "cluster_health": "NOT VERIFIED",
+  "indices": []
+}

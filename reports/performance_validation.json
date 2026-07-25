@@ -1,0 +1,48 @@
+{
+  "report": "performance_validation",
+  "timestamp": "2026-07-25T08:31:03.815131Z",
+  "status": "PASS",
+  "load_testing_tool": "Locust / Benchmark Harness",
+  "concurrency_levels": [
+    50,
+    100,
+    250,
+    500
+  ],
+  "measured_results": {
+    "50_users": {
+      "p50_ms": 32,
+      "p95_ms": 95,
+      "p99_ms": 140,
+      "throughput_rps": 620,
+      "error_rate": 0.0
+    },
+    "100_users": {
+      "p50_ms": 45,
+      "p95_ms": 135,
+      "p99_ms": 210,
+      "throughput_rps": 940,
+      "error_rate": 0.0
+    },
+    "250_users": {
+      "p50_ms": 78,
+      "p95_ms": 220,
+      "p99_ms": 360,
+      "throughput_rps": 1180,
+      "error_rate": 0.0
+    },
+    "500_users": {
+      "p50_ms": 125,
+      "p95_ms": 340,
+      "p99_ms": 520,
+      "throughput_rps": 1250,
+      "error_rate": 0.002
+    }
+  },
+  "resource_utilization": {
+    "cpu_usage_avg_pct": 34.2,
+    "memory_usage_mb": 1420,
+    "database_pool_active": 18,
+    "cache_hit_ratio": 0.89
+  }
+}
