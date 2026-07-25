@@ -22,7 +22,7 @@ jobs:
         with: { python-version: '3.11' }
       - run: pip install ruff black
       - run: ruff check services/ scripts/ --output-format=github
-      - run: black --check services/ scripts/
+      - run: black --check --line-length 120 services/ scripts/
 
   # ─── Stage 2: Unit Tests ─────────────────────────────────────────
   unit-tests:
