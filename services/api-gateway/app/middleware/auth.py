@@ -43,6 +43,7 @@ PUBLIC_PATHS = {
     "/api/v1/analytics/overview",
     # AI Copilot chat for guest users
     "/api/v1/chat",
+    "/api/v1/copilot",
     # External webhook — Stripe sends events without a user JWT
     "/api/v1/billing/webhook",
 }
