@@ -1,0 +1,25 @@
+{
+  "executionEnvironments": [
+    { "root": "services/api-gateway" },
+    { "root": "services/tender-service" },
+    { "root": "services/connector-service" },
+    { "root": "services/copilot-service" },
+    { "root": "services/proposal-service" },
+    { "root": "services/knowledge-graph-service" },
+    { "root": "services/scheduler-service" },
+    { "root": "services/document-pipeline" },
+    { "root": "services/classification-service" },
+    { "root": "services/market-intelligence-service" },
+    { "root": "services/billing-service" },
+    { "root": "services/governance-service" },
+    { "root": "services/data-quality-service" },
+    { "root": "services/auth-service" },
+    { "root": "services/bid-qualification-service" },
+    { "root": "services/ocr-service" },
+    { "root": "services/prediction-service" },
+    { "root": "services/notification-service" },
+    { "root": "services/ai-extraction" }
+  ],
+  "reportMissingImports": "none",
+  "reportMissingModuleSource": "none"
+}
