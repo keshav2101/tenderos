@@ -50,6 +50,9 @@ PUBLIC_PATHS = {
 
 class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
+        if request.method == "OPTIONS":
+            return await call_next(request)
+
         path = request.url.path
 
         # Extract tenant context based on subdomain/host
