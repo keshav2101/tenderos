@@ -19,7 +19,7 @@ langchain==0.2.5
 lxml==5.2.2
 minio==7.2.7
 neo4j==5.20.0
-openai==1.30.0
+openai==2.48.0
 opensearch-py[async]==2.6.0
 passlib[bcrypt]==1.7.4
 pdfplumber==0.11.0
