@@ -31,17 +31,24 @@ interface Tender {
   recommendation?: string;
 }
 
-const PORTAL_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  gem:       { label: "GeM",         color: "#4ade80", bg: "rgba(34,197,94,0.12)" },
-  cppp:      { label: "CPPP",        color: "#60a5fa", bg: "rgba(96,165,250,0.12)" },
-  defence:   { label: "Defence",     color: "#f87171", bg: "rgba(239,68,68,0.12)" },
-  railways:  { label: "IREPS",       color: "#fb923c", bg: "rgba(251,146,60,0.12)" },
-  ireps:     { label: "IREPS",       color: "#fb923c", bg: "rgba(251,146,60,0.12)" },
-  maharashtra:{ label: "Maha eProcure",color:"#a78bfa", bg: "rgba(167,139,250,0.12)" },
-  mock:      { label: "Demo",        color: "#94a3b8", bg: "rgba(148,163,184,0.12)" },
+const PORTAL_CONFIG: Record<string, { label: string; color: string; bg: string; defaultUrl: string }> = {
+  gem:         { label: "GeM",          color: "#4ade80", bg: "rgba(34,197,94,0.12)",   defaultUrl: "https://gem.gov.in" },
+  cppp:        { label: "CPPP",         color: "#60a5fa", bg: "rgba(96,165,250,0.12)",  defaultUrl: "https://eprocure.gov.in/eprocure/app" },
+  defence:     { label: "Defence",      color: "#f87171", bg: "rgba(239,68,68,0.12)",   defaultUrl: "https://defproc.gov.in" },
+  railways:    { label: "IREPS",        color: "#fb923c", bg: "rgba(251,146,60,0.12)",  defaultUrl: "https://ireps.gov.in" },
+  ireps:       { label: "IREPS",        color: "#fb923c", bg: "rgba(251,146,60,0.12)",  defaultUrl: "https://ireps.gov.in" },
+  maharashtra: { label: "Maha eProcure", color: "#a78bfa", bg: "rgba(167,139,250,0.12)", defaultUrl: "https://mahatenders.gov.in" },
+  karnataka:   { label: "Karnataka",    color: "#a78bfa", bg: "rgba(167,139,250,0.12)", defaultUrl: "https://eproc.karnataka.gov.in" },
 };
+
 function getPortal(source: string) {
-  return PORTAL_CONFIG[source?.toLowerCase()] || { label: source?.toUpperCase() || "GOV", color: "#94a3b8", bg: "rgba(148,163,184,0.12)" };
+  const key = (source || "").toLowerCase();
+  return PORTAL_CONFIG[key] || {
+    label: (source || "GOV").toUpperCase(),
+    color: "#94a3b8",
+    bg: "rgba(148,163,184,0.12)",
+    defaultUrl: "https://cppp.gov.in"
+  };
 }
 
 

@@ -39,19 +39,24 @@ interface Tender {
 }
 
 // ─── Portal config ─────────────────────────────────────────────────────────────
-const PORTAL_CONFIG: Record<string, { label: string; color: string; bg: string; url?: string }> = {
-  gem:       { label: "GeM",      color: "#4ade80", bg: "rgba(34,197,94,0.12)" },
-  cppp:      { label: "CPPP",     color: "#60a5fa", bg: "rgba(96,165,250,0.12)" },
-  defence:   { label: "Defence",  color: "#f87171", bg: "rgba(239,68,68,0.12)" },
-  railways:  { label: "IREPS",    color: "#fb923c", bg: "rgba(251,146,60,0.12)" },
-  ireps:     { label: "IREPS",    color: "#fb923c", bg: "rgba(251,146,60,0.12)" },
-  maharashtra: { label: "Maha eProcure", color: "#a78bfa", bg: "rgba(167,139,250,0.12)" },
-  karnataka: { label: "Karnataka", color: "#a78bfa", bg: "rgba(167,139,250,0.12)" },
-  mock:      { label: "Demo",     color: "#94a3b8", bg: "rgba(148,163,184,0.12)" },
+const PORTAL_CONFIG: Record<string, { label: string; color: string; bg: string; defaultUrl: string }> = {
+  gem:         { label: "GeM",          color: "#4ade80", bg: "rgba(34,197,94,0.12)",   defaultUrl: "https://gem.gov.in" },
+  cppp:        { label: "CPPP",         color: "#60a5fa", bg: "rgba(96,165,250,0.12)",  defaultUrl: "https://eprocure.gov.in/eprocure/app" },
+  defence:     { label: "Defence",      color: "#f87171", bg: "rgba(239,68,68,0.12)",   defaultUrl: "https://defproc.gov.in" },
+  railways:    { label: "IREPS",        color: "#fb923c", bg: "rgba(251,146,60,0.12)",  defaultUrl: "https://ireps.gov.in" },
+  ireps:       { label: "IREPS",        color: "#fb923c", bg: "rgba(251,146,60,0.12)",  defaultUrl: "https://ireps.gov.in" },
+  maharashtra: { label: "Maha eProcure", color: "#a78bfa", bg: "rgba(167,139,250,0.12)", defaultUrl: "https://mahatenders.gov.in" },
+  karnataka:   { label: "Karnataka",    color: "#a78bfa", bg: "rgba(167,139,250,0.12)", defaultUrl: "https://eproc.karnataka.gov.in" },
 };
 
 function getPortal(source: string) {
-  return PORTAL_CONFIG[source?.toLowerCase()] || { label: source?.toUpperCase() || "GOV", color: "#94a3b8", bg: "rgba(148,163,184,0.12)" };
+  const key = (source || "").toLowerCase();
+  return PORTAL_CONFIG[key] || {
+    label: (source || "GOV").toUpperCase(),
+    color: "#94a3b8",
+    bg: "rgba(148,163,184,0.12)",
+    defaultUrl: "https://cppp.gov.in"
+  };
 }
 
 // ─── Sector options ────────────────────────────────────────────────────────────
@@ -68,78 +73,77 @@ const CATEGORY_COLORS: Record<string, string> = {
   "Civil & Construction": "badge-yellow", "Drone": "badge-yellow",
   "GIS": "badge-green", "Smart City": "badge-blue",
   "Data Analytics": "badge-yellow", "Medical & Healthcare": "badge-green",
+  "Software": "badge-blue", "Infrastructure": "badge-yellow",
+  "Network": "badge-blue", "Consulting": "badge-gray",
   "Consultancy & Professional Services": "badge-gray",
 };
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+// ─── Score Circle ─────────────────────────────────────────────────────────────
 
 function ScoreCircle({ score }: { score: number }) {
-  const color =
-    score >= 70 ? "rgba(34,197,94,0.1)" : score >= 50 ? "rgba(245,158,11,0.1)" : "rgba(239,68,68,0.1)";
-  const border =
-    score >= 70 ? "rgba(34,197,94,0.3)" : score >= 50 ? "rgba(245,158,11,0.3)" : "rgba(239,68,68,0.3)";
-  const text =
-    score >= 70 ? "#4ade80" : score >= 50 ? "#fbbf24" : "#f87171";
+  const color = score >= 80 ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/10"
+    : score >= 60 ? "text-amber-400 border-amber-500/30 bg-amber-500/10"
+    : "text-red-400 border-red-500/30 bg-red-500/10";
   return (
-    <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0"
-      style={{ background: color, border: `1.5px solid ${border}`, color: text }}>
-      {score}
+    <div className={`w-10 h-10 rounded-xl border flex flex-col items-center justify-center flex-shrink-0 ${color}`}>
+      <span className="text-xs font-extrabold leading-none">{score}</span>
+      <span className="text-[7px] font-medium opacity-70 leading-none mt-0.5">FIT</span>
     </div>
   );
 }
+
+// ─── Recommendation Badge ──────────────────────────────────────────────────────
 
 function RecBadge({ rec }: { rec: string }) {
-  if (rec === "BID") return <span className="badge badge-green text-[10px]">✓ BID</span>;
-  if (rec === "CONDITIONAL_BID") return <span className="badge badge-yellow text-[10px]">⚠ Conditional</span>;
-  if (rec === "SKIP") return <span className="badge badge-red text-[10px]">✕ Skip</span>;
-  return <span className="badge badge-gray text-[10px]">Review</span>;
+  if (rec === "BID") return <span className="badge badge-green text-[10px] uppercase font-bold">BID</span>;
+  if (rec === "CONDITIONAL_BID") return <span className="badge badge-yellow text-[10px] uppercase font-bold">CONDITIONAL</span>;
+  return <span className="badge badge-gray text-[10px] uppercase font-bold">SKIP</span>;
 }
 
-function SkeletonCard() {
-  return (
-    <div className="card p-5">
-      <div className="flex gap-4">
-        <div className="skeleton w-10 h-10 rounded-full" />
-        <div className="flex-1 space-y-2">
-          <div className="skeleton h-4 w-3/4 rounded" />
-          <div className="skeleton h-3 w-1/2 rounded" />
-          <div className="flex gap-2 mt-2">
-            <div className="skeleton h-5 w-16 rounded-full" />
-            <div className="skeleton h-5 w-20 rounded-full" />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+// ─── Tender Card ──────────────────────────────────────────────────────────────
 
 function TenderCard({
-  tender, onWatchlist, onCompareToggle, compareSelected
+  tender,
+  onWatchlist,
+  onCompareToggle,
+  compareSelected,
 }: {
   tender: Tender;
   onWatchlist: (id: string) => void;
   onCompareToggle: (id: string) => void;
   compareSelected: boolean;
 }) {
+  const router = useRouter();
   const [watchlisted, setWatchlisted] = useState(false);
   const daysLeft = tender.submission_deadline
     ? Math.ceil((new Date(tender.submission_deadline).getTime() - Date.now()) / 86400000)
     : null;
   const isUrgent = daysLeft !== null && daysLeft <= 7;
 
+  const portal = getPortal(tender.source);
+  const portalUrl = tender.source_url || portal.defaultUrl;
+
   function handleWatchlist(e: React.MouseEvent) {
+    e.stopPropagation();
     e.preventDefault();
     setWatchlisted((v) => !v);
     onWatchlist(tender.id);
   }
 
+  function handleCardClick() {
+    router.push(`/dashboard/tenders/${tender.id}`);
+  }
+
   return (
-    <div className={`card p-5 hover:-translate-y-0.5 transition-all duration-200 group animate-fade-in ${
-      compareSelected ? "border-indigo-500/50 ring-1 ring-indigo-500/30" : ""
-    }`}>
+    <div
+      onClick={handleCardClick}
+      className={`card p-5 hover:-translate-y-0.5 transition-all duration-200 group cursor-pointer animate-fade-in ${
+        compareSelected ? "border-indigo-500/50 ring-1 ring-indigo-500/30" : ""
+      }`}
+    >
       <div className="flex gap-4">
         {/* Compare checkbox */}
-        <div className="flex flex-col items-center gap-2 flex-shrink-0">
+        <div className="flex flex-col items-center gap-2 flex-shrink-0" onClick={e => e.stopPropagation()}>
           {tender.match_score != null && <ScoreCircle score={tender.match_score} />}
           <button
             onClick={() => onCompareToggle(tender.id)}
@@ -157,21 +161,19 @@ function TenderCard({
         <div className="flex-1 min-w-0">
           {/* Header */}
           <div className="flex items-start justify-between gap-3 mb-2">
-            <Link href={`/dashboard/tenders/${tender.id}`}
-              className="text-sm font-semibold text-primary hover:text-indigo-300 transition-colors leading-tight line-clamp-2 flex-1">
+            <Link
+              href={`/dashboard/tenders/${tender.id}`}
+              onClick={e => e.stopPropagation()}
+              className="text-sm font-semibold text-primary hover:text-indigo-300 transition-colors leading-tight line-clamp-2 flex-1"
+            >
               {tender.title}
             </Link>
-            <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex items-center gap-2 flex-shrink-0" onClick={e => e.stopPropagation()}>
               {/* Portal badge */}
-              {(() => {
-                const p = getPortal(tender.source);
-                return (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md"
-                    style={{ color: p.color, background: p.bg }}>
-                    {p.label}
-                  </span>
-                );
-              })()}
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md"
+                style={{ color: portal.color, background: portal.bg }}>
+                {portal.label}
+              </span>
               {tender.recommendation && <RecBadge rec={tender.recommendation} />}
               <button
                 onClick={handleWatchlist}
@@ -229,21 +231,18 @@ function TenderCard({
           )}
 
           {/* View on Portal */}
-          {tender.source_url && (
-            <div className="mt-2 pt-2 border-t border-white/5">
-              <a
-                href={tender.source_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={e => e.stopPropagation()}
-                className="inline-flex items-center gap-1.5 text-[11px] font-medium hover:underline transition-colors"
-                style={{ color: getPortal(tender.source).color }}
-              >
-                <ExternalLink className="w-3 h-3" />
-                View on {getPortal(tender.source).label} Portal
-              </a>
-            </div>
-          )}
+          <div className="mt-2 pt-2 border-t border-white/5" onClick={e => e.stopPropagation()}>
+            <a
+              href={portalUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-[11px] font-medium hover:underline transition-colors"
+              style={{ color: portal.color }}
+            >
+              <ExternalLink className="w-3 h-3" />
+              View on {portal.label} Portal
+            </a>
+          </div>
         </div>
       </div>
 
@@ -296,6 +295,7 @@ function DashboardContent() {
         page,
         page_size: pageSize,
         sort_by: "published",
+        _t: Date.now(),
       };
       if (filterMsme) params.msme_eligible = true;
       if (search) params.q = search;
