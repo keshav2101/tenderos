@@ -11,25 +11,17 @@ _proxy = ServiceProxy(settings.BID_QUAL_SERVICE_URL)
 
 @router.get("/{tender_id}", summary="Full eligibility + bid qualification report")
 async def get_eligibility(request: Request, tender_id: str = Path(...)):
-    """
-    Returns:
-    - Match score (0-100)
-    - Eligibility verdict
-    - Gap analysis (missing docs, certifications, turnover, experience)
-    - Winning probability
-    - Recommendation: BID / CONDITIONAL_BID / SKIP
-    - Estimated preparation hours
-    """
-    user = request.state.user
+    user = getattr(request.state, "user", None) or {}
+    user_id = user.get("user_id", "guest_user")
     return await _proxy.get(
         f"/qualify/{tender_id}",
-        params={"user_id": user["user_id"]},
+        params={"user_id": user_id},
     )
 
 
 @router.post("/bulk", summary="Batch eligibility check for multiple tenders")
 async def bulk_eligibility(request: Request):
-    user = request.state.user
+    user = getattr(request.state, "user", None) or {}
     body = await request.json()
-    body["user_id"] = user["user_id"]
+    body["user_id"] = user.get("user_id", "guest_user")
     return await _proxy.post("/qualify/bulk", json=body)

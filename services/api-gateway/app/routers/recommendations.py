@@ -15,8 +15,9 @@ async def get_recommendations(
     limit: int = Query(20, ge=1, le=100),
     min_score: int = Query(60, ge=0, le=100),
 ):
-    user = request.state.user
+    user = getattr(request.state, "user", None) or {}
+    user_id = user.get("user_id", "guest_user")
     return await _proxy.get(
         "/recommendations",
-        params={"user_id": user["user_id"], "limit": limit, "min_score": min_score},
+        params={"user_id": user_id, "limit": limit, "min_score": min_score},
     )
