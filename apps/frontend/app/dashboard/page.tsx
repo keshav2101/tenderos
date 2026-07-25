@@ -1,0 +1,508 @@
+"use client";
+
+import { useState, useEffect, useCallback, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import {
+  Search, IndianRupee, MapPin, Building2, Clock,
+  BookmarkPlus, BookmarkCheck, RefreshCw,
+  TrendingUp, AlertCircle, Loader2, GitCompare, X
+} from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { tendersApi, eligibilityApi } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
+
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface Tender {
+  id: string;
+  title: string;
+  ministry: string | null;
+  department: string | null;
+  state: string | null;
+  estimated_cost_lakhs: number | null;
+  emd_lakhs: number | null;
+  categories: string[];
+  submission_deadline: string | null;
+  msme_eligible: boolean;
+  startup_eligible: boolean;
+  source: string;
+  status: string;
+  ai_summary: string | null;
+  match_score?: number;
+  winning_probability?: number;
+  recommendation?: string;
+  sector?: string;
+}
+
+// ─── Sector options ───────────────────────────────────────────────────────────
+const SECTORS = [
+  "All Sectors", "Infrastructure", "Technology", "Healthcare",
+  "Defence", "Railways", "Education", "Agriculture", "General",
+];
+
+// ─── Category badge colours ───────────────────────────────────────────────────
+
+const CATEGORY_COLORS: Record<string, string> = {
+  "AI": "badge-blue", "Cloud": "badge-blue", "IT & Software": "badge-blue",
+  "Cybersecurity": "badge-red", "Healthcare": "badge-green",
+  "Civil & Construction": "badge-yellow", "Drone": "badge-yellow",
+  "GIS": "badge-green", "Smart City": "badge-blue",
+  "Data Analytics": "badge-yellow", "Medical & Healthcare": "badge-green",
+  "Consultancy & Professional Services": "badge-gray",
+};
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function ScoreCircle({ score }: { score: number }) {
+  const color =
+    score >= 70 ? "rgba(34,197,94,0.1)" : score >= 50 ? "rgba(245,158,11,0.1)" : "rgba(239,68,68,0.1)";
+  const border =
+    score >= 70 ? "rgba(34,197,94,0.3)" : score >= 50 ? "rgba(245,158,11,0.3)" : "rgba(239,68,68,0.3)";
+  const text =
+    score >= 70 ? "#4ade80" : score >= 50 ? "#fbbf24" : "#f87171";
+  return (
+    <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0"
+      style={{ background: color, border: `1.5px solid ${border}`, color: text }}>
+      {score}
+    </div>
+  );
+}
+
+function RecBadge({ rec }: { rec: string }) {
+  if (rec === "BID") return <span className="badge badge-green text-[10px]">✓ BID</span>;
+  if (rec === "CONDITIONAL_BID") return <span className="badge badge-yellow text-[10px]">⚠ Conditional</span>;
+  if (rec === "SKIP") return <span className="badge badge-red text-[10px]">✕ Skip</span>;
+  return <span className="badge badge-gray text-[10px]">Review</span>;
+}
+
+function SkeletonCard() {
+  return (
+    <div className="card p-5">
+      <div className="flex gap-4">
+        <div className="skeleton w-10 h-10 rounded-full" />
+        <div className="flex-1 space-y-2">
+          <div className="skeleton h-4 w-3/4 rounded" />
+          <div className="skeleton h-3 w-1/2 rounded" />
+          <div className="flex gap-2 mt-2">
+            <div className="skeleton h-5 w-16 rounded-full" />
+            <div className="skeleton h-5 w-20 rounded-full" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TenderCard({
+  tender, onWatchlist, onCompareToggle, compareSelected
+}: {
+  tender: Tender;
+  onWatchlist: (id: string) => void;
+  onCompareToggle: (id: string) => void;
+  compareSelected: boolean;
+}) {
+  const [watchlisted, setWatchlisted] = useState(false);
+  const daysLeft = tender.submission_deadline
+    ? Math.ceil((new Date(tender.submission_deadline).getTime() - Date.now()) / 86400000)
+    : null;
+  const isUrgent = daysLeft !== null && daysLeft <= 7;
+
+  function handleWatchlist(e: React.MouseEvent) {
+    e.preventDefault();
+    setWatchlisted((v) => !v);
+    onWatchlist(tender.id);
+  }
+
+  return (
+    <div className={`card p-5 hover:-translate-y-0.5 transition-all duration-200 group animate-fade-in ${
+      compareSelected ? "border-indigo-500/50 ring-1 ring-indigo-500/30" : ""
+    }`}>
+      <div className="flex gap-4">
+        {/* Compare checkbox */}
+        <div className="flex flex-col items-center gap-2 flex-shrink-0">
+          {tender.match_score != null && <ScoreCircle score={tender.match_score} />}
+          <button
+            onClick={() => onCompareToggle(tender.id)}
+            title="Add to compare"
+            className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
+              compareSelected
+                ? "bg-indigo-500 border-indigo-500 text-white"
+                : "border-slate-600 opacity-0 group-hover:opacity-100 hover:border-indigo-400"
+            }`}
+          >
+            {compareSelected && <span className="text-[10px] font-bold">✓</span>}
+          </button>
+        </div>
+
+        <div className="flex-1 min-w-0">
+          {/* Header */}
+          <div className="flex items-start justify-between gap-3 mb-2">
+            <Link href={`/dashboard/tenders/${tender.id}`}
+              className="text-sm font-semibold text-primary hover:text-indigo-300 transition-colors leading-tight line-clamp-2 flex-1">
+              {tender.title}
+            </Link>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {tender.recommendation && <RecBadge rec={tender.recommendation} />}
+              <button
+                onClick={handleWatchlist}
+                title={watchlisted ? "Remove from watchlist" : "Save to watchlist"}
+                className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-elevated">
+                {watchlisted
+                  ? <BookmarkCheck className="w-4 h-4 text-indigo-400" />
+                  : <BookmarkPlus className="w-4 h-4 text-muted hover:text-primary transition-colors" />}
+              </button>
+            </div>
+          </div>
+
+          {/* Meta */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-3">
+            {tender.department && (
+              <span className="flex items-center gap-1 text-xs text-secondary">
+                <Building2 className="w-3 h-3 flex-shrink-0" />
+                {tender.department}
+              </span>
+            )}
+            {tender.state && (
+              <span className="flex items-center gap-1 text-xs text-secondary">
+                <MapPin className="w-3 h-3 flex-shrink-0" />
+                {tender.state}
+              </span>
+            )}
+            {tender.estimated_cost_lakhs != null && (
+              <span className="flex items-center gap-1 text-xs text-secondary">
+                <IndianRupee className="w-3 h-3 flex-shrink-0" />
+                ₹{(tender.estimated_cost_lakhs / 100).toFixed(1)} Cr
+              </span>
+            )}
+            {daysLeft !== null && (
+              <span className={`flex items-center gap-1 text-xs font-medium ${isUrgent ? "text-red-400" : "text-amber-400"}`}>
+                <Clock className="w-3 h-3 flex-shrink-0" />
+                {daysLeft > 0 ? `${daysLeft}d left` : "Closed"}
+              </span>
+            )}
+          </div>
+
+          {/* Categories */}
+          <div className="flex flex-wrap gap-1.5 mb-2">
+            {(tender.categories || []).slice(0, 4).map((cat) => (
+              <span key={cat} className={`badge ${CATEGORY_COLORS[cat] || "badge-gray"} text-[10px]`}>
+                {cat}
+              </span>
+            ))}
+            {tender.msme_eligible && <span className="badge badge-green text-[10px]">MSME Exempt</span>}
+            {tender.startup_eligible && <span className="badge badge-blue text-[10px]">Startup</span>}
+          </div>
+
+          {/* AI Summary */}
+          {tender.ai_summary && (
+            <p className="text-xs text-muted line-clamp-1">{tender.ai_summary}</p>
+          )}
+        </div>
+      </div>
+
+      {/* Win probability bar */}
+      {tender.winning_probability != null && (
+        <div className="mt-4 flex items-center gap-3">
+          <span className="text-[10px] text-muted whitespace-nowrap">Win probability</span>
+          <div className="flex-1 h-1.5 rounded-full" style={{ background: "var(--color-bg-elevated)" }}>
+            <div className="h-full rounded-full transition-all duration-1000"
+              style={{
+                width: `${tender.winning_probability}%`,
+                background: tender.winning_probability >= 70
+                  ? "linear-gradient(90deg, #22c55e, #4ade80)"
+                  : "linear-gradient(90deg, #f59e0b, #fbbf24)"
+              }} />
+          </div>
+          <span className="text-[10px] font-medium text-secondary">{tender.winning_probability}%</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DashboardContent() {
+  const { user } = useAuth();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const initialQuery = searchParams?.get("q") || "";
+  
+  const [tenders, setTenders] = useState<Tender[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [search, setSearch] = useState(initialQuery);
+  const [filterRec, setFilterRec] = useState("all");
+  const [filterMsme, setFilterMsme] = useState(false);
+  const [filterStartup, setFilterStartup] = useState(false);
+  const [filterSector, setFilterSector] = useState("All Sectors");
+  const [compareIds, setCompareIds] = useState<string[]>([]);
+  const [page, setPage] = useState(1);
+  const [refreshedAt, setRefreshedAt] = useState<Date>(new Date());
+
+  const fetchTenders = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params: Record<string, unknown> = {
+        page,
+        page_size: 20,
+        status: "active",
+        sort_by: "published",
+      };
+      if (filterMsme) params.msme_eligible = true;
+      if (search) params.q = search;
+
+      const { data } = await tendersApi.list(params);
+      const items = data.tenders || data.items || [];
+      setTenders(items);
+      setTotal(data.total || items.length || 0);
+      setRefreshedAt(new Date());
+
+      // Asynchronously fetch qualification scores for all items
+      if (user?.id) {
+        items.forEach(async (t: Tender) => {
+          try {
+            const scoreResp = await eligibilityApi.qualify(t.id, user.id);
+            const scoreData = scoreResp.data;
+            setTenders((currentTenders) =>
+              currentTenders.map((item) =>
+                item.id === t.id
+                  ? {
+                      ...item,
+                      match_score: scoreData.eligibility_score,
+                      winning_probability: Math.round((scoreData.winning_probability || 0.5) * 100),
+                      recommendation: scoreData.recommendation === "Recommended" ? "BID" : "SKIP",
+                    }
+                  : item
+              )
+            );
+          } catch (scoreErr) {
+            console.warn("Failed to fetch eligibility score for tender", t.id, scoreErr);
+          }
+        });
+      }
+    } catch (err) {
+      setError("Could not load tenders. Make sure you're signed in and the service is running.");
+    } finally {
+      setLoading(false);
+    }
+  }, [page, filterMsme, search, user?.id]);
+
+  useEffect(() => {
+    fetchTenders();
+    const interval = setInterval(fetchTenders, 60000);
+    return () => clearInterval(interval);
+  }, [fetchTenders]);
+
+  const filtered = tenders.filter((t) => {
+    const matchSearch = !search ||
+      t.title.toLowerCase().includes(search.toLowerCase()) ||
+      (t.ministry || "").toLowerCase().includes(search.toLowerCase());
+    const matchRec = filterRec === "all" || t.recommendation === filterRec;
+    const matchSector = filterSector === "All Sectors" || (t.sector || "General") === filterSector;
+    return matchSearch && matchRec && matchSector;
+  });
+
+  function handleWatchlist(id: string) {
+    tendersApi.addWatchlist(id).catch(() => {});
+  }
+
+  function handleCompareToggle(id: string) {
+    setCompareIds((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      if (prev.length >= 3) return prev; // max 3 at a time
+      return [...prev, id];
+    });
+  }
+
+  function launchCompare() {
+    const params = compareIds.map((id, i) => `t${i + 1}=${id}`).join("&");
+    router.push(`/dashboard/compare?${params}`);
+  }
+
+
+  return (
+    <div className="p-6 max-w-5xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-primary">Your Tender Feed</h1>
+          <p className="text-sm text-muted mt-0.5">
+            Personalized matches ·{" "}
+            <span className="text-secondary">
+              Updated {formatDistanceToNow(refreshedAt, { addSuffix: true })}
+            </span>
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={fetchTenders}
+            disabled={loading}
+            className="btn btn-secondary text-sm"
+            title="Refresh">
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+          </button>
+          <Link href="/dashboard/profile" className="btn btn-secondary text-sm">
+            <Building2 className="w-4 h-4" /> Update Profile
+          </Link>
+        </div>
+      </div>
+
+      {/* Quick stats */}
+      <div className="grid grid-cols-4 gap-3 mb-6">
+        {[
+          { label: "Active Tenders", value: total.toLocaleString("en-IN"), color: "text-indigo-400" },
+          { label: "Bid Recommended", value: filtered.filter(t => t.recommendation === "BID").length.toString(), color: "text-emerald-400" },
+          { label: "Closing This Week", value: filtered.filter(t => {
+              if (!t.submission_deadline) return false;
+              const d = Math.ceil((new Date(t.submission_deadline).getTime() - Date.now()) / 86400000);
+              return d >= 0 && d <= 7;
+            }).length.toString(), color: "text-red-400" },
+          { label: "MSME Eligible", value: tenders.filter(t => t.msme_eligible).length.toString(), color: "text-amber-400" },
+        ].map((stat) => (
+          <div key={stat.label} className="card p-4 text-center">
+            <div className={`text-2xl font-bold ${stat.color} mb-0.5`}>{stat.value}</div>
+            <div className="text-[10px] text-muted">{stat.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Filters */}
+      <div className="flex items-center gap-3 mb-5 flex-wrap">
+        <div className="relative flex-1 min-w-48 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search tenders…"
+            className="input pl-9 text-sm"
+          />
+        </div>
+        <select
+          value={filterRec}
+          onChange={(e) => setFilterRec(e.target.value)}
+          className="input w-auto text-sm px-3"
+          style={{ width: "auto" }}
+        >
+          <option value="all">All Recommendations</option>
+          <option value="BID">BID only</option>
+          <option value="CONDITIONAL_BID">Conditional</option>
+          <option value="REVIEW">Review</option>
+        </select>
+        <select
+          value={filterSector}
+          onChange={(e) => { setFilterSector(e.target.value); setPage(1); }}
+          className="input w-auto text-sm px-3"
+          style={{ width: "auto" }}
+        >
+          {SECTORS.map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
+        <label className="flex items-center gap-2 text-sm text-secondary cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={filterMsme}
+            onChange={(e) => { setFilterMsme(e.target.checked); setPage(1); }}
+            className="accent-indigo-500"
+          />
+          MSME
+        </label>
+        <label className="flex items-center gap-2 text-sm text-secondary cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={filterStartup}
+            onChange={(e) => { setFilterStartup(e.target.checked); setPage(1); }}
+            className="accent-indigo-500"
+          />
+          Startup
+        </label>
+        <Link href="/dashboard/search" className="btn btn-primary text-sm">
+          <Search className="w-4 h-4" /> Advanced Search
+        </Link>
+      </div>
+
+      {/* Tender list */}
+      {loading ? (
+        <div className="space-y-3">
+          {Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)}
+        </div>
+      ) : error ? (
+        <div className="card p-12 text-center">
+          <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-3" />
+          <p className="text-secondary mb-2">{error}</p>
+          <button onClick={fetchTenders} className="btn btn-secondary text-sm mt-2">
+            <RefreshCw className="w-4 h-4" /> Retry
+          </button>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="card p-12 text-center">
+          <TrendingUp className="w-8 h-8 text-muted mx-auto mb-3" />
+          <p className="text-secondary">No tenders match your current filters.</p>
+          <p className="text-muted text-sm mt-1">Try clearing the search or removing filters.</p>
+        </div>
+      ) : (
+        <>
+          <div className="space-y-3">
+            {filtered.map((tender) => (
+              <TenderCard
+                key={tender.id}
+                tender={tender}
+                onWatchlist={handleWatchlist}
+                onCompareToggle={handleCompareToggle}
+                compareSelected={compareIds.includes(tender.id)}
+              />
+            ))}
+          </div>
+
+          {/* Pagination */}
+          {total > 20 && (
+            <div className="flex items-center justify-between mt-6 text-sm text-secondary">
+              <span>Showing {(page - 1) * 20 + 1}–{Math.min(page * 20, total)} of {total.toLocaleString("en-IN")}</span>
+              <div className="flex gap-2">
+                <button disabled={page === 1} onClick={() => setPage((p) => p - 1)}
+                  className="btn btn-secondary text-xs disabled:opacity-40">← Previous</button>
+                <button disabled={page * 20 >= total} onClick={() => setPage((p) => p + 1)}
+                  className="btn btn-secondary text-xs disabled:opacity-40">Next →</button>
+              </div>
+            </div>
+          )}
+
+          {/* Floating Compare Panel */}
+          {compareIds.length >= 2 && (
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-slate-900 border border-indigo-500/40 rounded-2xl px-5 py-3 shadow-2xl shadow-indigo-950/60 animate-fade-in">
+              <GitCompare className="w-5 h-5 text-indigo-400 flex-shrink-0" />
+              <span className="text-sm text-secondary">
+                <span className="font-bold text-primary">{compareIds.length}</span> tenders selected
+              </span>
+              <button onClick={launchCompare} className="btn btn-primary text-sm px-4 py-1.5">
+                Compare Now
+              </button>
+              <button
+                onClick={() => setCompareIds([])}
+                className="p-1.5 hover:bg-slate-800 rounded-lg transition-colors"
+                title="Clear selection"
+              >
+                <X className="w-4 h-4 text-muted" />
+              </button>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+      </div>
+    }>
+      <DashboardContent />
+    </Suspense>
+  );
+}
