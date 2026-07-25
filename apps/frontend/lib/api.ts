@@ -5,11 +5,12 @@
  */
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 
-const BASE_URL = "/api/v1";
+const API_HOST = process.env.NEXT_PUBLIC_API_URL || "https://backend-production-4aa8.up.railway.app";
+const BASE_URL = API_HOST.startsWith("http") ? `${API_HOST.replace(/\/$/, "")}/api/v1` : "/api/v1";
 
 export const api = axios.create({
   baseURL: BASE_URL,
-  timeout: 15000,
+  timeout: 30000,
   headers: { "Content-Type": "application/json" },
 });
 

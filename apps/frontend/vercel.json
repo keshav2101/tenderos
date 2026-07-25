@@ -1,3 +1,9 @@
 {
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "rewrites": [
+    {
+      "source": "/api/v1/:path*",
+      "destination": "https://backend-production-4aa8.up.railway.app/api/v1/:path*"
+    }
+  ]
 }

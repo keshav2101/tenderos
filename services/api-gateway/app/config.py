@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     SERVICE_PORT: int = 8000
 
     # CORS
-    CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:3001"]
+    CORS_ORIGINS: list[str] = ["*"]
 
     # JWT
     JWT_SECRET: str = "change-me-in-production"
