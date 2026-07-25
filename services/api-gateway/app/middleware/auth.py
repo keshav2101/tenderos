@@ -107,6 +107,13 @@ class AuthMiddleware(BaseHTTPMiddleware):
                     if res:
                         return res
                     return await call_next(request)
+                
+                # If JWT is expired/invalid on a public path, allow through as guest
+                if any(path.startswith(p) for p in PUBLIC_PATHS):
+                    request.state.user = None
+                    request.state.auth_method = "none"
+                    return await call_next(request)
+
                 return JSONResponse(
                     status_code=401,
                     content={"detail": "Invalid or expired token"},
