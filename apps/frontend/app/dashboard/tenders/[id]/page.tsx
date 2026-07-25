@@ -58,12 +58,24 @@ const PORTAL_URL_MAP: Record<string, { label: string; url: string }> = {
   karnataka:   { label: "Karnataka",    url: "https://eproc.karnataka.gov.in" },
 };
 
+function ensureAbsoluteUrl(url?: string, defaultUrl: string = "https://eprocure.gov.in/eprocure/app"): string {
+  if (!url || typeof url !== "string" || !url.trim()) return defaultUrl;
+  const trimmed = url.trim();
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return trimmed;
+  }
+  if (trimmed.startsWith("//")) {
+    return `https:${trimmed}`;
+  }
+  return `https://${trimmed}`;
+}
+
 function getPortalInfo(source?: string, sourceUrl?: string) {
   const key = (source || "").toLowerCase();
   const info = PORTAL_URL_MAP[key] || { label: (source || "GOV").toUpperCase(), url: "https://eprocure.gov.in/eprocure/app" };
   return {
     label: info.label,
-    url: sourceUrl || info.url
+    url: ensureAbsoluteUrl(sourceUrl, info.url)
   };
 }
 
@@ -229,15 +241,16 @@ export default function TenderDetailPage({ params }: { params: { id: string } })
               </div>
             </div>
             <div className="flex flex-col gap-2 flex-shrink-0">
-              <a
-                href={portalInfo.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn text-sm flex items-center gap-1.5 justify-center bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-4 rounded-xl shadow-lg shadow-emerald-950/40 transition-all hover:scale-105"
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  window.open(portalInfo.url, "_blank", "noopener,noreferrer");
+                }}
+                className="btn text-sm flex items-center gap-1.5 justify-center bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-4 rounded-xl shadow-lg shadow-emerald-950/40 transition-all hover:scale-105 cursor-pointer"
               >
                 <ExternalLink className="w-4 h-4" />
                 Open Official {portalInfo.label} Portal Website →
-              </a>
+              </button>
               <div className="flex gap-2">
                 <button 
                   onClick={toggleWatchlist} 
@@ -284,14 +297,15 @@ export default function TenderDetailPage({ params }: { params: { id: string } })
                     </p>
                   </div>
                 </div>
-                <a
-                  href={portalInfo.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn btn-secondary text-xs px-3 py-2 flex items-center gap-1.5 text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/10 flex-shrink-0 font-bold"
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    window.open(portalInfo.url, "_blank", "noopener,noreferrer");
+                  }}
+                  className="btn btn-secondary text-xs px-3 py-2 flex items-center gap-1.5 text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/10 flex-shrink-0 font-bold cursor-pointer"
                 >
                   Redirect to Official Website ↗
-                </a>
+                </button>
               </div>
             </div>
 

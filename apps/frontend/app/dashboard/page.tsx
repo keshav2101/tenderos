@@ -59,6 +59,18 @@ function getPortal(source: string) {
   };
 }
 
+function ensureAbsoluteUrl(url?: string, defaultUrl: string = "https://eprocure.gov.in/eprocure/app"): string {
+  if (!url || typeof url !== "string" || !url.trim()) return defaultUrl;
+  const trimmed = url.trim();
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return trimmed;
+  }
+  if (trimmed.startsWith("//")) {
+    return `https:${trimmed}`;
+  }
+  return `https://${trimmed}`;
+}
+
 // ─── Sector options ────────────────────────────────────────────────────────────
 const SECTORS = [
   "All Sectors", "Infrastructure", "Technology", "Healthcare",
@@ -121,7 +133,13 @@ function TenderCard({
   const isUrgent = daysLeft !== null && daysLeft <= 7;
 
   const portal = getPortal(tender.source);
-  const portalUrl = tender.source_url || portal.defaultUrl;
+  const portalUrl = ensureAbsoluteUrl(tender.source_url, portal.defaultUrl);
+
+  const handlePortalRedirect = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    window.open(portalUrl, "_blank", "noopener,noreferrer");
+  };
 
   function handleWatchlist(e: React.MouseEvent) {
     e.stopPropagation();
@@ -170,17 +188,15 @@ function TenderCard({
             </Link>
             <div className="flex items-center gap-2 flex-shrink-0" onClick={e => e.stopPropagation()}>
               {/* Direct Portal Redirect badge */}
-              <a
-                href={portalUrl}
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                onClick={handlePortalRedirect}
                 title={`Open official ${portal.label} tender portal`}
                 className="text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 hover:opacity-90 transition-opacity"
                 style={{ color: portal.color, background: portal.bg }}
               >
                 {portal.label}
                 <ExternalLink className="w-2.5 h-2.5" />
-              </a>
+              </button>
               {tender.recommendation && <RecBadge rec={tender.recommendation} />}
               <button
                 onClick={handleWatchlist}
@@ -239,11 +255,9 @@ function TenderCard({
 
           {/* View on Portal */}
           <div className="mt-2 pt-2 border-t border-white/5 flex items-center justify-between" onClick={e => e.stopPropagation()}>
-            <a
-              href={portalUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-[11px] font-semibold hover:underline transition-colors"
+            <button
+              onClick={handlePortalRedirect}
+              className="inline-flex items-center gap-1.5 text-[11px] font-semibold hover:underline transition-colors cursor-pointer"
               style={{ color: portal.color }}
             >
               <ExternalLink className="w-3.5 h-3.5" />

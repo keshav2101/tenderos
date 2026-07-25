@@ -51,6 +51,18 @@ function getPortal(source: string) {
   };
 }
 
+function ensureAbsoluteUrl(url?: string, defaultUrl: string = "https://eprocure.gov.in/eprocure/app"): string {
+  if (!url || typeof url !== "string" || !url.trim()) return defaultUrl;
+  const trimmed = url.trim();
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return trimmed;
+  }
+  if (trimmed.startsWith("//")) {
+    return `https:${trimmed}`;
+  }
+  return `https://${trimmed}`;
+}
+
 
 const STATES_LIST = [
   "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", 
@@ -391,7 +403,14 @@ function SearchContent() {
             <div className="space-y-3">
               {tenders.map((tender) => {
                 const portal = getPortal(tender.source);
-                const portalUrl = tender.source_url || portal.defaultUrl;
+                const portalUrl = ensureAbsoluteUrl(tender.source_url, portal.defaultUrl);
+
+                const handlePortalRedirect = (e: React.MouseEvent) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  window.open(portalUrl, "_blank", "noopener,noreferrer");
+                };
+
                 return (
                   <div
                     key={tender.id}
@@ -414,17 +433,15 @@ function SearchContent() {
                             {tender.title}
                           </Link>
                           <div className="flex items-center gap-2 flex-shrink-0" onClick={e => e.stopPropagation()}>
-                            <a
-                              href={portalUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                            <button
+                              onClick={handlePortalRedirect}
                               title={`Open official ${portal.label} tender portal`}
                               className="text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 hover:opacity-90 transition-opacity"
                               style={{ color: portal.color, background: portal.bg }}
                             >
                               {portal.label}
                               <ExternalLink className="w-2.5 h-2.5" />
-                            </a>
+                            </button>
                           </div>
                         </div>
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-secondary mb-2">
@@ -444,16 +461,14 @@ function SearchContent() {
                           <p className="text-xs text-muted line-clamp-2 mb-2">{tender.ai_summary}</p>
                         )}
                         <div className="mt-2 pt-2 border-t border-white/5 flex items-center justify-between" onClick={e => e.stopPropagation()}>
-                          <a
-                            href={portalUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 text-[11px] font-semibold hover:underline transition-colors"
+                          <button
+                            onClick={handlePortalRedirect}
+                            className="inline-flex items-center gap-1.5 text-[11px] font-semibold hover:underline transition-colors cursor-pointer"
                             style={{ color: portal.color }}
                           >
                             <ExternalLink className="w-3.5 h-3.5" />
                             Open Official {portal.label} Portal Website →
-                          </a>
+                          </button>
                           {tender.source_tender_id && (
                             <span className="text-[10px] text-muted font-mono">{tender.source_tender_id}</span>
                           )}
