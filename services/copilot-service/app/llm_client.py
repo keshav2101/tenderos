@@ -28,10 +28,13 @@ class LLMClient:
                 error=str(e),
             )
 
-        # Grounded local fallback: parse document excerpts from the prompt
+        # Grounded local fallback: parse document excerpts OR live tender data
         last_user_msg = next(
             (m["content"] for m in reversed(messages) if m["role"] == "user"), ""
         )
+        # Detect live tender data format (contains "Live Tender Data:" header)
+        if "Live Tender Data:" in last_user_msg:
+            return self._generate_live_tender_response(last_user_msg)
         return self.generate_local_rag_response(last_user_msg)
 
     async def _call_gemini(self, messages: list) -> str:
@@ -76,6 +79,92 @@ class LLMClient:
             messages=anthropic_messages,
         )
         return response.content[0].text
+
+    def _generate_live_tender_response(self, user_msg: str) -> str:
+        """
+        Parse the LIVE_TENDER_USER_PROMPT structured key-value block
+        and synthesize a useful answer without an external LLM.
+        """
+        import re
+
+        def extract(key: str) -> str:
+            m = re.search(rf"^{re.escape(key)}:\s*(.+)$", user_msg, re.MULTILINE)
+            return m.group(1).strip() if m else "—"
+
+        title = extract("Title")
+        ministry = extract("Ministry")
+        department = extract("Department")
+        organisation = extract("Organisation")
+        state = extract("State")
+        source = extract("Source Portal")
+        source_tender_id = extract("Source Tender ID")
+        source_url = extract("Source URL")
+        status = extract("Status")
+        cost = extract("Estimated Cost")
+        emd = extract("EMD")
+        tender_fee = extract("Tender Fee")
+        perf_guar = extract("Performance Guarantee")
+        bid_validity = extract("Bid Validity")
+        completion = extract("Work Completion")
+        deadline = extract("Submission Deadline")
+        opening = extract("Bid Opening Date")
+        turnover = extract("Minimum Turnover Required")
+        exp = extract("Prior Experience Required")
+        certs = extract("Certifications Required")
+        msme = extract("MSME Eligible (Udyam EMD Exempt)")
+        startup = extract("Startup Eligible (DPIIT Exemption)")
+        gem_req = extract("GeM Registration Required")
+        categories = extract("Categories")
+        proc_method = extract("Procurement Method")
+        ai_summary = extract("AI Summary")
+
+        # Get user question
+        q_match = re.search(r"User Question:\s*(.+?)(?=\n|$)", user_msg, re.DOTALL)
+        question = q_match.group(1).strip() if q_match else ""
+
+        answer = f"""## 📋 {title}
+
+**Ministry/Dept:** {ministry} — {department}
+**Organisation:** {organisation} | **State:** {state}
+**Status:** {status} | **Source:** {source} Portal | **Ref:** {source_tender_id}
+
+---
+
+### 💰 Financial Details
+- **Estimated Cost:** {cost}
+- **EMD (Earnest Money Deposit):** {emd}
+- **Tender Fee:** ₹{tender_fee}
+- **Performance Bank Guarantee (PBG):** {perf_guar}
+
+### 📅 Key Dates
+- **Submission Deadline:** {deadline}
+- **Bid Opening:** {opening}
+- **Bid Validity:** {bid_validity}
+- **Work Completion Period:** {completion}
+
+### ✅ Eligibility Criteria
+- **Min. Turnover:** {turnover}
+- **Prior Experience:** {exp}
+- **Certifications:** {certs}
+- **GeM Registration:** {gem_req}
+
+### 🏭 MSME & Startup Benefits
+- **MSME/Udyam Eligible:** {msme}
+- **Startup India Eligible:** {startup}
+
+### 📦 Categories & Method
+- **Categories:** {categories}
+- **Procurement Method:** {proc_method}
+
+### 📝 Summary
+{ai_summary}
+
+---
+🔗 **Source:** [{source} Portal]({source_url}) | Tender Ref: `{source_tender_id}`
+
+*Disclaimer: This answer is based on structured DB data. Please verify at the source portal before bidding.*"""
+
+        return answer
 
     def generate_local_rag_response(self, user_msg: str) -> str:
         """
