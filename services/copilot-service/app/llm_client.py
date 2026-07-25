@@ -37,6 +37,7 @@ class LLMClient:
         return self.generate_local_rag_response(last_user_msg)
 
     async def _call_gemini(self, messages: list) -> str:
+        import asyncio
         import google.generativeai as genai
 
         genai.configure(api_key=settings.GEMINI_API_KEY)
@@ -48,7 +49,10 @@ class LLMClient:
             role = "model" if m["role"] == "assistant" else m["role"]
             contents.append({"role": role, "parts": [m["content"]]})
 
-        response = model.generate_content(contents)
+        response = await asyncio.wait_for(
+            asyncio.to_thread(model.generate_content, contents),
+            timeout=5.0,
+        )
         return response.text
 
     async def _call_openai(self, messages: list) -> str:

@@ -99,21 +99,25 @@ export default function TenderDetailPage({ params }: { params: { id: string } })
   const [bidWorkflowState, setBidWorkflowState] = useState<string>("AI_RECOMMENDATION");
 
   const loadProposalData = async () => {
-    const userId = user?.id;
-    if (!userId || !tenderId) return;
+    const userId = user?.id || "guest-user";
+    if (!tenderId) return;
 
     setProposalLoading(true);
     setProposalError(null);
     try {
-      const [propRes, wfRes] = await Promise.all([
-        proposalsApi.generate(tenderId, userId),
-        proposalsApi.getWorkflow(tenderId)
-      ]);
+      const propRes = await proposalsApi.generate(tenderId, userId);
       setProposal(propRes.data);
-      setBidWorkflowState(wfRes.data.state || "AI_RECOMMENDATION");
+
+      try {
+        const wfRes = await proposalsApi.getWorkflow(tenderId);
+        setBidWorkflowState(wfRes.data?.state || "AI_RECOMMENDATION");
+      } catch {
+        setBidWorkflowState("AI_RECOMMENDATION");
+      }
     } catch (err: any) {
       console.error("Failed to generate/fetch proposal details", err);
-      setProposalError("Failed to compile proposal outline. Ensure Gemini API key is configured.");
+      const msg = err?.response?.data?.detail || err?.message || "Failed to compile proposal outline.";
+      setProposalError(msg);
     } finally {
       setProposalLoading(false);
     }

@@ -20,6 +20,7 @@ export interface User {
   role: "admin" | "enterprise" | "sme" | "consultant" | "viewer";
   plan: "free" | "sme" | "enterprise" | "api";
   company_id: string | null;
+  is_guest?: boolean;
 }
 
 interface AuthState {
@@ -72,8 +73,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           role: "viewer",
           plan: "free",
           company_id: null,
+          is_guest: true,
         };
-        setState({ user: guestUser, isLoading: false, isAuthenticated: true });
+        setState({ user: guestUser, isLoading: false, isAuthenticated: false });
       }
     } catch {
       const guestUser: User = {
@@ -83,8 +85,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         role: "viewer",
         plan: "free",
         company_id: null,
+        is_guest: true,
       };
-      setState({ user: guestUser, isLoading: false, isAuthenticated: true });
+      setState({ user: guestUser, isLoading: false, isAuthenticated: false });
     }
   }, []);
 
