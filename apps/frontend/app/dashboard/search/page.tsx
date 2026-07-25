@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Search, IndianRupee, MapPin, Building2, Clock, Filter,
@@ -18,17 +18,18 @@ interface Tender {
   state: string | null;
   estimated_cost_lakhs: number | null;
   emd_lakhs: number | null;
-  categories: string[];
   submission_deadline: string | null;
+  source: string;
+  source_tender_id: string | null;
+  source_url: string | null;
+  categories: string[];
   msme_eligible: boolean;
   startup_eligible: boolean;
-  source: string;
-  source_url: string | null;
-  status: string;
   ai_summary: string | null;
   match_score?: number;
   winning_probability?: number;
   recommendation?: string;
+  status: string;
 }
 
 const PORTAL_CONFIG: Record<string, { label: string; color: string; bg: string; defaultUrl: string }> = {
@@ -51,7 +52,7 @@ function getPortal(source: string) {
   };
 }
 
-function ensureAbsoluteUrl(url?: string, defaultUrl: string = "https://eprocure.gov.in/eprocure/app"): string {
+function ensureAbsoluteUrl(url?: string | null, defaultUrl: string = "https://eprocure.gov.in/eprocure/app"): string {
   if (!url || typeof url !== "string" || !url.trim()) return defaultUrl;
   const trimmed = url.trim();
   if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
@@ -83,6 +84,7 @@ const MINISTRIES_LIST = [
 ];
 
 function SearchContent() {
+  const router = useRouter();
   const { user } = useAuth();
   const searchParams = useSearchParams();
   

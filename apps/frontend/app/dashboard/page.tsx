@@ -59,7 +59,7 @@ function getPortal(source: string) {
   };
 }
 
-function ensureAbsoluteUrl(url?: string, defaultUrl: string = "https://eprocure.gov.in/eprocure/app"): string {
+function ensureAbsoluteUrl(url?: string | null, defaultUrl: string = "https://eprocure.gov.in/eprocure/app"): string {
   if (!url || typeof url !== "string" || !url.trim()) return defaultUrl;
   const trimmed = url.trim();
   if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
@@ -121,6 +121,21 @@ function RecBadge({ rec }: { rec: string }) {
   if (rec === "BID") return <span className="badge badge-green text-[10px] uppercase font-bold">BID</span>;
   if (rec === "CONDITIONAL_BID") return <span className="badge badge-yellow text-[10px] uppercase font-bold">CONDITIONAL</span>;
   return <span className="badge badge-gray text-[10px] uppercase font-bold">SKIP</span>;
+}
+
+function SkeletonCard() {
+  return (
+    <div className="card p-5 animate-pulse">
+      <div className="flex gap-4">
+        <div className="w-10 h-10 rounded-xl bg-slate-800 flex-shrink-0" />
+        <div className="flex-1 space-y-2">
+          <div className="h-4 bg-slate-800 rounded w-3/4" />
+          <div className="h-3 bg-slate-800/60 rounded w-1/2" />
+          <div className="h-3 bg-slate-800/40 rounded w-full" />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ─── Tender Card ──────────────────────────────────────────────────────────────

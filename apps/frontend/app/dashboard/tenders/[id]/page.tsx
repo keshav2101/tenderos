@@ -57,7 +57,7 @@ const PORTAL_URL_MAP: Record<string, { label: string; url: string }> = {
   karnataka:   { label: "Karnataka",    url: "https://eproc.karnataka.gov.in" },
 };
 
-function ensureAbsoluteUrl(url?: string, defaultUrl: string = "https://eprocure.gov.in/eprocure/app"): string {
+function ensureAbsoluteUrl(url?: string | null, defaultUrl: string = "https://eprocure.gov.in/eprocure/app"): string {
   if (!url || typeof url !== "string" || !url.trim()) return defaultUrl;
   const trimmed = url.trim();
   if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
