@@ -69,7 +69,7 @@ jobs:
           severity: 'HIGH,CRITICAL'
       - uses: github/codeql-action/upload-sarif@v3
         with: { sarif_file: trivy-results.sarif }
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: security-reports
@@ -183,7 +183,7 @@ jobs:
       - name: Run Smoke Tests
         run: npx playwright test --project=chromium tests/smoke/ || echo "Local server smoke test step complete"
         working-directory: apps/frontend
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: smoke-test-results
