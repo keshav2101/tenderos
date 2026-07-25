@@ -73,8 +73,19 @@ function ensureAbsoluteUrl(url?: string, defaultUrl: string = "https://eprocure.
 
 // ─── Sector options ────────────────────────────────────────────────────────────
 const SECTORS = [
-  "All Sectors", "Infrastructure", "Technology", "Healthcare",
-  "Defence", "Railways", "Education", "Agriculture", "General",
+  "All Sectors",
+  "Technology & IT",
+  "Infrastructure & Civil Works",
+  "Defence & Aerospace",
+  "Railways & Mobility",
+  "Healthcare & Medical Equipment",
+  "Energy & Renewable Power",
+  "Telecommunications & Networking",
+  "Water & Waste Management",
+  "Education & Training",
+  "Consultancy & Professional Services",
+  "Agriculture & Rural Development",
+  "Security & Surveillance"
 ];
 
 // ─── Category badge colours ───────────────────────────────────────────────────
