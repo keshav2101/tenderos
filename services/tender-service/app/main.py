@@ -41,9 +41,15 @@ async def get_pool() -> asyncpg.Pool:
 
 @app.on_event("startup")
 async def startup_event():
-    await get_pool()
+    pool = await get_pool()
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute("DELETE FROM tenders WHERE source IN ('mock', 'demo') OR source ILIKE 'mock%'")
+            logger.info("Purged mock tenders from database")
+    except Exception as e:
+        logger.warning("Could not purge mock tenders on startup", error=str(e))
+        
     import asyncio
-
     from app.worker import start_queue_worker
 
     asyncio.create_task(start_queue_worker())
@@ -73,8 +79,8 @@ async def list_tenders(
 ):
     pool = await get_pool()
 
-    # Build dynamic WHERE clause
-    conditions = ["1=1"]
+    # Build dynamic WHERE clause — unconditionally exclude mock/demo sources
+    conditions = ["t.source NOT IN ('mock', 'demo')", "t.source NOT ILIKE 'mock%'"]
     params = []
     idx = 1
 
@@ -94,7 +100,7 @@ async def list_tenders(
         conditions.append(f"${idx} = ANY(t.categories)")
         params.append(category)
         idx += 1
-    if status:
+    if status and status.lower() != "all":
         conditions.append(f"t.status = ${idx}")
         params.append(status)
         idx += 1

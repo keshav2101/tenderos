@@ -285,6 +285,7 @@ function DashboardContent() {
   const [filterSector, setFilterSector] = useState("All Sectors");
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
   const [refreshedAt, setRefreshedAt] = useState<Date>(new Date());
 
   const fetchTenders = useCallback(async () => {
@@ -293,8 +294,7 @@ function DashboardContent() {
     try {
       const params: Record<string, unknown> = {
         page,
-        page_size: 20,
-        status: "active",
+        page_size: pageSize,
         sort_by: "published",
       };
       if (filterMsme) params.msme_eligible = true;
@@ -503,17 +503,31 @@ function DashboardContent() {
           </div>
 
           {/* Pagination */}
-          {total > 20 && (
-            <div className="flex items-center justify-between mt-6 text-sm text-secondary">
-              <span>Showing {(page - 1) * 20 + 1}–{Math.min(page * 20, total)} of {total.toLocaleString("en-IN")}</span>
+          <div className="flex items-center justify-between mt-6 text-sm text-secondary">
+            <div className="flex items-center gap-3">
+              <span>Showing {total > 0 ? (page - 1) * pageSize + 1 : 0}–{Math.min(page * pageSize, total)} of {total.toLocaleString("en-IN")} live tenders</span>
+              <div className="flex items-center gap-1.5 text-xs text-muted">
+                <span>Per page:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
+                  className="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-secondary focus:outline-none focus:border-indigo-500"
+                >
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
+            </div>
+            {total > pageSize && (
               <div className="flex gap-2">
                 <button disabled={page === 1} onClick={() => setPage((p) => p - 1)}
                   className="btn btn-secondary text-xs disabled:opacity-40">← Previous</button>
-                <button disabled={page * 20 >= total} onClick={() => setPage((p) => p + 1)}
+                <button disabled={page * pageSize >= total} onClick={() => setPage((p) => p + 1)}
                   className="btn btn-secondary text-xs disabled:opacity-40">Next →</button>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Floating Compare Panel */}
           {compareIds.length >= 2 && (

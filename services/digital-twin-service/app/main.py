@@ -39,6 +39,25 @@ async def get_pool() -> asyncpg.Pool:
     return _pool
 
 
+@app.on_event("startup")
+async def startup_event():
+    try:
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute("""
+                ALTER TABLE companies ADD COLUMN IF NOT EXISTS udyam_no VARCHAR(255);
+                ALTER TABLE companies ADD COLUMN IF NOT EXISTS dpiit_no VARCHAR(255);
+                ALTER TABLE companies ADD COLUMN IF NOT EXISTS gem_seller_id VARCHAR(255);
+                ALTER TABLE companies ADD COLUMN IF NOT EXISTS dsc_available BOOLEAN DEFAULT FALSE;
+                ALTER TABLE companies ADD COLUMN IF NOT EXISTS avg_turnover_3yr_lakhs DECIMAL(15,2) DEFAULT 0;
+                ALTER TABLE companies ADD COLUMN IF NOT EXISTS total_experience_years INT DEFAULT 0;
+                ALTER TABLE companies ADD COLUMN IF NOT EXISTS certifications TEXT[] DEFAULT '{}';
+            """)
+            logger.info("Ensured company profile schema columns exist")
+    except Exception as e:
+        logger.warning("Failed ensuring company profile columns", error=str(e))
+
+
 @app.get("/health")
 async def health():
     return {"status": "healthy", "service": "digital-twin-service"}
@@ -83,18 +102,39 @@ async def upsert_profile(body: dict):
         if entity_type in ("SME", "sme", "sme_plan", ""):
             entity_type = "MSME_Medium"
 
+        legal_name = body.get("legal_name") or body.get("company_name") or body.get("name") or "New Company"
+        udyam_no = body.get("udyam_no") or body.get("udyam_registration_no") or ""
+        dpiit_no = body.get("dpiit_no") or ""
+        gem_seller_id = body.get("gem_seller_id") or ""
+        dsc_available = bool(body.get("dsc_available", False))
+        avg_turnover = float(body.get("avg_turnover_3yr_lakhs") or body.get("annual_turnover_lakhs") or 0)
+        total_exp = int(body.get("total_experience_years") or body.get("experience_years") or 0)
+        certifications = body.get("certifications") or []
+
         if not company_id:
             company_id = uuid4()
-            # FIX: column is `legal_name` not `name`; include required `user_id`
             await conn.execute(
-                "INSERT INTO companies (id, user_id, legal_name, gstin, pan, entity_type, cin, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+                """
+                INSERT INTO companies (
+                    id, user_id, legal_name, gstin, pan, entity_type, cin,
+                    udyam_no, dpiit_no, gem_seller_id, dsc_available,
+                    avg_turnover_3yr_lakhs, total_experience_years, certifications, created_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+                """,
                 company_id,
                 user_id,
-                body.get("legal_name", body.get("name", "New Company")),
+                legal_name,
                 body.get("gstin", ""),
                 body.get("pan", ""),
                 entity_type,
                 body.get("cin", ""),
+                udyam_no,
+                dpiit_no,
+                gem_seller_id,
+                dsc_available,
+                avg_turnover,
+                total_exp,
+                certifications,
                 datetime.utcnow(),
             )
             # Link to user
@@ -102,14 +142,28 @@ async def upsert_profile(body: dict):
                 "UPDATE users SET company_id = $1 WHERE id = $2", company_id, user_id
             )
         else:
-            # FIX: column is `legal_name` not `name`
             await conn.execute(
-                "UPDATE companies SET legal_name = $1, gstin = $2, pan = $3, entity_type = $4, cin = $5 WHERE id = $6",
-                body.get("legal_name", body.get("name", "")),
+                """
+                UPDATE companies SET
+                    legal_name = $1, gstin = $2, pan = $3, entity_type = $4, cin = $5,
+                    udyam_no = $6, dpiit_no = $7, gem_seller_id = $8, dsc_available = $9,
+                    avg_turnover_3yr_lakhs = $10, total_experience_years = $11, certifications = $12,
+                    updated_at = $13
+                WHERE id = $14
+                """,
+                legal_name,
                 body.get("gstin", ""),
                 body.get("pan", ""),
                 entity_type,
                 body.get("cin", ""),
+                udyam_no,
+                dpiit_no,
+                gem_seller_id,
+                dsc_available,
+                avg_turnover,
+                total_exp,
+                certifications,
+                datetime.utcnow(),
                 company_id,
             )
         return {"status": "success", "company_id": str(company_id)}

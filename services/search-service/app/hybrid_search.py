@@ -495,7 +495,7 @@ class HybridSearchEngine:
                     password=pg_pwd,
                 )
                 offset = (page - 1) * page_size
-                conditions = ["status = 'active'"]
+                conditions = ["status = 'active'", "source NOT IN ('mock', 'demo')", "source NOT ILIKE 'mock%'"]
                 params = []
                 param_idx = 1
 

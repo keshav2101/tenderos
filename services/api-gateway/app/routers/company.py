@@ -15,11 +15,17 @@ async def get_profile(request: Request):
     return await _proxy.get(f"/profile/{user['user_id']}")
 
 
+@router.get("/profile/{user_id}", summary="Get company procurement profile by user ID")
+async def get_profile_by_user(request: Request, user_id: str):
+    return await _proxy.get(f"/profile/{user_id}")
+
+
 @router.post("/profile", summary="Create or update company profile")
 async def upsert_profile(request: Request):
     user = request.state.user
     body = await request.json()
-    body["user_id"] = user["user_id"]
+    if "user_id" not in body or not body["user_id"]:
+        body["user_id"] = user["user_id"]
     return await _proxy.post("/profile", json=body)
 
 
@@ -27,6 +33,11 @@ async def upsert_profile(request: Request):
 async def get_profile_score(request: Request):
     user = request.state.user
     return await _proxy.get(f"/profile/{user['user_id']}/score")
+
+
+@router.get("/profile/{user_id}/score", summary="Get profile completeness score by user ID")
+async def get_profile_score_by_user(request: Request, user_id: str):
+    return await _proxy.get(f"/profile/{user_id}/score")
 
 
 @router.post(
