@@ -78,27 +78,30 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
         request.state.tenant_id = tenant_id
 
-        # Check if auth headers are present first, regardless of public path
+        # 1. Determine if current path is public
+        is_public = any(path.startswith(p) for p in PUBLIC_PATHS)
+
+        # 2. Check credentials if provided
         api_key = request.headers.get("X-API-Key")
         auth_header = request.headers.get("Authorization", "")
-        has_auth = bool(api_key or auth_header.startswith("Bearer "))
 
-        if has_auth:
-            if api_key:
-                user_ctx = await self._validate_api_key(api_key)
-                if user_ctx:
-                    request.state.user = user_ctx
-                    request.state.auth_method = "api_key"
-                    res = self._check_role_transition(path, user_ctx)
-                    if res:
-                        return res
-                    return await call_next(request)
+        if api_key:
+            user_ctx = await self._validate_api_key(api_key)
+            if user_ctx:
+                request.state.user = user_ctx
+                request.state.auth_method = "api_key"
+                res = self._check_role_transition(path, user_ctx)
+                if res:
+                    return res
+                return await call_next(request)
+            if not is_public:
                 return JSONResponse(
                     status_code=401, content={"detail": "Invalid API key"}
                 )
 
-            if auth_header.startswith("Bearer "):
-                token = auth_header.removeprefix("Bearer ")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.removeprefix("Bearer ").strip()
+            if token and token.lower() not in ("null", "undefined", "none"):
                 user_ctx = await self._validate_jwt(token)
                 if user_ctx:
                     request.state.user = user_ctx
@@ -107,21 +110,15 @@ class AuthMiddleware(BaseHTTPMiddleware):
                     if res:
                         return res
                     return await call_next(request)
-                
-                # If JWT is expired/invalid on a public path, allow through as guest
-                if any(path.startswith(p) for p in PUBLIC_PATHS):
-                    request.state.user = None
-                    request.state.auth_method = "none"
-                    return await call_next(request)
-
+            if not is_public:
                 return JSONResponse(
                     status_code=401,
                     content={"detail": "Invalid or expired token"},
                     headers={"WWW-Authenticate": "Bearer"},
                 )
 
-        # Fallback to public path check if no auth credentials were sent
-        if any(path.startswith(p) for p in PUBLIC_PATHS):
+        # 3. Allow public routes through as guest
+        if is_public:
             request.state.user = None
             request.state.auth_method = "none"
             return await call_next(request)
