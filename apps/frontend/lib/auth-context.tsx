@@ -65,10 +65,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const user: User = JSON.parse(raw);
         setState({ user, isLoading: false, isAuthenticated: true });
       } else {
-        setState((s) => ({ ...s, isLoading: false }));
+        const guestUser: User = {
+          id: "guest-user",
+          email: "guest@tenderos.in",
+          name: "Guest Officer",
+          role: "viewer",
+          plan: "free",
+          company_id: null,
+        };
+        setState({ user: guestUser, isLoading: false, isAuthenticated: true });
       }
     } catch {
-      setState((s) => ({ ...s, isLoading: false }));
+      const guestUser: User = {
+        id: "guest-user",
+        email: "guest@tenderos.in",
+        name: "Guest Officer",
+        role: "viewer",
+        plan: "free",
+        company_id: null,
+      };
+      setState({ user: guestUser, isLoading: false, isAuthenticated: true });
     }
   }, []);
 
