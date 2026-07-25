@@ -35,9 +35,7 @@ PG_DSN = os.environ.get(
 )
 OPENSEARCH_URL = os.environ.get("OPENSEARCH_URL", "http://localhost:9200")
 QDRANT_URL = os.environ.get("QDRANT_URL", "http://localhost:6333")
-EMBEDDING_MODEL = os.environ.get(
-    "EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"
-)
+EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
 
 CATEGORIES_DATA = [
     (
@@ -280,9 +278,7 @@ def make_tender():
 
     extra_cats = []
     if cat_name == "AI":
-        extra_cats = random.sample(
-            ["IT", "Data Analytics", "Cloud"], k=random.randint(0, 2)
-        )
+        extra_cats = random.sample(["IT", "Data Analytics", "Cloud"], k=random.randint(0, 2))
     elif cat_name == "Smart City":
         extra_cats = random.sample(["IoT", "IT", "GIS"], k=random.randint(0, 2))
 
@@ -470,10 +466,7 @@ async def seed_qdrant(tenders: list):
         batch_size = 50
         for i in range(0, len(tenders), batch_size):
             batch = tenders[i : i + batch_size]
-            texts = [
-                f"{t['title']} {t['ministry']} {t['department']} {t['ai_summary']}"
-                for t in batch
-            ]
+            texts = [f"{t['title']} {t['ministry']} {t['department']} {t['ai_summary']}" for t in batch]
             embeddings = model.encode(texts, normalize_embeddings=True, batch_size=32)
             points = [
                 PointStruct(
@@ -501,9 +494,7 @@ async def seed_qdrant(tenders: list):
                 for t, emb in zip(batch, embeddings)
             ]
             await client.upsert(collection_name="tenders", points=points)
-            print(
-                f"  Qdrant: batch {i // batch_size + 1}/{(len(tenders) + batch_size - 1) // batch_size} upserted"
-            )
+            print(f"  Qdrant: batch {i // batch_size + 1}/{(len(tenders) + batch_size - 1) // batch_size} upserted")
 
         print(f"  ✓ Qdrant: {len(tenders)} tenders indexed")
     except Exception as e:
@@ -551,9 +542,7 @@ async def main(count: int):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--count", type=int, default=500, help="Number of tenders to generate"
-    )
+    parser.add_argument("--count", type=int, default=500, help="Number of tenders to generate")
     parser.add_argument("--env", type=str, default="dev", help="Environment")
     args = parser.parse_args()
     asyncio.run(main(args.count))

@@ -16,9 +16,7 @@ class ServiceProxy:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
 
-    def _prepare_headers(
-        self, headers: dict | None, request: Request | None
-    ) -> dict[str, str]:
+    def _prepare_headers(self, headers: dict | None, request: Request | None) -> dict[str, str]:
         fwd_headers = {k.lower(): v for k, v in (headers or {}).items()}
         if request:
             # Automatically forward JWT / API keys and Tenant context
@@ -38,18 +36,12 @@ class ServiceProxy:
         fwd_headers = self._prepare_headers(headers, request)
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             try:
-                resp = await client.get(
-                    f"{self.base_url}{path}", params=params, headers=fwd_headers
-                )
+                resp = await client.get(f"{self.base_url}{path}", params=params, headers=fwd_headers)
                 return self._handle(resp)
             except httpx.TimeoutException:
-                raise HTTPException(
-                    status_code=504, detail=f"Service timeout: {self.base_url}"
-                )
+                raise HTTPException(status_code=504, detail=f"Service timeout: {self.base_url}")
             except httpx.ConnectError:
-                raise HTTPException(
-                    status_code=503, detail=f"Service unavailable: {self.base_url}"
-                )
+                raise HTTPException(status_code=503, detail=f"Service unavailable: {self.base_url}")
 
     async def post(
         self,
@@ -61,18 +53,12 @@ class ServiceProxy:
         fwd_headers = self._prepare_headers(headers, request)
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             try:
-                resp = await client.post(
-                    f"{self.base_url}{path}", json=json, headers=fwd_headers
-                )
+                resp = await client.post(f"{self.base_url}{path}", json=json, headers=fwd_headers)
                 return self._handle(resp)
             except httpx.TimeoutException:
-                raise HTTPException(
-                    status_code=504, detail=f"Service timeout: {self.base_url}"
-                )
+                raise HTTPException(status_code=504, detail=f"Service timeout: {self.base_url}")
             except httpx.ConnectError:
-                raise HTTPException(
-                    status_code=503, detail=f"Service unavailable: {self.base_url}"
-                )
+                raise HTTPException(status_code=503, detail=f"Service unavailable: {self.base_url}")
 
     async def put(
         self,
@@ -83,14 +69,10 @@ class ServiceProxy:
     ) -> Any:
         fwd_headers = self._prepare_headers(headers, request)
         async with httpx.AsyncClient(timeout=self.timeout) as client:
-            resp = await client.put(
-                f"{self.base_url}{path}", json=json, headers=fwd_headers
-            )
+            resp = await client.put(f"{self.base_url}{path}", json=json, headers=fwd_headers)
             return self._handle(resp)
 
-    async def delete(
-        self, path: str, headers: dict | None = None, request: Request | None = None
-    ) -> Any:
+    async def delete(self, path: str, headers: dict | None = None, request: Request | None = None) -> Any:
         fwd_headers = self._prepare_headers(headers, request)
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             resp = await client.delete(f"{self.base_url}{path}", headers=fwd_headers)

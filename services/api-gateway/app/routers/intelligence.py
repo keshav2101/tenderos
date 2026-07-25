@@ -11,9 +11,7 @@ _intel = ServiceProxy(settings.MARKET_INTEL_SERVICE_URL, timeout=60.0)
 
 @router.get("/trends", summary="Get month-by-month volume trends")
 async def get_trends(request: Request):
-    return await _intel.get(
-        "/trends", params=dict(request.query_params), request=request
-    )
+    return await _intel.get("/trends", params=dict(request.query_params), request=request)
 
 
 @router.post("/decision", summary="Get autonomous bid qualification decision")

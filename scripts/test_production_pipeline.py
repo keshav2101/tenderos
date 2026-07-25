@@ -10,15 +10,11 @@ import sys
 # Add path to import local service modules
 sys.path.insert(
     0,
-    os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "../services/copilot-service")
-    ),
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "../services/copilot-service")),
 )
 sys.path.insert(
     0,
-    os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "../services/bid-qualification-service")
-    ),
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "../services/bid-qualification-service")),
 )
 
 from app.llm_client import LLMClient
@@ -99,9 +95,7 @@ async def main():
     print(f"Eligible: {res_std['eligible']}")
     print(f"Match Score: {res_std['match_score']}")
     print(f"Key Risks: {res_std['key_risks']}")
-    assert_pass(
-        "Standard company fails eligibility due to deficits", not res_std["eligible"]
-    )
+    assert_pass("Standard company fails eligibility due to deficits", not res_std["eligible"])
 
     # Test Case B: MSME / Startup waiver check
     msme_company = {
@@ -118,9 +112,7 @@ async def main():
     print(f"Eligible: {res_msme['eligible']}")
     print(f"Match Score: {res_msme['match_score']}")
     print(f"Advantages: {res_msme['advantages']}")
-    assert_pass(
-        "MSME company is qualified due to Startup/MSME waivers", res_msme["eligible"]
-    )
+    assert_pass("MSME company is qualified due to Startup/MSME waivers", res_msme["eligible"])
     assert_pass(
         "MSME advantages include EMD waiver",
         any("EMD exempt" in a for a in res_msme["advantages"]),
@@ -131,9 +123,7 @@ async def main():
     )
     assert_pass(
         "MSME advantages include experience waiver",
-        any(
-            "experience requirement waived" in a.lower() for a in res_msme["advantages"]
-        ),
+        any("experience requirement waived" in a.lower() for a in res_msme["advantages"]),
     )
 
     print("\n==================================================")

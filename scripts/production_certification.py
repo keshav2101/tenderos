@@ -49,22 +49,12 @@ def run_production_certification():
 
     # Dynamic Score Computation
     ai_trust_score = round(
-        (
-            rag_report["grounding_score"] * 50
-            + comp_report["compliance_accuracy_pct"] * 0.5
-        ),
+        (rag_report["grounding_score"] * 50 + comp_report["compliance_accuracy_pct"] * 0.5),
         1,
     )
-    reliability_score = round(
-        100.0 - rel_report["recovery_time_objective_rto_sec"] * 0.1, 1
-    )
+    reliability_score = round(100.0 - rel_report["recovery_time_objective_rto_sec"] * 0.1, 1)
     overall_release_score = round(
-        (
-            sec_score * 0.25
-            + perf_score * 0.25
-            + ai_trust_score * 0.25
-            + reliability_score * 0.25
-        ),
+        (sec_score * 0.25 + perf_score * 0.25 + ai_trust_score * 0.25 + reliability_score * 0.25),
         1,
     )
 

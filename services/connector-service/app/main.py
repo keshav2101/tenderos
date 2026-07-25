@@ -51,12 +51,8 @@ async def startup_event():
     pool = await get_pool()
     try:
         async with pool.acquire() as conn:
-            await conn.execute(
-                "ALTER TABLE tenders ADD COLUMN IF NOT EXISTS lineage JSONB;"
-            )
-        logger.info(
-            "Connector service started and database pool initialized with lineage column"
-        )
+            await conn.execute("ALTER TABLE tenders ADD COLUMN IF NOT EXISTS lineage JSONB;")
+        logger.info("Connector service started and database pool initialized with lineage column")
     except Exception as e:
         logger.error("Failed to run startup migrations", error=str(e))
 
@@ -96,11 +92,7 @@ async def run_ingestion_pipeline(source_id: str):
         logger.error("Failed to load connector", source=source_id, error=str(e))
         return
 
-    from app.connectors.quality_engine import (
-        ConnectorQualityReport,
-        compute_quality_score,
-        is_quality_acceptable,
-    )
+    from app.connectors.quality_engine import ConnectorQualityReport, compute_quality_score, is_quality_acceptable
 
     stats = {
         "fetched": 0,
@@ -303,9 +295,7 @@ async def run_ingestion_pipeline(source_id: str):
                             stats["skipped"] += 1
 
             except Exception as db_err:
-                logger.error(
-                    "Database write failure", source_id=source_id, error=str(db_err)
-                )
+                logger.error("Database write failure", source_id=source_id, error=str(db_err))
                 stats["failures"] += 1
 
         status_state = "SUCCESS"
@@ -350,9 +340,7 @@ async def run_ingestion_pipeline(source_id: str):
         }
         r_client.hset(f"connector_status:{source_id}", mapping=metrics)
     except Exception as metric_err:
-        logger.warning(
-            "Failed to store connector health metrics", error=str(metric_err)
-        )
+        logger.warning("Failed to store connector health metrics", error=str(metric_err))
 
     logger.info(
         "Ingestion pipeline run complete",
@@ -392,9 +380,7 @@ async def get_connectors():
                         "updated": int(metrics.get("updated", 0)),
                         "skipped": int(metrics.get("skipped", 0)),
                         "failed": int(metrics.get("failed", 0)),
-                        "avg_sync_time": float(
-                            metrics.get("avg_sync_time_seconds", 0.0)
-                        ),
+                        "avg_sync_time": float(metrics.get("avg_sync_time_seconds", 0.0)),
                         "quality_score": float(metrics.get("quality_score", 0.0)),
                     }
                 )
@@ -433,9 +419,7 @@ async def get_connectors_status():
             metrics = r_client.hgetall(f"connector_status:{source_id}")
             if metrics:
                 result[source_id] = {
-                    k.decode()
-                    if isinstance(k, bytes)
-                    else k: (v.decode() if isinstance(v, bytes) else v)
+                    k.decode() if isinstance(k, bytes) else k: (v.decode() if isinstance(v, bytes) else v)
                     for k, v in metrics.items()
                 }
                 result[source_id]["source_id"] = source_id

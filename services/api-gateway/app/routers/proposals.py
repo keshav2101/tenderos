@@ -33,9 +33,7 @@ async def get_workflow_state(request: Request, tender_id: str = Path(...)):
     return await _proposal.get(f"/proposals/{tender_id}/workflow", request=request)
 
 
-@router.post(
-    "/{tender_id}/workflow/transition", summary="Transition bid workflow state"
-)
+@router.post("/{tender_id}/workflow/transition", summary="Transition bid workflow state")
 async def transition_workflow_state(request: Request, tender_id: str = Path(...)):
     body = await request.json()
     user = request.state.user

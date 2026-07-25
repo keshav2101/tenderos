@@ -285,9 +285,7 @@ async def get_overview():
             return {
                 "total_active_tenders": stats["total_active_tenders"] if stats else 0,
                 "total_value_cr": (
-                    round(float(stats["total_value_cr"]), 2)
-                    if stats and stats["total_value_cr"]
-                    else 0.0
+                    round(float(stats["total_value_cr"]), 2) if stats and stats["total_value_cr"] else 0.0
                 ),
                 "tenders_indexed_today": stats["tenders_indexed_today"] if stats else 0,
                 "active_ministries": stats["active_ministries"] if stats else 0,
@@ -334,26 +332,18 @@ async def get_autonomous_decision(req: DecisionRequest):
 
             # Fetch Tender
             try:
-                t_row = await conn.fetchrow(
-                    "SELECT * FROM tenders WHERE id = $1", UUID(req.tender_id)
-                )
+                t_row = await conn.fetchrow("SELECT * FROM tenders WHERE id = $1", UUID(req.tender_id))
                 if t_row:
                     tender_data = dict(t_row)
             except Exception as e:
-                logger.warning(
-                    "Failed to parse tender UUID, trying source_tender_id", error=str(e)
-                )
-                t_row = await conn.fetchrow(
-                    "SELECT * FROM tenders WHERE source_tender_id = $1", req.tender_id
-                )
+                logger.warning("Failed to parse tender UUID, trying source_tender_id", error=str(e))
+                t_row = await conn.fetchrow("SELECT * FROM tenders WHERE source_tender_id = $1", req.tender_id)
                 if t_row:
                     tender_data = dict(t_row)
 
             # Fetch Company
             if req.company_id:
-                c_row = await conn.fetchrow(
-                    "SELECT * FROM companies WHERE id = $1", UUID(req.company_id)
-                )
+                c_row = await conn.fetchrow("SELECT * FROM companies WHERE id = $1", UUID(req.company_id))
                 if c_row:
                     company_data = dict(c_row)
             else:
@@ -367,9 +357,7 @@ async def get_autonomous_decision(req: DecisionRequest):
         )
 
     # 2. Extract parameters or fallback to request values
-    tender_title = (
-        tender_data["title"] if tender_data else (req.tender_title or "Tender")
-    )
+    tender_title = tender_data["title"] if tender_data else (req.tender_title or "Tender")
     budget = (
         float(tender_data["estimated_cost_lakhs"])
         if tender_data and tender_data["estimated_cost_lakhs"] is not None
@@ -382,15 +370,9 @@ async def get_autonomous_decision(req: DecisionRequest):
     )
 
     comp_name = company_data["name"] if company_data else "Our Company"
-    comp_exp = (
-        int(company_data["experience_years"])
-        if company_data
-        else (req.company_experience_years or 5)
-    )
+    comp_exp = int(company_data["experience_years"]) if company_data else (req.company_experience_years or 5)
     comp_turnover = (
-        float(company_data["average_turnover_lakhs"])
-        if company_data
-        else (req.company_turnover_lakhs or 150.0)
+        float(company_data["average_turnover_lakhs"]) if company_data else (req.company_turnover_lakhs or 150.0)
     )
     is_msme = company_data.get("is_msme", False) if company_data else True
     is_startup = company_data.get("is_startup", False) if company_data else True
@@ -404,9 +386,7 @@ async def get_autonomous_decision(req: DecisionRequest):
         tender_msme_eligible = tender_data.get("msme_eligible", True)
         tender_startup_eligible = tender_data.get("startup_eligible", True)
 
-        if (is_startup and tender_startup_eligible) or (
-            is_msme and tender_msme_eligible
-        ):
+        if (is_startup and tender_startup_eligible) or (is_msme and tender_msme_eligible):
             startup_relaxation_applied = True
             probability += 0.20
             evidence.append(
@@ -424,9 +404,7 @@ async def get_autonomous_decision(req: DecisionRequest):
             citations.append("tender_spec.pdf#section_4_experience")
         else:
             probability -= 0.25
-            evidence.append(
-                f"Company experience ({comp_exp} years) is below requirement ({req_exp} years)."
-            )
+            evidence.append(f"Company experience ({comp_exp} years) is below requirement ({req_exp} years).")
             citations.append("tender_spec.pdf#section_4_experience")
     else:
         evidence.append(f"Company experience is {comp_exp} years (relaxation applied).")
@@ -446,29 +424,21 @@ async def get_autonomous_decision(req: DecisionRequest):
             )
             citations.append("tender_spec.pdf#section_4_turnover")
     else:
-        evidence.append(
-            f"Company turnover is ₹{comp_turnover:.2f} Lakhs (relaxation applied)."
-        )
+        evidence.append(f"Company turnover is ₹{comp_turnover:.2f} Lakhs (relaxation applied).")
 
     # Earnest Money Deposit (EMD) Waiver check
     if tender_data and float(tender_data.get("emd_lakhs") or 0.0) > 0.0:
         emd_val = float(tender_data["emd_lakhs"])
         if is_msme or is_startup:
-            evidence.append(
-                f"Eligible for EMD waiver of ₹{emd_val:.2f} Lakhs under MSME/Udyam guidelines."
-            )
+            evidence.append(f"Eligible for EMD waiver of ₹{emd_val:.2f} Lakhs under MSME/Udyam guidelines.")
             citations.append("tender_spec.pdf#section_1_emd_exemption")
         else:
-            evidence.append(
-                f"EMD of ₹{emd_val:.2f} Lakhs is required (not eligible for waiver)."
-            )
+            evidence.append(f"EMD of ₹{emd_val:.2f} Lakhs is required (not eligible for waiver).")
 
     # Certifications check
     if tender_data and tender_data.get("certifications_required"):
         req_certs = tender_data["certifications_required"]
-        comp_certs = (
-            company_data.get("certifications", []) if company_data else ["ISO 9001"]
-        )
+        comp_certs = company_data.get("certifications", []) if company_data else ["ISO 9001"]
         matched_certs = [c for c in req_certs if c in comp_certs]
         missing_certs = [c for c in req_certs if c not in comp_certs]
 
@@ -476,9 +446,7 @@ async def get_autonomous_decision(req: DecisionRequest):
             evidence.append(f"Matched certifications: {', '.join(matched_certs)}")
         if missing_certs:
             probability -= 0.10 * len(missing_certs)
-            evidence.append(
-                f"Missing required certifications: {', '.join(missing_certs)}"
-            )
+            evidence.append(f"Missing required certifications: {', '.join(missing_certs)}")
             citations.append("tender_spec.pdf#section_4_certifications")
 
     # Cap probability between 0.1 and 0.95

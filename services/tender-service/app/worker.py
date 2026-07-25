@@ -18,12 +18,8 @@ REDIS_PORT = settings.REDIS_PORT
 REDIS_PASSWORD = settings.REDIS_PASSWORD
 
 # Downstream URL settings
-DOCUMENT_PIPELINE_URL = getattr(
-    settings, "DOCUMENT_PIPELINE_URL", "http://document-pipeline:8005"
-)
-SEARCH_SERVICE_URL = getattr(
-    settings, "SEARCH_SERVICE_URL", "http://search-service:8010"
-)
+DOCUMENT_PIPELINE_URL = getattr(settings, "DOCUMENT_PIPELINE_URL", "http://document-pipeline:8005")
+SEARCH_SERVICE_URL = getattr(settings, "SEARCH_SERVICE_URL", "http://search-service:8010")
 
 STATE_COORDS = {
     "Andhra Pradesh": (15.9129, 79.7400),
@@ -84,9 +80,7 @@ async def start_queue_worker():
             logger.info("Connected to Redis queue successfully")
             break
         except Exception as e:
-            logger.warning(
-                "Failed to connect to Redis, retrying...", attempt=attempt, error=str(e)
-            )
+            logger.warning("Failed to connect to Redis, retrying...", attempt=attempt, error=str(e))
             await asyncio.sleep(2)
 
     if not r_client:
@@ -112,26 +106,15 @@ async def start_queue_worker():
 
 def derive_codes(title: str) -> tuple[str | None, str | None]:
     title_lower = title.lower()
-    if any(
-        k in title_lower
-        for k in ["software", "erp", "app ", "application", "portal", "cloud", "saas"]
-    ):
+    if any(k in title_lower for k in ["software", "erp", "app ", "application", "portal", "cloud", "saas"]):
         return "72200000", "43230000"
-    if any(
-        k in title_lower
-        for k in ["computer", "hardware", "server", "laptop", "printer"]
-    ):
+    if any(k in title_lower for k in ["computer", "hardware", "server", "laptop", "printer"]):
         return "30200000", "43210000"
-    if any(
-        k in title_lower for k in ["construction", "building", "civil", "structure"]
-    ):
+    if any(k in title_lower for k in ["construction", "building", "civil", "structure"]):
         return "45200000", "72000000"
     if any(k in title_lower for k in ["road", "highway", "bridge", "flyover"]):
         return "45233140", "72141103"
-    if any(
-        k in title_lower
-        for k in ["medical", "health", "hospital", "medicine", "ventilator", "x-ray"]
-    ):
+    if any(k in title_lower for k in ["medical", "health", "hospital", "medicine", "ventilator", "x-ray"]):
         return "33000000", "42000000"
     if any(k in title_lower for k in ["consult", "study", "dpr", "advisory"]):
         return "79311100", "80100000"
@@ -154,12 +137,8 @@ async def process_queued_message(payload: dict):
     # Extract & map basic fields
     if source_id == "gem":
         title = raw_data.get("b_category_name", ["Live GeM Bid"])[0]
-        ministry = raw_data.get("ba_official_details_minName", ["Ministry of Defence"])[
-            0
-        ]
-        dept = raw_data.get(
-            "ba_official_details_deptName", ["Department of Military Affairs"]
-        )[0]
+        ministry = raw_data.get("ba_official_details_minName", ["Ministry of Defence"])[0]
+        dept = raw_data.get("ba_official_details_deptName", ["Department of Military Affairs"])[0]
         org = dept
         state = "Delhi"
         if "karnataka" in dept.lower() or "karnataka" in title.lower():
@@ -182,16 +161,10 @@ async def process_queued_message(payload: dict):
         deadline_str = raw_data.get("final_end_date_sort", [None])[0]
 
         published = (
-            datetime.fromisoformat(published_str.replace("Z", "+00:00")).replace(
-                tzinfo=None
-            )
-            if published_str
-            else now
+            datetime.fromisoformat(published_str.replace("Z", "+00:00")).replace(tzinfo=None) if published_str else now
         )
         deadline = (
-            datetime.fromisoformat(deadline_str.replace("Z", "+00:00")).replace(
-                tzinfo=None
-            )
+            datetime.fromisoformat(deadline_str.replace("Z", "+00:00")).replace(tzinfo=None)
             if deadline_str
             else now + timedelta(days=14)
         )
@@ -239,20 +212,14 @@ async def process_queued_message(payload: dict):
         method = raw_data.get("procurement_method", "open")
         status = raw_data.get("status", "active")
 
-        published = (
-            datetime.fromisoformat(raw_data["published_at"])
-            if raw_data.get("published_at")
-            else now
-        )
+        published = datetime.fromisoformat(raw_data["published_at"]) if raw_data.get("published_at") else now
         deadline = (
             datetime.fromisoformat(raw_data["submission_deadline"])
             if raw_data.get("submission_deadline")
             else now + timedelta(days=14)
         )
         categories = raw_data.get("categories", ["IT"])
-        ai_summary = raw_data.get(
-            "ai_summary", f"Tender {source_tender_id} published by {org}."
-        )
+        ai_summary = raw_data.get("ai_summary", f"Tender {source_tender_id} published by {org}.")
 
         # Retrieve new enrichment fields from raw_data
         cpv_code = raw_data.get("cpv_code")
@@ -265,11 +232,7 @@ async def process_queued_message(payload: dict):
         consortium_allowed = bool(raw_data.get("consortium_allowed", False))
         jv_allowed = bool(raw_data.get("jv_allowed", False))
         oem_required = bool(raw_data.get("oem_required", False))
-        contract_duration_days = (
-            raw_data.get("contract_duration_days")
-            or raw_data.get("work_completion_days")
-            or 180
-        )
+        contract_duration_days = raw_data.get("contract_duration_days") or raw_data.get("work_completion_days") or 180
         payment_milestone_count = raw_data.get("payment_milestone_count") or 0
         penalty_clause = bool(raw_data.get("penalty_clause", False))
         warranty_months = raw_data.get("warranty_months") or 12
@@ -419,9 +382,7 @@ async def process_queued_message(payload: dict):
                         timeout=5.0,
                     )
             except Exception as search_err:
-                logger.error(
-                    "Worker failed to trigger search index", error=str(search_err)
-                )
+                logger.error("Worker failed to trigger search index", error=str(search_err))
 
             # 4. Trigger document pipeline download & OCR
             if document_urls:
@@ -437,9 +398,7 @@ async def process_queued_message(payload: dict):
                             timeout=5.0,
                         )
                 except Exception as doc_err:
-                    logger.error(
-                        "Worker failed to trigger document pipeline", error=str(doc_err)
-                    )
+                    logger.error("Worker failed to trigger document pipeline", error=str(doc_err))
         else:
             tender_uuid = row["id"]
             existing_hash = row["dedup_hash"]

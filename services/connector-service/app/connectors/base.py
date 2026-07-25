@@ -59,9 +59,7 @@ class ConnectorState:
             "enabled": self.enabled,
             "status": self.status,
             "last_run": self.last_run.isoformat() if self.last_run else None,
-            "last_success": (
-                self.last_success.isoformat() if self.last_success else None
-            ),
+            "last_success": (self.last_success.isoformat() if self.last_success else None),
             "success_count": self.success_count,
             "failure_count": self.failure_count,
             "total_tenders": self.total_tenders,
@@ -78,9 +76,7 @@ class RetryPolicy:
     max_attempts: int = 3
     backoff_base: float = 2.0  # Exponential backoff multiplier
     max_backoff_seconds: float = 300.0
-    retry_on_status: list[int] = field(
-        default_factory=lambda: [429, 500, 502, 503, 504]
-    )
+    retry_on_status: list[int] = field(default_factory=lambda: [429, 500, 502, 503, 504])
 
 
 @dataclass
@@ -144,9 +140,7 @@ class BaseConnector(ABC):
         self._state = ConnectorState(source_id=self.source_id)
 
     @abstractmethod
-    async def fetch_tenders(
-        self, since: datetime | None = None
-    ) -> AsyncIterator[RawTender]:
+    async def fetch_tenders(self, since: datetime | None = None) -> AsyncIterator[RawTender]:
         """
         Yield raw tenders from the source.
         `since` is the last successful sync timestamp for incremental sync.

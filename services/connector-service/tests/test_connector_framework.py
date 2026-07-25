@@ -98,16 +98,12 @@ class TestNormalization:
             source_url="https://gem.gov.in/bid/001",
             raw_json={
                 "b_category_name": ["Laptop Computers"],
-                "ba_official_details_minName": [
-                    "Ministry of Electronics and Information Technology"
-                ],
+                "ba_official_details_minName": ["Ministry of Electronics and Information Technology"],
                 "ba_official_details_deptName": ["NIC Delhi"],
                 "ba_official_details_officeName": ["NIC HQ"],
                 "b_total_quantity": [100],
                 "final_start_date_sort": [(datetime.utcnow()).isoformat()],
-                "final_end_date_sort": [
-                    (datetime.utcnow() + timedelta(days=7)).isoformat()
-                ],
+                "final_end_date_sort": [(datetime.utcnow() + timedelta(days=7)).isoformat()],
                 "ba_official_details_email": ["nic@gem.gov.in"],
                 "ba_official_details_name": ["GeM Buyer NIC"],
                 "ba_official_details_desg": ["Deputy Director"],
@@ -304,9 +300,7 @@ class TestRegistry:
 
         connectors = list_connectors()
         all_ids = get_all_source_ids()
-        assert (
-            len(connectors) >= 5
-        ), f"Expected at least 5 connectors, got {len(connectors)}"
+        assert len(connectors) >= 5, f"Expected at least 5 connectors, got {len(connectors)}"
         assert len(all_ids) >= 5
 
     def test_get_connector_returns_instance(self):
@@ -371,9 +365,7 @@ class TestConnectorHealthChecks:
         connector = get_connector("cppp")
         connector.record_run_start()
         assert connector._state.status == "running"
-        connector.record_run_success(
-            new=5, updated=2, total=10, duration=3.5, quality_score=80.0
-        )
+        connector.record_run_success(new=5, updated=2, total=10, duration=3.5, quality_score=80.0)
         assert connector._state.success_count == 1
         assert connector._state.new_tenders == 5
         assert connector._state.quality_score == 80.0

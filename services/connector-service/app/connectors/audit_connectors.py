@@ -49,9 +49,7 @@ async def probe_connector(source_id, conn_cls, semaphore):
 
         try:
             # We bypass SSL verification to prevent cert errors from marking connectors offline
-            async with httpx.AsyncClient(
-                verify=False, timeout=8.0, headers=headers
-            ) as client:  # nosec B501
+            async with httpx.AsyncClient(verify=False, timeout=8.0, headers=headers) as client:  # nosec B501
                 response = await client.get(url)
                 latency = int((time.time() - start_time) * 1000)
 

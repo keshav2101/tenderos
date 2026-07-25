@@ -29,14 +29,7 @@ from datetime import datetime
 import httpx
 from bs4 import BeautifulSoup
 
-from app.connectors.base import (
-    BaseConnector,
-    CadenceConfig,
-    HealthStatus,
-    RateLimitConfig,
-    RawTender,
-    RetryPolicy,
-)
+from app.connectors.base import BaseConnector, CadenceConfig, HealthStatus, RateLimitConfig, RawTender, RetryPolicy
 
 IREPS_USERNAME = os.environ.get("IREPS_USERNAME", "")
 IREPS_PASSWORD = os.environ.get("IREPS_PASSWORD", "")
@@ -82,9 +75,7 @@ class RailwaysConnector(BaseConnector):
             return False
         try:
             # First: GET the login page to get session cookie
-            await client.get(
-                f"{self.IREPS_BASE}/eps/loginPage.do", headers=self.HEADERS
-            )
+            await client.get(f"{self.IREPS_BASE}/eps/loginPage.do", headers=self.HEADERS)
             # POST credentials
             login_resp = await client.post(
                 self.IREPS_LOGIN_URL,
@@ -124,9 +115,7 @@ class RailwaysConnector(BaseConnector):
             submission_deadline = None
             for fmt in ("%d/%m/%Y %H:%M", "%d-%m-%Y", "%d/%m/%Y"):
                 try:
-                    submission_deadline = datetime.strptime(
-                        closing_date_str, fmt
-                    ).isoformat()
+                    submission_deadline = datetime.strptime(closing_date_str, fmt).isoformat()
                     break
                 except ValueError:
                     continue
@@ -136,9 +125,7 @@ class RailwaysConnector(BaseConnector):
             detail_url = self.IREPS_TENDERS_URL
             if link and link.get("href"):
                 href = link["href"]
-                detail_url = (
-                    f"{self.IREPS_BASE}{href}" if not href.startswith("http") else href
-                )
+                detail_url = f"{self.IREPS_BASE}{href}" if not href.startswith("http") else href
 
             return {
                 "title": description or f"IREPS Tender {tender_no}",
@@ -148,9 +135,7 @@ class RailwaysConnector(BaseConnector):
                 "state": None,
                 "estimated_cost_lakhs": None,
                 "emd_lakhs": None,
-                "categories": (
-                    ["Railways", tender_type] if tender_type else ["Railways"]
-                ),
+                "categories": (["Railways", tender_type] if tender_type else ["Railways"]),
                 "procurement_method": "open",
                 "status": "active",
                 "published_at": datetime.utcnow().isoformat(),
@@ -171,13 +156,8 @@ class RailwaysConnector(BaseConnector):
 
             body = resp.text
             # Detect redirect to login
-            if any(
-                k in body.lower()
-                for k in ["loginpage", "j_username", "sign in", "captcha"]
-            ):
-                self.log_warning(
-                    "IREPS: login wall detected after attempt — BLOCKED_AUTH"
-                )
+            if any(k in body.lower() for k in ["loginpage", "j_username", "sign in", "captcha"]):
+                self.log_warning("IREPS: login wall detected after attempt — BLOCKED_AUTH")
                 return []
 
             soup = BeautifulSoup(body, "html.parser")
@@ -200,9 +180,7 @@ class RailwaysConnector(BaseConnector):
 
         return results
 
-    async def fetch_tenders(
-        self, since: datetime | None = None
-    ) -> AsyncIterator[RawTender]:
+    async def fetch_tenders(self, since: datetime | None = None) -> AsyncIterator[RawTender]:
         """
         Fetch IREPS tenders.
         - With credentials: authenticates and scrapes paginated listings.

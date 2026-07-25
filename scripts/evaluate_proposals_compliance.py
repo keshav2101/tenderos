@@ -58,22 +58,15 @@ def run_proposals_compliance_eval():
 
             # Test Compliance Check
             try:
-                c_resp = client.post(
-                    f"{QUAL_URL}/qualification/check-eligibility?tender_id={t_id}"
-                )
-                if (
-                    c_resp.status_code == 200
-                    and "compliance_checklist" in c_resp.json()
-                ):
+                c_resp = client.post(f"{QUAL_URL}/qualification/check-eligibility?tender_id={t_id}")
+                if c_resp.status_code == 200 and "compliance_checklist" in c_resp.json():
                     compliance_passed += 1
             except Exception:
                 pass
 
             # Test Risk Analysis
             try:
-                r_resp = client.post(
-                    f"{QUAL_URL}/qualification/risk-analysis?tender_id={t_id}"
-                )
+                r_resp = client.post(f"{QUAL_URL}/qualification/risk-analysis?tender_id={t_id}")
                 if r_resp.status_code == 200 and "evaluated_risks" in r_resp.json():
                     risk_passed += 1
             except Exception:

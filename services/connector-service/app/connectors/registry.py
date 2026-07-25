@@ -39,9 +39,7 @@ def _auto_discover():
         try:
             pkg = importlib.import_module(pkg_name)
         except ImportError as e:
-            logger.warning(
-                "Plugin package not importable", package=pkg_name, error=str(e)
-            )
+            logger.warning("Plugin package not importable", package=pkg_name, error=str(e))
             continue
 
         if not hasattr(pkg, "__path__"):
@@ -97,9 +95,7 @@ def _auto_discover():
                     continue
 
                 # Dynamic subclass generation
-                class_name = (
-                    "".join(word.capitalize() for word in sid.split("_")) + "Connector"
-                )
+                class_name = "".join(word.capitalize() for word in sid.split("_")) + "Connector"
                 dyn_class = type(
                     class_name,
                     (StateBaseConnector,),

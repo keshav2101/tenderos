@@ -47,15 +47,8 @@ async def _scrape_generic_portal(
             if len(text) < 15:
                 continue
             href = a["href"]
-            if any(
-                kw in text.lower()
-                for kw in ["tender", "nit", "rfp", "bid", "notice", "quotation"]
-            ):
-                full_url = (
-                    href
-                    if href.startswith("http")
-                    else f"{url.rstrip('/')}/{href.lstrip('/')}"
-                )
+            if any(kw in text.lower() for kw in ["tender", "nit", "rfp", "bid", "notice", "quotation"]):
+                full_url = href if href.startswith("http") else f"{url.rstrip('/')}/{href.lstrip('/')}"
                 # Extract any date nearby
                 parent_text = a.parent.get_text(" ", strip=True) if a.parent else ""
                 date_match = re.search(r"\d{2}[/-]\d{2}[/-]\d{4}", parent_text)
@@ -132,9 +125,7 @@ class DefenceConnector(MinistryBaseConnector):
     ]
     MINISTRY_DEPT = "Defence Procurement Organisation"
     PORTAL_URL = "https://mod.gov.in/depts/dod/procurement-policy"
-    access_limitations = (
-        "MoD detailed RFPs require registered vendor login via DRDO/DPO portal"
-    )
+    access_limitations = "MoD detailed RFPs require registered vendor login via DRDO/DPO portal"
 
     async def _try_ministry_portal(self, client: httpx.AsyncClient) -> list[dict]:
         return await _scrape_generic_portal(

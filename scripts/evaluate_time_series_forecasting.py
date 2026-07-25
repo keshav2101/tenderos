@@ -53,9 +53,7 @@ def run_forecasting_eval():
         "evaluation_status": "COMPLETED",
         "buyer_analytics": {
             "active_buyers_tracked": top_buyers_count,
-            "spending_anomalies_detected": len(
-                b_data.get("spending_anomalies_alerts", [])
-            ),
+            "spending_anomalies_detected": len(b_data.get("spending_anomalies_alerts", [])),
             "seasonality_factors_identified": [
                 "Q4 Budget Exhaustion Spike (+65%)",
                 "Q1 Post-Fiscal Lull (-45%)",
@@ -74,9 +72,7 @@ def run_forecasting_eval():
         "time_series_forecasting": {
             "forecasted_cycles_count": len(forecasted_cycles),
             "forecasted_sectors": [x.get("sector") for x in forecasted_cycles],
-            "confidence_intervals": [
-                f"{x.get('confidence', 0.9) * 100}%" for x in forecasted_cycles
-            ],
+            "confidence_intervals": [f"{x.get('confidence', 0.9) * 100}%" for x in forecasted_cycles],
             "forecasting_model": "PostgreSQL Historical Linear & Seasonal Decomposition",
         },
         "system_status": "PASSED_FORECASTING_EVALUATION",

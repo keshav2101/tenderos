@@ -8,9 +8,7 @@ from app.proxy import ServiceProxy
 router = APIRouter()
 # We target the knowledge-graph-service URL (we assume KNOWLEDGE_GRAPH_SERVICE_URL config var exists or can map to port 8009)
 # Let's verify port or define downstream proxy URL.
-_graph = ServiceProxy(
-    settings.ADMIN_SERVICE_URL.replace(":8019", ":8009"), timeout=30.0
-)
+_graph = ServiceProxy(settings.ADMIN_SERVICE_URL.replace(":8019", ":8009"), timeout=30.0)
 
 
 @router.post("/ingest/award", summary="Ingest tender award relations")

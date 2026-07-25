@@ -66,9 +66,7 @@ class HybridSearchEngine:
     def _get_os(self) -> AsyncOpenSearch:
         if self._os is None:
             self._os = AsyncOpenSearch(
-                hosts=[
-                    {"host": settings.OPENSEARCH_HOST, "port": settings.OPENSEARCH_PORT}
-                ],
+                hosts=[{"host": settings.OPENSEARCH_HOST, "port": settings.OPENSEARCH_PORT}],
                 http_compress=True,
                 use_ssl=False,
             )
@@ -246,9 +244,7 @@ class HybridSearchEngine:
 
         return outcomes
 
-    def _build_os_query(
-        self, query: str, filters: dict, page: int, page_size: int
-    ) -> dict:
+    def _build_os_query(self, query: str, filters: dict, page: int, page_size: int) -> dict:
         """Build OpenSearch query with BM25 + filters."""
         must_clauses = []
         filter_clauses = []
@@ -276,13 +272,9 @@ class HybridSearchEngine:
         if filters.get("states"):
             filter_clauses.append({"terms": {"state.keyword": filters["states"]}})
         if filters.get("ministries"):
-            filter_clauses.append(
-                {"terms": {"ministry.keyword": filters["ministries"]}}
-            )
+            filter_clauses.append({"terms": {"ministry.keyword": filters["ministries"]}})
         if filters.get("departments"):
-            filter_clauses.append(
-                {"terms": {"department.keyword": filters["departments"]}}
-            )
+            filter_clauses.append({"terms": {"department.keyword": filters["departments"]}})
         if filters.get("categories"):
             filter_clauses.append({"terms": {"categories": filters["categories"]}})
         if filters.get("status"):
@@ -345,9 +337,7 @@ class HybridSearchEngine:
             },
         }
 
-    async def _bm25_search(
-        self, query: str, filters: dict, page: int, size: int
-    ) -> tuple[list, dict, int]:
+    async def _bm25_search(self, query: str, filters: dict, page: int, size: int) -> tuple[list, dict, int]:
         """Execute BM25 search on OpenSearch."""
         if settings.OPENSEARCH_HOST == "disabled":
             return [], {}, 0
@@ -358,9 +348,7 @@ class HybridSearchEngine:
             hits = response["hits"]["hits"]
             total = response["hits"]["total"]["value"]
             facets = {
-                name: [
-                    {"value": b["key"], "count": b["doc_count"]} for b in agg["buckets"]
-                ]
+                name: [{"value": b["key"], "count": b["doc_count"]} for b in agg["buckets"]]
                 for name, agg in response.get("aggregations", {}).items()
             }
             return hits, facets, total
@@ -380,15 +368,9 @@ class HybridSearchEngine:
 
         conditions = []
         if filters.get("states"):
-            conditions.append(
-                FieldCondition(key="state", match=MatchAny(any=filters["states"]))
-            )
+            conditions.append(FieldCondition(key="state", match=MatchAny(any=filters["states"])))
         if filters.get("categories"):
-            conditions.append(
-                FieldCondition(
-                    key="categories", match=MatchAny(any=filters["categories"])
-                )
-            )
+            conditions.append(FieldCondition(key="categories", match=MatchAny(any=filters["categories"])))
 
         qdrant_filter = Filter(must=conditions) if conditions else None
 
@@ -401,10 +383,7 @@ class HybridSearchEngine:
                 with_payload=True,
                 score_threshold=0.25,
             )
-            return [
-                {"id": str(r.id), **r.payload, "semantic_score": r.score}
-                for r in results
-            ]
+            return [{"id": str(r.id), **r.payload, "semantic_score": r.score} for r in results]
         except Exception as e:
             logger.error("Qdrant semantic search failed", error=str(e))
             return []
@@ -436,9 +415,7 @@ class HybridSearchEngine:
         final_hits = []
 
         if mode == "keyword":
-            hits, facets, total = await self._bm25_search(
-                query, filters, page, page_size
-            )
+            hits, facets, total = await self._bm25_search(query, filters, page, page_size)
             final_hits = [self._format_os_hit(h) for h in hits[:page_size]]
 
         elif mode == "semantic":
@@ -449,9 +426,7 @@ class HybridSearchEngine:
         else:  # hybrid (default)
             bm25_task = self._bm25_search(query, filters, 1, page_size * 3)
             semantic_task = self._semantic_search(query, filters, page_size * 3)
-            (bm25_hits, facets, total), semantic_hits = await asyncio.gather(
-                bm25_task, semantic_task
-            )
+            (bm25_hits, facets, total), semantic_hits = await asyncio.gather(bm25_task, semantic_task)
 
             # Reciprocal Rank Fusion
             fused = reciprocal_rank_fusion(bm25_hits, semantic_hits)
@@ -513,35 +488,21 @@ class HybridSearchEngine:
 
                 if filters.get("states") or filters.get("state"):
                     state_filter = filters.get("states") or filters.get("state")
-                    states = (
-                        state_filter
-                        if isinstance(state_filter, list)
-                        else [state_filter]
-                    )
+                    states = state_filter if isinstance(state_filter, list) else [state_filter]
                     conditions.append(f"state = ANY(${param_idx})")
                     params.append(states)
                     param_idx += 1
 
                 if filters.get("ministries") or filters.get("ministry"):
-                    ministry_filter = filters.get("ministries") or filters.get(
-                        "ministry"
-                    )
-                    ministries = (
-                        ministry_filter
-                        if isinstance(ministry_filter, list)
-                        else [ministry_filter]
-                    )
+                    ministry_filter = filters.get("ministries") or filters.get("ministry")
+                    ministries = ministry_filter if isinstance(ministry_filter, list) else [ministry_filter]
                     conditions.append(f"ministry = ANY(${param_idx})")
                     params.append(ministries)
                     param_idx += 1
 
                 if filters.get("departments") or filters.get("department"):
-                    dept_filter = filters.get("departments") or filters.get(
-                        "department"
-                    )
-                    depts = (
-                        dept_filter if isinstance(dept_filter, list) else [dept_filter]
-                    )
+                    dept_filter = filters.get("departments") or filters.get("department")
+                    depts = dept_filter if isinstance(dept_filter, list) else [dept_filter]
                     conditions.append(f"department = ANY(${param_idx})")
                     params.append(depts)
                     param_idx += 1
@@ -553,23 +514,13 @@ class HybridSearchEngine:
                     params.append(cats_list)
                     param_idx += 1
 
-                if (
-                    filters.get("cost_min_lakhs") is not None
-                    or filters.get("estimated_cost_min") is not None
-                ):
-                    min_cost = filters.get("cost_min_lakhs") or filters.get(
-                        "estimated_cost_min"
-                    )
+                if filters.get("cost_min_lakhs") is not None or filters.get("estimated_cost_min") is not None:
+                    min_cost = filters.get("cost_min_lakhs") or filters.get("estimated_cost_min")
                     conditions.append(f"estimated_cost_lakhs >= ${param_idx}")
                     params.append(float(min_cost))
                     param_idx += 1
-                if (
-                    filters.get("cost_max_lakhs") is not None
-                    or filters.get("estimated_cost_max") is not None
-                ):
-                    max_cost = filters.get("cost_max_lakhs") or filters.get(
-                        "estimated_cost_max"
-                    )
+                if filters.get("cost_max_lakhs") is not None or filters.get("estimated_cost_max") is not None:
+                    max_cost = filters.get("cost_max_lakhs") or filters.get("estimated_cost_max")
                     conditions.append(f"estimated_cost_lakhs <= ${param_idx}")
                     params.append(float(max_cost))
                     param_idx += 1
@@ -577,18 +528,16 @@ class HybridSearchEngine:
                 if filters.get("deadline_from"):
                     from datetime import datetime
 
-                    d_from = datetime.fromisoformat(
-                        filters["deadline_from"].replace("Z", "+00:00")
-                    ).replace(tzinfo=None)
+                    d_from = datetime.fromisoformat(filters["deadline_from"].replace("Z", "+00:00")).replace(
+                        tzinfo=None
+                    )
                     conditions.append(f"submission_deadline >= ${param_idx}")
                     params.append(d_from)
                     param_idx += 1
                 if filters.get("deadline_to"):
                     from datetime import datetime
 
-                    d_to = datetime.fromisoformat(
-                        filters["deadline_to"].replace("Z", "+00:00")
-                    ).replace(tzinfo=None)
+                    d_to = datetime.fromisoformat(filters["deadline_to"].replace("Z", "+00:00")).replace(tzinfo=None)
                     conditions.append(f"submission_deadline <= ${param_idx}")
                     params.append(d_to)
                     param_idx += 1
@@ -624,19 +573,11 @@ class HybridSearchEngine:
                         "state": r["state"],
                         "categories": r["categories"] or [],
                         "estimated_cost_lakhs": (
-                            float(r["estimated_cost_lakhs"])
-                            if r["estimated_cost_lakhs"] is not None
-                            else None
+                            float(r["estimated_cost_lakhs"]) if r["estimated_cost_lakhs"] is not None else None
                         ),
-                        "emd_lakhs": (
-                            float(r["emd_lakhs"])
-                            if r["emd_lakhs"] is not None
-                            else None
-                        ),
+                        "emd_lakhs": (float(r["emd_lakhs"]) if r["emd_lakhs"] is not None else None),
                         "submission_deadline": (
-                            r["submission_deadline"].isoformat()
-                            if r["submission_deadline"]
-                            else None
+                            r["submission_deadline"].isoformat() if r["submission_deadline"] else None
                         ),
                         "status": r["status"],
                         "source": r["source"],

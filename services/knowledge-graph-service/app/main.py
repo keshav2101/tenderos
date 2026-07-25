@@ -50,9 +50,7 @@ async def get_db_conn():
     pg_db = os.getenv("POSTGRES_DB", "tenderos")
     pg_user = os.getenv("POSTGRES_USER", "tenderos")
     pg_pwd = os.getenv("POSTGRES_PASSWORD", "tenderos_local_pwd")
-    return await asyncpg.connect(
-        host=pg_host, port=int(pg_port), database=pg_db, user=pg_user, password=pg_pwd
-    )
+    return await asyncpg.connect(host=pg_host, port=int(pg_port), database=pg_db, user=pg_user, password=pg_pwd)
 
 
 @app.on_event("startup")
@@ -79,9 +77,7 @@ async def startup_event():
         await conn.close()
         logger.info("Successfully initialized knowledge-graph schema in PostgreSQL")
     except Exception as e:
-        logger.error(
-            "Failed to initialize knowledge-graph database tables", error=str(e)
-        )
+        logger.error("Failed to initialize knowledge-graph database tables", error=str(e))
 
 
 @app.get("/health")
@@ -140,15 +136,9 @@ async def get_graph_stats():
     try:
         total_nodes = await conn.fetchval("SELECT count(*) FROM graph_nodes")
         total_edges = await conn.fetchval("SELECT count(*) FROM graph_edges")
-        ministries = await conn.fetchval(
-            "SELECT count(*) FROM graph_nodes WHERE label = 'ministry'"
-        )
-        companies = await conn.fetchval(
-            "SELECT count(*) FROM graph_nodes WHERE label = 'company'"
-        )
-        tenders = await conn.fetchval(
-            "SELECT count(*) FROM graph_nodes WHERE label = 'tender'"
-        )
+        ministries = await conn.fetchval("SELECT count(*) FROM graph_nodes WHERE label = 'ministry'")
+        companies = await conn.fetchval("SELECT count(*) FROM graph_nodes WHERE label = 'company'")
+        tenders = await conn.fetchval("SELECT count(*) FROM graph_nodes WHERE label = 'tender'")
     finally:
         await conn.close()
     return {
@@ -255,9 +245,7 @@ async def query_graph_relations(source_id: str):
     conn = await get_db_conn()
     neighbors = []
     try:
-        source_node = await conn.fetchrow(
-            "SELECT label, name FROM graph_nodes WHERE id = $1", source_id
-        )
+        source_node = await conn.fetchrow("SELECT label, name FROM graph_nodes WHERE id = $1", source_id)
 
         # Outgoing edges
         rows_out = await conn.fetch(

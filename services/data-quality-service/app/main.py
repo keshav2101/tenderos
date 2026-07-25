@@ -108,12 +108,8 @@ async def get_data_quality_report():
                 ) sub
             """
             )
-            extracted_count = await conn.fetchval(
-                "SELECT COUNT(*) FROM tenders WHERE extracted_attributes IS NOT NULL"
-            )
-            integrity = round(
-                min(100.0, 95.0 + (extracted_count / max(1, total_tenders)) * 5.0), 1
-            )
+            extracted_count = await conn.fetchval("SELECT COUNT(*) FROM tenders WHERE extracted_attributes IS NOT NULL")
+            integrity = round(min(100.0, 95.0 + (extracted_count / max(1, total_tenders)) * 5.0), 1)
 
             return {
                 "summary": {

@@ -32,9 +32,7 @@ async def _fetch_tender_context(tender_id: str) -> dict[str, str]:
     """
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
-            resp = await client.get(
-                f"{settings.TENDER_SERVICE_URL}/tenders/{tender_id}/summary"
-            )
+            resp = await client.get(f"{settings.TENDER_SERVICE_URL}/tenders/{tender_id}/summary")
             if resp.status_code == 200:
                 data = resp.json()
                 return {
@@ -42,9 +40,7 @@ async def _fetch_tender_context(tender_id: str) -> dict[str, str]:
                     "ministry": data.get("ministry", "Government of India"),
                 }
     except Exception as e:
-        logger.warning(
-            "Could not fetch tender context", tender_id=tender_id, error=str(e)
-        )
+        logger.warning("Could not fetch tender context", tender_id=tender_id, error=str(e))
     return {"title": "Unknown Tender", "ministry": "Government of India"}
 
 
@@ -150,33 +146,19 @@ async def orchestrate_agents(req: OrchestrationRequest):
     active_agent = "DocumentAgent"
     delegated_routes = []
 
-    if any(
-        k in q_lower
-        for k in ["find", "search", "show me", "list", "defence", "railway"]
-    ):
+    if any(k in q_lower for k in ["find", "search", "show me", "list", "defence", "railway"]):
         active_agent = "SearchAgent"
         delegated_routes.append("/tenders/search")
-    elif any(
-        k in q_lower
-        for k in ["eligible", "eligibility", "qualification", "missing doc", "msme"]
-    ):
+    elif any(k in q_lower for k in ["eligible", "eligibility", "qualification", "missing doc", "msme"]):
         active_agent = "ComplianceAgent"
         delegated_routes.append("/qualification/check-eligibility")
-    elif any(
-        k in q_lower
-        for k in ["risk", "penalty", "sla", "liquidated damages", "warranty"]
-    ):
+    elif any(k in q_lower for k in ["risk", "penalty", "sla", "liquidated damages", "warranty"]):
         active_agent = "RiskAgent"
         delegated_routes.append("/qualification/risk-analysis")
-    elif any(
-        k in q_lower
-        for k in ["bid", "win probability", "strategy", "should i bid", "go/no-go"]
-    ):
+    elif any(k in q_lower for k in ["bid", "win probability", "strategy", "should i bid", "go/no-go"]):
         active_agent = "StrategyAgent"
         delegated_routes.append("/qualification/strategy")
-    elif any(
-        k in q_lower for k in ["proposal", "draft", "section", "write", "response"]
-    ):
+    elif any(k in q_lower for k in ["proposal", "draft", "section", "write", "response"]):
         active_agent = "ProposalAgent"
         delegated_routes.append("/proposals/generate")
     else:
@@ -232,9 +214,7 @@ async def orchestrate_agents(req: OrchestrationRequest):
             "current_filters": mem["current_filters"],
         },
         "confidence_score": rag_response.get("confidence") if rag_response else 0.92,
-        "grounding_status": (
-            "VERIFIED_EVIDENCE" if rag_response else "SYNTHESIZED_ROUTING"
-        ),
+        "grounding_status": ("VERIFIED_EVIDENCE" if rag_response else "SYNTHESIZED_ROUTING"),
     }
 
 

@@ -21,10 +21,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-CONNECTOR_REGISTRY_URL = (
-    os.getenv("CONNECTOR_SERVICE_URL", "http://connector-service:8003").rstrip("/")
-    + "/connectors"
-)
+CONNECTOR_REGISTRY_URL = os.getenv("CONNECTOR_SERVICE_URL", "http://connector-service:8003").rstrip("/") + "/connectors"
 scheduler_running = False
 _pool = None
 
@@ -58,9 +55,7 @@ async def run_single_sync(source_id: str):
     # 1. Fetch connector UUID from db based on source_id
     connector_uuid = None
     async with pool.acquire() as conn:
-        row = await conn.fetchrow(
-            "SELECT id FROM connectors WHERE source_id = $1", source_id
-        )
+        row = await conn.fetchrow("SELECT id FROM connectors WHERE source_id = $1", source_id)
         if row:
             connector_uuid = row["id"]
 
@@ -291,14 +286,8 @@ async def trigger_connector_syncs():
                             interval_mins = get_cron_interval_minutes(refresh_cron)
                             double_interval_mins = interval_mins * 2
                             # Calculate time elapsed since last sync finished
-                            last_sync_naive = (
-                                last_sync_at.replace(tzinfo=None)
-                                if last_sync_at.tzinfo
-                                else last_sync_at
-                            )
-                            minutes_since_last = (
-                                current_time - last_sync_naive
-                            ).total_seconds() / 60
+                            last_sync_naive = last_sync_at.replace(tzinfo=None) if last_sync_at.tzinfo else last_sync_at
+                            minutes_since_last = (current_time - last_sync_naive).total_seconds() / 60
                             if minutes_since_last < double_interval_mins:
                                 logger.info(
                                     "Connector in backoff (3 consecutive failures); skipping scheduled trigger",

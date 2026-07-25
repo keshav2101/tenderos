@@ -39,9 +39,7 @@ def verify_endpoints():
         # Health check
         try:
             h_resp = requests.get(f"{base_url}/health", timeout=10.0)
-            status = (
-                "UP" if h_resp.status_code == 200 else f"ERROR ({h_resp.status_code})"
-            )
+            status = "UP" if h_resp.status_code == 200 else f"ERROR ({h_resp.status_code})"
         except Exception as e:
             status = f"DOWN ({str(e)[:30]})"
             all_healthy = False
@@ -49,11 +47,7 @@ def verify_endpoints():
         # Metrics check
         try:
             m_resp = requests.get(f"{base_url}/metrics", timeout=3.0)
-            metrics = (
-                "EXPOSED"
-                if m_resp.status_code == 200
-                else f"MISSING ({m_resp.status_code})"
-            )
+            metrics = "EXPOSED" if m_resp.status_code == 200 else f"MISSING ({m_resp.status_code})"
         except Exception:
             metrics = "OFFLINE"
 
@@ -82,9 +76,7 @@ def verify_security_headers():
         passed = True
         for key, val in required.items():
             if key in headers:
-                print(
-                    f"  [✓] [PASS] {val} Header Exists: {key} = {headers[key][:50]}..."
-                )
+                print(f"  [✓] [PASS] {val} Header Exists: {key} = {headers[key][:50]}...")
             else:
                 print(f"  [✗] [FAIL] {val} Header is MISSING!")
                 passed = False
@@ -102,9 +94,7 @@ def benchmark_latencies():
     for i in range(100):
         start = time.perf_counter()
         try:
-            resp = requests.get(
-                f"{SERVICES['api-gateway']}/tenders?limit=5", timeout=5.0
-            )
+            resp = requests.get(f"{SERVICES['api-gateway']}/tenders?limit=5", timeout=5.0)
             if resp.status_code == 200:
                 duration_ms = (time.perf_counter() - start) * 1000
                 latencies.append(duration_ms)
@@ -159,9 +149,7 @@ def main():
             }
             with open("scripts/verification_evidence.json", "w") as f:
                 json.dump(report, f, indent=2)
-            print(
-                "  [✓] Saved verification evidence to scripts/verification_evidence.json"
-            )
+            print("  [✓] Saved verification evidence to scripts/verification_evidence.json")
         except Exception as err:
             print(f"  Failed to save JSON report: {err}")
     else:

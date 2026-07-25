@@ -25,14 +25,7 @@ from datetime import datetime
 
 import httpx
 
-from app.connectors.base import (
-    BaseConnector,
-    CadenceConfig,
-    HealthStatus,
-    RateLimitConfig,
-    RawTender,
-    RetryPolicy,
-)
+from app.connectors.base import BaseConnector, CadenceConfig, HealthStatus, RateLimitConfig, RawTender, RetryPolicy
 
 
 class GeMConnector(BaseConnector):
@@ -50,9 +43,7 @@ class GeMConnector(BaseConnector):
         description="Every 20 minutes — GeM updates frequently",
     )
     rate_limit = RateLimitConfig(requests_per_second=2.0, burst=4)
-    retry_policy = RetryPolicy(
-        max_attempts=3, backoff_base=2.0, max_backoff_seconds=120.0
-    )
+    retry_policy = RetryPolicy(max_attempts=3, backoff_base=2.0, max_backoff_seconds=120.0)
     timeout_seconds = 30
 
     GEM_ALL_BIDS_URL = "https://bidplus.gem.gov.in/all-bids"
@@ -102,9 +93,7 @@ class GeMConnector(BaseConnector):
         bid_no = (raw.get("b_bid_number") or [""])[0]
         b_id = raw.get("id", "")
         org = (raw.get("b_organisation_name") or [""])[0]
-        title = (raw.get("b_title") or [""])[0] or (
-            raw.get("b_bid_description") or [""]
-        )[0]
+        title = (raw.get("b_title") or [""])[0] or (raw.get("b_bid_description") or [""])[0]
         category = (raw.get("b_cat_name") or [""])[0]
         ministry_code = (raw.get("b_ministry_code") or [""])[0]
         ministry = (raw.get("b_ministry_name") or [""])[0]
@@ -112,9 +101,7 @@ class GeMConnector(BaseConnector):
         end_date_str = (raw.get("b_bidding_end_date") or [""])[0]
         start_date_str = (raw.get("b_bid_start_date") or [""])[0]
         estimated_value = (
-            raw.get("b_est_amount", [None])[0]
-            if isinstance(raw.get("b_est_amount"), list)
-            else raw.get("b_est_amount")
+            raw.get("b_est_amount", [None])[0] if isinstance(raw.get("b_est_amount"), list) else raw.get("b_est_amount")
         )
 
         # Parse dates
@@ -167,9 +154,7 @@ class GeMConnector(BaseConnector):
             "make_in_india": bool(raw.get("b_mii")),
         }
 
-    async def fetch_tenders(
-        self, since: datetime | None = None
-    ) -> AsyncIterator[RawTender]:
+    async def fetch_tenders(self, since: datetime | None = None) -> AsyncIterator[RawTender]:
         """
         Fetch live tenders from GeM using full cookie-jar session.
         Yields 0 results (never fixture) if WAF blocks access.
@@ -195,9 +180,7 @@ class GeMConnector(BaseConnector):
 
                 csrf_token = self._extract_csrf(resp_init.text)
                 if not csrf_token:
-                    self.log_warning(
-                        "GeMConnector: CSRF token not found in HTML — session may have changed"
-                    )
+                    self.log_warning("GeMConnector: CSRF token not found in HTML — session may have changed")
             except Exception as init_err:
                 self.log_error("GeMConnector: session init failed", error=str(init_err))
                 return
@@ -261,34 +244,24 @@ class GeMConnector(BaseConnector):
                     except Exception:
                         # Might be HTML login redirect
                         if "login" in resp_data.text.lower():
-                            self.log_warning(
-                                "GeMConnector: redirected to login page — BLOCKED_AUTH"
-                            )
+                            self.log_warning("GeMConnector: redirected to login page — BLOCKED_AUTH")
                         break
 
-                    docs: list = (
-                        data.get("response", {}).get("response", {}).get("docs", [])
-                    )
+                    docs: list = data.get("response", {}).get("response", {}).get("docs", [])
                     if not docs:
-                        self.log_info(
-                            "GeMConnector: empty docs on page — stopping", page=page
-                        )
+                        self.log_info("GeMConnector: empty docs on page — stopping", page=page)
                         break
 
                     for raw in docs:
                         bid_id = raw.get("id", f"GEM-{page}-{yielded}")
-                        bid_no = (raw.get("b_bid_number") or [f"GEM-{page}-{yielded}"])[
-                            0
-                        ]
+                        bid_no = (raw.get("b_bid_number") or [f"GEM-{page}-{yielded}"])[0]
                         parsed = self._parse_raw_bid(raw)
                         yield RawTender(
                             source_id=self.source_id,
                             source_tender_id=bid_no,
                             source_url=self.GEM_BID_DETAIL_URL.format(bid_id=bid_id),
                             raw_json=parsed,
-                            document_urls=[
-                                self.GEM_BID_DETAIL_URL.format(bid_id=bid_id)
-                            ],
+                            document_urls=[self.GEM_BID_DETAIL_URL.format(bid_id=bid_id)],
                         )
                         yielded += 1
 
@@ -304,9 +277,7 @@ class GeMConnector(BaseConnector):
                     self.log_warning("GeMConnector: timeout on page", page=page)
                     break
                 except Exception as page_err:
-                    self.log_error(
-                        "GeMConnector: page error", error=str(page_err), page=page
-                    )
+                    self.log_error("GeMConnector: page error", error=str(page_err), page=page)
                     break
 
         self.log_info("GeMConnector: crawl complete", total=yielded)

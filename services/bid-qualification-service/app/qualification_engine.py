@@ -44,9 +44,7 @@ class BidQualificationEngine:
         tender_categories = set(tender.get("categories", []))
         company_categories = set(company.get("target_categories", []))
         category_overlap = tender_categories & company_categories
-        category_score = min(
-            1.0, len(category_overlap) / max(len(tender_categories), 1)
-        )
+        category_score = min(1.0, len(category_overlap) / max(len(tender_categories), 1))
         scores["category_match"] = category_score
         if category_score == 0:
             gaps["critical"].append(
@@ -77,22 +75,14 @@ class BidQualificationEngine:
 
         # ─── Turnover Check ───────────────────────────────────────────────────
         required_turnover = float(tender.get("turnover_min_lakhs") or 0.0)
-        company_turnover = float(
-            company.get("avg_turnover_3yr_lakhs")
-            or company.get("max_turnover_lakhs")
-            or 0.0
-        )
-        turnover_waived = (is_msme and tender_msme_eligible) or (
-            is_startup and tender_startup_eligible
-        )
+        company_turnover = float(company.get("avg_turnover_3yr_lakhs") or company.get("max_turnover_lakhs") or 0.0)
+        turnover_waived = (is_msme and tender_msme_eligible) or (is_startup and tender_startup_eligible)
 
         if required_turnover and required_turnover > 0:
             if turnover_waived:
                 turnover_status = "WAIVED"
                 turnover_score = 1.0
-                advantages.append(
-                    "Prior turnover requirement waived under MSME/Startup relaxation criteria"
-                )
+                advantages.append("Prior turnover requirement waived under MSME/Startup relaxation criteria")
             elif not company_turnover:
                 turnover_status = "UNKNOWN"
                 turnover_score = 0.3
@@ -108,14 +98,10 @@ class BidQualificationEngine:
             elif company_turnover >= required_turnover:
                 turnover_status = "PASS"
                 turnover_score = 1.0
-                advantages.append(
-                    f"Turnover ₹{company_turnover:.0f}L exceeds requirement ₹{required_turnover:.0f}L"
-                )
+                advantages.append(f"Turnover ₹{company_turnover:.0f}L exceeds requirement ₹{required_turnover:.0f}L")
             else:
                 turnover_status = "FAIL"
-                gap_pct = (
-                    (required_turnover - company_turnover) / required_turnover * 100
-                )
+                gap_pct = (required_turnover - company_turnover) / required_turnover * 100
                 turnover_score = max(0.0, company_turnover / required_turnover)
                 gaps["critical"].append(
                     {
@@ -136,28 +122,18 @@ class BidQualificationEngine:
 
         # ─── Experience Check ─────────────────────────────────────────────────
         required_exp = float(tender.get("experience_years") or 0.0)
-        company_exp = float(
-            company.get("total_experience_years")
-            or company.get("experience_years")
-            or 0.0
-        )
-        exp_waived = (is_msme and tender_msme_eligible) or (
-            is_startup and tender_startup_eligible
-        )
+        company_exp = float(company.get("total_experience_years") or company.get("experience_years") or 0.0)
+        exp_waived = (is_msme and tender_msme_eligible) or (is_startup and tender_startup_eligible)
 
         if required_exp > 0:
             if exp_waived:
                 exp_status = "WAIVED"
                 exp_score = 1.0
-                advantages.append(
-                    "Prior experience requirement waived under MSME/Startup relaxation criteria"
-                )
+                advantages.append("Prior experience requirement waived under MSME/Startup relaxation criteria")
             elif company_exp == 0:
                 exp_status = "UNKNOWN"
                 exp_score = 0.3
-                missing_docs.append(
-                    "Experience Certificates / Work Orders from past clients"
-                )
+                missing_docs.append("Experience Certificates / Work Orders from past clients")
                 gaps["critical"].append(
                     {
                         "field": "experience",
@@ -284,14 +260,10 @@ class BidQualificationEngine:
         )
 
         # Winning probability — heuristic model
-        winning_probability = self._estimate_win_probability(
-            match_score, eligible, scores, company, tender
-        )
+        winning_probability = self._estimate_win_probability(match_score, eligible, scores, company, tender)
 
         # Recommendation
-        recommendation, reason = self._recommend(
-            match_score, eligible, gaps, winning_probability
-        )
+        recommendation, reason = self._recommend(match_score, eligible, gaps, winning_probability)
 
         # Estimated prep hours
         prep_hours = self._estimate_prep_hours(tender, gaps, missing_docs)
@@ -313,9 +285,7 @@ class BidQualificationEngine:
                 **checks,
                 "turnover_gap_lakhs": (
                     (required_turnover - company_turnover)
-                    if required_turnover
-                    and company_turnover
-                    and required_turnover > company_turnover
+                    if required_turnover and company_turnover and required_turnover > company_turnover
                     else None
                 ),
             },
@@ -324,9 +294,7 @@ class BidQualificationEngine:
                 "medium_gaps": gaps["medium"],
                 "low_gaps": gaps["low"],
                 "missing_documents": list(set(missing_docs)),
-                "total_gaps": len(gaps["critical"])
-                + len(gaps["medium"])
-                + len(gaps["low"]),
+                "total_gaps": len(gaps["critical"]) + len(gaps["medium"]) + len(gaps["low"]),
             },
             "recommendation": recommendation,
             "recommendation_reason": reason,
@@ -337,17 +305,13 @@ class BidQualificationEngine:
                 "category_match": {
                     "score": int(scores["category_match"] * 100),
                     "weight": WEIGHTS["category_match"],
-                    "weighted_score": round(
-                        scores["category_match"] * WEIGHTS["category_match"] * 100, 2
-                    ),
+                    "weighted_score": round(scores["category_match"] * WEIGHTS["category_match"] * 100, 2),
                 },
                 "turnover_eligibility": {
                     "score": int(scores["turnover_eligibility"] * 100),
                     "weight": WEIGHTS["turnover_eligibility"],
                     "weighted_score": round(
-                        scores["turnover_eligibility"]
-                        * WEIGHTS["turnover_eligibility"]
-                        * 100,
+                        scores["turnover_eligibility"] * WEIGHTS["turnover_eligibility"] * 100,
                         2,
                     ),
                 },
@@ -355,9 +319,7 @@ class BidQualificationEngine:
                     "score": int(scores["experience_eligibility"] * 100),
                     "weight": WEIGHTS["experience_eligibility"],
                     "weighted_score": round(
-                        scores["experience_eligibility"]
-                        * WEIGHTS["experience_eligibility"]
-                        * 100,
+                        scores["experience_eligibility"] * WEIGHTS["experience_eligibility"] * 100,
                         2,
                     ),
                 },
@@ -365,9 +327,7 @@ class BidQualificationEngine:
                     "score": int(scores["certification_match"] * 100),
                     "weight": WEIGHTS["certification_match"],
                     "weighted_score": round(
-                        scores["certification_match"]
-                        * WEIGHTS["certification_match"]
-                        * 100,
+                        scores["certification_match"] * WEIGHTS["certification_match"] * 100,
                         2,
                     ),
                 },
@@ -375,9 +335,7 @@ class BidQualificationEngine:
                     "score": int(scores["geographic_presence"] * 100),
                     "weight": WEIGHTS["geographic_presence"],
                     "weighted_score": round(
-                        scores["geographic_presence"]
-                        * WEIGHTS["geographic_presence"]
-                        * 100,
+                        scores["geographic_presence"] * WEIGHTS["geographic_presence"] * 100,
                         2,
                     ),
                 },
@@ -385,9 +343,7 @@ class BidQualificationEngine:
                     "score": int(scores["msme_startup_benefit"] * 100),
                     "weight": WEIGHTS["msme_startup_benefit"],
                     "weighted_score": round(
-                        scores["msme_startup_benefit"]
-                        * WEIGHTS["msme_startup_benefit"]
-                        * 100,
+                        scores["msme_startup_benefit"] * WEIGHTS["msme_startup_benefit"] * 100,
                         2,
                     ),
                 },
@@ -418,9 +374,7 @@ class BidQualificationEngine:
         # Cap between 10 and 90 (never claim certainty)
         return int(min(90, max(10, base)))
 
-    def _recommend(
-        self, match_score: int, eligible: bool, gaps: dict, win_prob: int | None
-    ) -> tuple[str, str]:
+    def _recommend(self, match_score: int, eligible: bool, gaps: dict, win_prob: int | None) -> tuple[str, str]:
         if not eligible or match_score < 30:
             return (
                 "SKIP",

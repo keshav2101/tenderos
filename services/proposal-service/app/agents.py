@@ -21,9 +21,7 @@ try:
     HAS_SDK = True
 except ImportError:
     HAS_SDK = False
-    logger.warning(
-        "google-antigravity SDK not found on system, running with native mock fallback classes"
-    )
+    logger.warning("google-antigravity SDK not found on system, running with native mock fallback classes")
 
 
 class MockSDKResponse:
@@ -85,9 +83,7 @@ class ComplianceAgent:
         """
 
         if not self.api_key or not self.api_key.startswith("AIzaSy"):
-            raise ValueError(
-                "Gemini API key is invalid or unconfigured (must start with AIzaSy)"
-            )
+            raise ValueError("Gemini API key is invalid or unconfigured (must start with AIzaSy)")
 
         config = ConfigClass(api_key=self.api_key) if HAS_SDK else {}
         max_retries = 3
@@ -133,9 +129,7 @@ class TechnicalProposalAgent:
         """
 
         if not self.api_key or not self.api_key.startswith("AIzaSy"):
-            raise ValueError(
-                "Gemini API key is invalid or unconfigured (must start with AIzaSy)"
-            )
+            raise ValueError("Gemini API key is invalid or unconfigured (must start with AIzaSy)")
 
         config = ConfigClass(api_key=self.api_key) if HAS_SDK else {}
         max_retries = 3
@@ -180,9 +174,7 @@ class RiskAssessmentAgent:
         """
 
         if not self.api_key or not self.api_key.startswith("AIzaSy"):
-            raise ValueError(
-                "Gemini API key is invalid or unconfigured (must start with AIzaSy)"
-            )
+            raise ValueError("Gemini API key is invalid or unconfigured (must start with AIzaSy)")
 
         config = ConfigClass(api_key=self.api_key) if HAS_SDK else {}
         max_retries = 3

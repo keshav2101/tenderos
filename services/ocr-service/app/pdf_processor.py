@@ -74,9 +74,7 @@ class PDFProcessor:
         else:  # MIXED
             return self._extract_mixed_pdf(pdf_bytes)
 
-    def _extract_text_pdf(
-        self, pdf_bytes: bytes, pdf_type: PDFType = PDFType.TEXT
-    ) -> dict:
+    def _extract_text_pdf(self, pdf_bytes: bytes, pdf_type: PDFType = PDFType.TEXT) -> dict:
         pages = []
         all_text = []
         tables = []
@@ -115,12 +113,8 @@ class PDFProcessor:
 
                 # Detect header/footer (first/last ~5% of page height)
                 page_height = page.height
-                header_words = [
-                    w for w in (words or []) if w["top"] < page_height * 0.08
-                ]
-                footer_words = [
-                    w for w in (words or []) if w["top"] > page_height * 0.92
-                ]
+                header_words = [w for w in (words or []) if w["top"] < page_height * 0.08]
+                footer_words = [w for w in (words or []) if w["top"] > page_height * 0.92]
                 header = " ".join(w["text"] for w in header_words).strip()
                 footer = " ".join(w["text"] for w in footer_words).strip()
 
@@ -199,19 +193,14 @@ class PDFProcessor:
         # Merge: use OCR text for pages where pdfplumber got < MIN chars
         merged_pages = []
         for text_page, scan_page in zip(text_result["pages"], scanned_result["pages"]):
-            if (
-                len((text_page.get("text") or "").strip())
-                >= self.MIN_TEXT_CHARS_PER_PAGE
-            ):
+            if len((text_page.get("text") or "").strip()) >= self.MIN_TEXT_CHARS_PER_PAGE:
                 merged_pages.append(text_page)
             else:
                 # Use OCR for this page but keep any tables from pdfplumber
                 scan_page["tables"] = text_page.get("tables", [])
                 merged_pages.append(scan_page)
 
-        full_text = "\n\n".join(
-            f"[PAGE {p['page']}]\n{p['text']}" for p in merged_pages
-        )
+        full_text = "\n\n".join(f"[PAGE {p['page']}]\n{p['text']}" for p in merged_pages)
         return {
             "pdf_type": PDFType.MIXED,
             "total_pages": len(merged_pages),

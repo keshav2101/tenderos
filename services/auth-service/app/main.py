@@ -120,9 +120,7 @@ async def register(req: RegisterRequest):
 
     pool = await get_db()
     async with pool.acquire() as conn:
-        existing = await conn.fetchrow(
-            "SELECT id FROM users WHERE email = $1", req.email
-        )
+        existing = await conn.fetchrow("SELECT id FROM users WHERE email = $1", req.email)
         if existing:
             raise HTTPException(status_code=400, detail="Email already registered")
 
@@ -144,9 +142,7 @@ async def register(req: RegisterRequest):
         )
 
         user_dict = dict(user)
-        user_dict = {
-            k: str(v) if isinstance(v, UUID) else v for k, v in user_dict.items()
-        }
+        user_dict = {k: str(v) if isinstance(v, UUID) else v for k, v in user_dict.items()}
         access = auth_svc.create_access_token(user_dict)
         refresh = auth_svc.create_refresh_token(str(user_id))
         logger.info("User registered", user_id=str(user_id), email=req.email)
@@ -162,9 +158,7 @@ async def login(req: LoginRequest):
             "SELECT id, email, password_hash, name, role, plan, company_id FROM users WHERE email = $1",
             req.email,
         )
-        if not user or not auth_svc.verify_password(
-            req.password, user["password_hash"]
-        ):
+        if not user or not auth_svc.verify_password(req.password, user["password_hash"]):
             raise HTTPException(status_code=401, detail="Invalid credentials")
 
         # FIX: column is `last_login_at`, not `last_login`
@@ -174,11 +168,7 @@ async def login(req: LoginRequest):
             user["id"],
         )
 
-        user_dict = {
-            k: str(v) if isinstance(v, UUID) else v
-            for k, v in dict(user).items()
-            if k != "password_hash"
-        }
+        user_dict = {k: str(v) if isinstance(v, UUID) else v for k, v in dict(user).items() if k != "password_hash"}
         access = auth_svc.create_access_token(user_dict)
         refresh = auth_svc.create_refresh_token(str(user["id"]))
         return TokenResponse(access_token=access, refresh_token=refresh, user=user_dict)
@@ -206,14 +196,10 @@ async def refresh_token(req: RefreshRequest):
 
         # Rotate refresh token
         await auth_svc.revoke_refresh_token(req.refresh_token)
-        user_dict = {
-            k: str(v) if isinstance(v, UUID) else v for k, v in dict(user).items()
-        }
+        user_dict = {k: str(v) if isinstance(v, UUID) else v for k, v in dict(user).items()}
         access = auth_svc.create_access_token(user_dict)
         new_refresh = auth_svc.create_refresh_token(str(user["id"]))
-        return TokenResponse(
-            access_token=access, refresh_token=new_refresh, user=user_dict
-        )
+        return TokenResponse(access_token=access, refresh_token=new_refresh, user=user_dict)
 
 
 @app.post("/auth/logout")
@@ -320,10 +306,7 @@ async def list_api_keys(user_id: str):
             "SELECT id, name, key_prefix, created_at, last_used_at FROM api_keys WHERE user_id = $1 AND is_active = TRUE",
             UUID(user_id),
         )
-        return [
-            {k: str(v) if hasattr(v, "hex") else v for k, v in dict(row).items()}
-            for row in keys
-        ]
+        return [{k: str(v) if hasattr(v, "hex") else v for k, v in dict(row).items()} for row in keys]
 
 
 @app.delete("/auth/api-keys/{key_id}")
@@ -350,13 +333,9 @@ async def forgot_password(req: ForgotPasswordRequest):
             token = await auth_svc.create_reset_token(str(user["id"]))
             reset_url = f"{settings.FRONTEND_URL}/auth/reset-password?token={token}"
             # In production, send email here
-            logger.info(
-                "Password reset requested", email=req.email, reset_url=reset_url
-            )
+            logger.info("Password reset requested", email=req.email, reset_url=reset_url)
     # Always return 200 to prevent email enumeration
-    return {
-        "message": "If this email is registered, you will receive a reset link shortly."
-    }
+    return {"message": "If this email is registered, you will receive a reset link shortly."}
 
 
 @app.post("/auth/reset-password")
@@ -388,9 +367,7 @@ async def sso_login(domain: str):
     async with pool.acquire() as conn:
         tenant = await conn.fetchrow("SELECT id FROM tenants WHERE domain = $1", domain)
         if not tenant:
-            raise HTTPException(
-                status_code=404, detail="Tenant organization not registered"
-            )
+            raise HTTPException(status_code=404, detail="Tenant organization not registered")
 
         sso_config = await conn.fetchrow(
             "SELECT sso_url, entity_id FROM tenant_sso_configs WHERE tenant_id = $1 AND is_active = TRUE",
@@ -404,7 +381,9 @@ async def sso_login(domain: str):
 
         relay_state = domain
         mock_saml_response = "PHNhbWxwOlJlc3BvbnNlIHhtbG5zOnNhbWxwPSJ1cm46b2FzaXM6bmFtZXM6dGM6U0FNTDoyLjA6cHJvdG9jb2wiPjwvc2FtbHA6UmVzcG9uc2U+"
-        callback_redirect = f"{settings.FRONTEND_URL}/auth/sso/callback?SAMLResponse={mock_saml_response}&RelayState={relay_state}"
+        callback_redirect = (
+            f"{settings.FRONTEND_URL}/auth/sso/callback?SAMLResponse={mock_saml_response}&RelayState={relay_state}"
+        )
 
         logger.info("Redirecting to SAML IdP", sso_url=sso_config["sso_url"])
         return {"redirect_url": callback_redirect}
@@ -420,9 +399,7 @@ async def sso_callback(req: dict):
 
     pool = await get_db()
     async with pool.acquire() as conn:
-        tenant = await conn.fetchrow(
-            "SELECT id, display_name FROM tenants WHERE domain = $1", relay_state
-        )
+        tenant = await conn.fetchrow("SELECT id, display_name FROM tenants WHERE domain = $1", relay_state)
         if not tenant:
             raise HTTPException(status_code=404, detail="Tenant organization not found")
 

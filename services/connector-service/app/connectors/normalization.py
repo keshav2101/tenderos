@@ -251,12 +251,8 @@ def normalize_tender(raw: RawTender) -> NormalizedTender:
     # ── GeM ───────────────────────────────────────────────────────────────────
     if source_id in GEM_SOURCES:
         title = raw_data.get("b_category_name", ["Live GeM Bid"])[0]
-        ministry = raw_data.get("ba_official_details_minName", ["Ministry of Defence"])[
-            0
-        ]
-        department = raw_data.get(
-            "ba_official_details_deptName", ["Department of Military Affairs"]
-        )[0]
+        ministry = raw_data.get("ba_official_details_minName", ["Ministry of Defence"])[0]
+        department = raw_data.get("ba_official_details_deptName", ["Department of Military Affairs"])[0]
         organisation = department
         buyer = raw_data.get("ba_official_details_officeName", [department])[0]
         location = normalize_state(department)
@@ -268,16 +264,10 @@ def normalize_tender(raw: RawTender) -> NormalizedTender:
         procurement_method = "gem"
         bid_type = "forward_auction"
         procurement_type = "goods"
-        published = _safe_datetime(
-            raw_data.get("final_start_date_sort", [None])[0], published
-        )
-        deadline = _safe_datetime(
-            raw_data.get("final_end_date_sort", [None])[0], deadline
-        )
+        published = _safe_datetime(raw_data.get("final_start_date_sort", [None])[0], published)
+        deadline = _safe_datetime(raw_data.get("final_end_date_sort", [None])[0], deadline)
         contact_details = {
-            "email": raw_data.get("ba_official_details_email", ["contact@gem.gov.in"])[
-                0
-            ],
+            "email": raw_data.get("ba_official_details_email", ["contact@gem.gov.in"])[0],
             "phone": "",
             "name": raw_data.get("ba_official_details_name", ["GeM Buyer"])[0],
             "designation": raw_data.get("ba_official_details_desg", ["Buyer"])[0],
@@ -471,19 +461,11 @@ def normalize_tender(raw: RawTender) -> NormalizedTender:
     # Infer Sector
     sector = "General"
     categories_str = "".join(categories).lower()
-    if any(
-        k in categories_str
-        for k in ["civil", "highway", "construction", "building", "road"]
-    ):
+    if any(k in categories_str for k in ["civil", "highway", "construction", "building", "road"]):
         sector = "Infrastructure"
-    elif any(
-        k in categories_str for k in ["medical", "health", "hospital", "surgical"]
-    ):
+    elif any(k in categories_str for k in ["medical", "health", "hospital", "surgical"]):
         sector = "Healthcare"
-    elif any(
-        k in categories_str
-        for k in ["it", "software", "cyber", "cloud", "analytics", "telecom"]
-    ):
+    elif any(k in categories_str for k in ["it", "software", "cyber", "cloud", "analytics", "telecom"]):
         sector = "Technology"
 
     # CPV code mapping

@@ -18,3 +18,7 @@ ignore = [
 profile = "black"
 line_length = 120
 known_first_party = ["app", "services", "scripts"]
+
+[tool.black]
+line-length = 120
+target-version = ["py311"]

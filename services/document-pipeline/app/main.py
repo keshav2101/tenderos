@@ -39,9 +39,7 @@ QDRANT_API_KEY = os.getenv("QDRANT_API_KEY") or None
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
 EMBEDDING_DIMENSION = int(os.getenv("EMBEDDING_DIMENSION", "384"))
 if QDRANT_HOST != "disabled":
-    qdrant_client = QdrantClient(
-        host=QDRANT_HOST, port=QDRANT_PORT, api_key=QDRANT_API_KEY
-    )
+    qdrant_client = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT, api_key=QDRANT_API_KEY)
 else:
     qdrant_client = None
 COLLECTION_NAME = "tender_chunks"
@@ -108,9 +106,7 @@ async def startup_event():
         if not exists:
             qdrant_client.recreate_collection(
                 collection_name=COLLECTION_NAME,
-                vectors_config=models.VectorParams(
-                    size=EMBEDDING_DIMENSION, distance=models.Distance.COSINE
-                ),
+                vectors_config=models.VectorParams(size=EMBEDDING_DIMENSION, distance=models.Distance.COSINE),
             )
         logger.info("Created Qdrant collection", name=COLLECTION_NAME)
     except Exception as e:
@@ -176,9 +172,7 @@ def get_embedding(text: str) -> list[float]:
     global _embedder
     if _embedder is None:
         if SentenceTransformer is None:
-            raise ImportError(
-                "sentence-transformers is not installed. Enable Qdrant/SentenceTransformers in config."
-            )
+            raise ImportError("sentence-transformers is not installed. Enable Qdrant/SentenceTransformers in config.")
         _embedder = SentenceTransformer(EMBEDDING_MODEL)
     return _embedder.encode(text, normalize_embeddings=True).tolist()
 
@@ -357,9 +351,7 @@ async def process_document(req: DocumentProcessRequest):
                     ocr_success = True
                     break
         except Exception as e:
-            logger.warning(
-                "OCR service processing timeout/error", error=str(e), attempt=attempt
-            )
+            logger.warning("OCR service processing timeout/error", error=str(e), attempt=attempt)
         await asyncio.sleep(2**attempt)
 
     if not ocr_success:
@@ -380,15 +372,11 @@ async def process_document(req: DocumentProcessRequest):
     cleaned_text = re.sub(r"\s+", " ", extracted_text).strip()
     if len(cleaned_text) < 5:
         async with pool.acquire() as conn:
-            await update_state(
-                conn, doc_id, "FAILED", failure_reason="Validated text length too short"
-            )
+            await update_state(conn, doc_id, "FAILED", failure_reason="Validated text length too short")
         return {"status": "failed", "reason": "Empty extracted text"}
 
     async with pool.acquire() as conn:
-        await update_state(
-            conn, doc_id, "TEXT_VALIDATED", last_success_stage="TEXT_CLEANING"
-        )
+        await update_state(conn, doc_id, "TEXT_VALIDATED", last_success_stage="TEXT_CLEANING")
 
     # 7. CHUNKED
     points = []

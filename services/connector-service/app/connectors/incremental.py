@@ -29,13 +29,9 @@ def get_last_crawl(source_id: str) -> datetime | None:
         r = get_redis_client()
         val = r.get(f"{LAST_CRAWL_PREFIX}{source_id}")
         if val:
-            return datetime.fromisoformat(
-                val.decode() if isinstance(val, bytes) else val
-            )
+            return datetime.fromisoformat(val.decode() if isinstance(val, bytes) else val)
     except Exception as e:
-        logger.warning(
-            "Failed to get last crawl timestamp", source_id=source_id, error=str(e)
-        )
+        logger.warning("Failed to get last crawl timestamp", source_id=source_id, error=str(e))
     return None
 
 
@@ -48,9 +44,7 @@ def set_last_crawl(source_id: str, ts: datetime | None = None):
         ts = ts or datetime.utcnow()
         r.set(f"{LAST_CRAWL_PREFIX}{source_id}", ts.isoformat(), ex=86400 * 7)
     except Exception as e:
-        logger.warning(
-            "Failed to set last crawl timestamp", source_id=source_id, error=str(e)
-        )
+        logger.warning("Failed to set last crawl timestamp", source_id=source_id, error=str(e))
 
 
 def has_content_changed(source_id: str, tender_id: str, new_hash: str) -> bool:

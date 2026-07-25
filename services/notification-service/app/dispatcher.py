@@ -34,16 +34,12 @@ class SlackDispatcher:
 
 
 class TwilioDispatcher:
-    def __init__(
-        self, account_sid: str = "", auth_token: str = "", from_number: str = ""
-    ):
+    def __init__(self, account_sid: str = "", auth_token: str = "", from_number: str = ""):
         self.account_sid = account_sid
         self.auth_token = auth_token
         self.from_number = from_number
         self.client_url = (
-            f"https://api.twilio.com/2010-04-01/Accounts/{self.account_sid}/Messages.json"
-            if account_sid
-            else ""
+            f"https://api.twilio.com/2010-04-01/Accounts/{self.account_sid}/Messages.json" if account_sid else ""
         )
 
     async def send_sms(self, to_number: str, text: str) -> bool:
@@ -86,13 +82,9 @@ class TwilioDispatcher:
             return True
 
         # Twilio WhatsApp requires prefix 'whatsapp:'
-        to_formatted = (
-            to_number if to_number.startswith("whatsapp:") else f"whatsapp:{to_number}"
-        )
+        to_formatted = to_number if to_number.startswith("whatsapp:") else f"whatsapp:{to_number}"
         from_formatted = (
-            self.from_number
-            if self.from_number.startswith("whatsapp:")
-            else f"whatsapp:{self.from_number}"
+            self.from_number if self.from_number.startswith("whatsapp:") else f"whatsapp:{self.from_number}"
         )
 
         try:

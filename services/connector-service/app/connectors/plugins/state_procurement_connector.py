@@ -14,14 +14,7 @@ from datetime import datetime
 import httpx
 from bs4 import BeautifulSoup
 
-from app.connectors.base import (
-    BaseConnector,
-    CadenceConfig,
-    HealthStatus,
-    RateLimitConfig,
-    RawTender,
-    RetryPolicy,
-)
+from app.connectors.base import BaseConnector, CadenceConfig, HealthStatus, RateLimitConfig, RawTender, RetryPolicy
 
 
 class StateProcurementConnector(BaseConnector):
@@ -33,9 +26,7 @@ class StateProcurementConnector(BaseConnector):
 
     source_id = "maharashtra"
     display_name = "Maharashtra Tenders"
-    description = (
-        "Active notices from Maharashtra and UP state portals via live scraping"
-    )
+    description = "Active notices from Maharashtra and UP state portals via live scraping"
     cadence = CadenceConfig(
         cron="0 */4 * * *",
         min_interval_seconds=10800,
@@ -46,10 +37,7 @@ class StateProcurementConnector(BaseConnector):
     timeout_seconds = 20
 
     MAHA_EPROCURE_URL = "https://mahatenders.gov.in"
-    NIC_ACTIVE_URL = (
-        "https://eprocure.gov.in/eprocure/app"
-        "?page=FrontEndLatestActiveTenders&service=page"
-    )
+    NIC_ACTIVE_URL = "https://eprocure.gov.in/eprocure/app" "?page=FrontEndLatestActiveTenders&service=page"
     NIC_BASE = "https://eprocure.gov.in"
 
     HEADERS = {
@@ -92,9 +80,7 @@ class StateProcurementConnector(BaseConnector):
             if resp.status_code != 200:
                 return results
             body = resp.text
-            if any(
-                w in body.lower() for w in ["login", "captcha", "j_username", "otp"]
-            ):
+            if any(w in body.lower() for w in ["login", "captcha", "j_username", "otp"]):
                 self.log_info(
                     "StateProcurementConnector: Maharashtra portal requires auth — BLOCKED_AUTH",
                     portal=self.MAHA_EPROCURE_URL,
@@ -108,17 +94,10 @@ class StateProcurementConnector(BaseConnector):
                 if len(text) < 15 or text in seen:
                     continue
                 href = a["href"]
-                if not any(
-                    k in text.lower()
-                    for k in ["tender", "nit", "bid", "rfp", "notice", "quotation"]
-                ):
+                if not any(k in text.lower() for k in ["tender", "nit", "bid", "rfp", "notice", "quotation"]):
                     continue
                 seen.add(text)
-                full_url = (
-                    href
-                    if href.startswith("http")
-                    else f"https://mahatenders.gov.in/{href.lstrip('/')}"
-                )
+                full_url = href if href.startswith("http") else f"https://mahatenders.gov.in/{href.lstrip('/')}"
                 results.append(
                     {
                         "title": text[:300],
@@ -157,9 +136,7 @@ class StateProcurementConnector(BaseConnector):
                 return results
             body = resp.text
             if any(w in body.lower() for w in ["login", "captcha", "j_username"]):
-                self.log_warning(
-                    "StateProcurementConnector: NIC eProcure requires login — BLOCKED_AUTH"
-                )
+                self.log_warning("StateProcurementConnector: NIC eProcure requires login — BLOCKED_AUTH")
                 return results
 
             soup = BeautifulSoup(body, "html.parser")
@@ -169,9 +146,7 @@ class StateProcurementConnector(BaseConnector):
                 or soup.find("table", {"class": "tablebg"})
             )
             if not table:
-                self.log_info(
-                    "StateProcurementConnector: NIC eProcure — no tender table found"
-                )
+                self.log_info("StateProcurementConnector: NIC eProcure — no tender table found")
                 return results
 
             for row in table.find_all("tr")[1:]:
@@ -190,15 +165,9 @@ class StateProcurementConnector(BaseConnector):
                 detail_url = self.NIC_ACTIVE_URL
                 if link and link.get("href"):
                     href = link["href"]
-                    detail_url = (
-                        href if href.startswith("http") else f"{self.NIC_BASE}{href}"
-                    )
+                    detail_url = href if href.startswith("http") else f"{self.NIC_BASE}{href}"
 
-                state = (
-                    "Maharashtra"
-                    if "maharashtra" in (org + title).lower()
-                    else "Uttar Pradesh"
-                )
+                state = "Maharashtra" if "maharashtra" in (org + title).lower() else "Uttar Pradesh"
                 results.append(
                     {
                         "title": title or f"{state} Tender {nit_no}",
@@ -218,26 +187,18 @@ class StateProcurementConnector(BaseConnector):
                     }
                 )
         except Exception as e:
-            self.log_warning(
-                "StateProcurementConnector: NIC eProcure scrape error", error=str(e)
-            )
+            self.log_warning("StateProcurementConnector: NIC eProcure scrape error", error=str(e))
         return results
 
-    async def fetch_tenders(
-        self, since: datetime | None = None
-    ) -> AsyncIterator[RawTender]:
+    async def fetch_tenders(self, since: datetime | None = None) -> AsyncIterator[RawTender]:
         """
         Fetch real tenders from live Maharashtra and UP state procurement portals.
         No fixture data fallback — yields 0 results when all sources are blocked.
         """
-        self.log_info(
-            "StateProcurementConnector: starting live crawl of Maharashtra + UP portals"
-        )
+        self.log_info("StateProcurementConnector: starting live crawl of Maharashtra + UP portals")
         yielded = 0
 
-        async with httpx.AsyncClient(
-            timeout=self.timeout_seconds, follow_redirects=True
-        ) as client:
+        async with httpx.AsyncClient(timeout=self.timeout_seconds, follow_redirects=True) as client:
             # Attempt 1: Maharashtra Tenders portal (link extraction)
             maha_results = await self._scrape_maha_portal(client)
             for i, raw in enumerate(maha_results):

@@ -44,9 +44,7 @@ class BidWorkflow:
     def transition_to(self, target_state: str) -> str:
         """Transitions state, validating lifecycle rules."""
         if not self.can_transition_to(target_state):
-            raise ValueError(
-                f"Transition from {self.state} to {target_state} is not permitted."
-            )
+            raise ValueError(f"Transition from {self.state} to {target_state} is not permitted.")
 
         old_state = self.state
         self.state = target_state

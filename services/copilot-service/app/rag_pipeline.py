@@ -138,9 +138,7 @@ class CopilotRAGPipeline:
             vectors_config=VectorParams(size=vector_size, distance=Distance.COSINE),
         )
 
-    async def retrieve_chunks(
-        self, tender_id: str, query: str, top_k: int = 5
-    ) -> list[dict]:
+    async def retrieve_chunks(self, tender_id: str, query: str, top_k: int = 5) -> list[dict]:
         # Fallback to PostgreSQL if Qdrant is disabled
         if settings.QDRANT_HOST == "disabled":
             logger.info(
@@ -215,13 +213,7 @@ class CopilotRAGPipeline:
             results = await qdrant.search(
                 collection_name=CHUNK_COLLECTION,
                 query_vector=query_embedding,
-                query_filter=Filter(
-                    must=[
-                        FieldCondition(
-                            key="tender_id", match=MatchValue(value=tender_id)
-                        )
-                    ]
-                ),
+                query_filter=Filter(must=[FieldCondition(key="tender_id", match=MatchValue(value=tender_id))]),
                 limit=top_k,
                 with_payload=True,
                 score_threshold=0.3,  # Minimum relevance threshold
@@ -236,17 +228,13 @@ class CopilotRAGPipeline:
                         "page": payload.get("page", "?"),
                         "section": payload.get("section", ""),
                         "doc_type": payload.get("doc_type", ""),
-                        "document_name": payload.get(
-                            "document_name", "tender_spec.pdf"
-                        ),
+                        "document_name": payload.get("document_name", "tender_spec.pdf"),
                         "score": hit.score,
                     }
                 )
             return chunks
         except Exception as e:
-            logger.error(
-                "Qdrant retrieval failed, falling back to empty results", error=str(e)
-            )
+            logger.error("Qdrant retrieval failed, falling back to empty results", error=str(e))
             return []
 
     def _build_context(self, chunks: list[dict]) -> str:
@@ -349,19 +337,14 @@ class CopilotRAGPipeline:
             opening_date=opening or "—",
             turnover_min_lakhs=tender_data.get("turnover_min_lakhs") or "Not specified",
             experience_years=tender_data.get("experience_years") or "Not specified",
-            certifications_required=", ".join(
-                tender_data.get("certifications_required") or []
-            )
-            or "None specified",
+            certifications_required=", ".join(tender_data.get("certifications_required") or []) or "None specified",
             msme_eligible="✅ Yes (Udyam EMD Waiver + 15% Purchase Preference)"
             if tender_data.get("msme_eligible")
             else "❌ No",
             startup_eligible="✅ Yes (DPIIT Startup India — Prior Turnover/Experience Exempt)"
             if tender_data.get("startup_eligible")
             else "❌ No",
-            gem_registered_required="✅ Required"
-            if tender_data.get("gem_registered_required")
-            else "Not required",
+            gem_registered_required="✅ Required" if tender_data.get("gem_registered_required") else "Not required",
             categories=", ".join(tender_data.get("categories") or ["General"]),
             procurement_method=tender_data.get("procurement_method") or "e-tendering",
             ai_summary=tender_data.get("ai_summary") or "—",
@@ -405,9 +388,7 @@ class CopilotRAGPipeline:
         Falls back to live tender DB data if no RAG chunks are indexed.
         """
         # Retrieve relevant chunks
-        chunks = await self.retrieve_chunks(
-            tender_id, question, top_k=settings.RAG_TOP_K
-        )
+        chunks = await self.retrieve_chunks(tender_id, question, top_k=settings.RAG_TOP_K)
 
         if not chunks:
             # Fallback: answer from live structured tender data
@@ -517,6 +498,4 @@ class CopilotRAGPipeline:
             )
 
         await qdrant.upsert(collection_name=CHUNK_COLLECTION, points=points)
-        logger.info(
-            "Indexed tender document chunks", tender_id=tender_id, chunks=len(points)
-        )
+        logger.info("Indexed tender document chunks", tender_id=tender_id, chunks=len(points))

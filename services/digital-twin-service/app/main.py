@@ -94,9 +94,7 @@ async def upsert_profile(body: dict):
     user_id = UUID(body["user_id"])
     async with pool.acquire() as conn:
         # Check if user has company_id
-        user = await conn.fetchrow(
-            "SELECT company_id FROM users WHERE id = $1", user_id
-        )
+        user = await conn.fetchrow("SELECT company_id FROM users WHERE id = $1", user_id)
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
 
@@ -105,22 +103,13 @@ async def upsert_profile(body: dict):
         if entity_type in ("SME", "sme", "sme_plan", ""):
             entity_type = "MSME_Medium"
 
-        legal_name = (
-            body.get("legal_name")
-            or body.get("company_name")
-            or body.get("name")
-            or "New Company"
-        )
+        legal_name = body.get("legal_name") or body.get("company_name") or body.get("name") or "New Company"
         udyam_no = body.get("udyam_no") or body.get("udyam_registration_no") or ""
         dpiit_no = body.get("dpiit_no") or ""
         gem_seller_id = body.get("gem_seller_id") or ""
         dsc_available = bool(body.get("dsc_available", False))
-        avg_turnover = float(
-            body.get("avg_turnover_3yr_lakhs") or body.get("annual_turnover_lakhs") or 0
-        )
-        total_exp = int(
-            body.get("total_experience_years") or body.get("experience_years") or 0
-        )
+        avg_turnover = float(body.get("avg_turnover_3yr_lakhs") or body.get("annual_turnover_lakhs") or 0)
+        total_exp = int(body.get("total_experience_years") or body.get("experience_years") or 0)
         certifications = body.get("certifications") or []
 
         if not company_id:
@@ -150,9 +139,7 @@ async def upsert_profile(body: dict):
                 datetime.utcnow(),
             )
             # Link to user
-            await conn.execute(
-                "UPDATE users SET company_id = $1 WHERE id = $2", company_id, user_id
-            )
+            await conn.execute("UPDATE users SET company_id = $1 WHERE id = $2", company_id, user_id)
         else:
             await conn.execute(
                 """
@@ -232,9 +219,7 @@ async def get_profile_score(user_id: str):
                 fields_filled += 1
 
             pct = int((fields_filled / total_fields) * 100)
-            await conn.execute(
-                "UPDATE companies SET profile_score = $1 WHERE id = $2", pct, company_id
-            )
+            await conn.execute("UPDATE companies SET profile_score = $1 WHERE id = $2", pct, company_id)
 
             return {"profile_score": pct, "completeness_percentage": pct}
     except Exception as e:
@@ -243,9 +228,7 @@ async def get_profile_score(user_id: str):
 
 
 @app.post("/documents")
-async def upload_document(
-    user_id: str = Form(...), doc_type: str = Form(...), file: UploadFile = File(...)
-):
+async def upload_document(user_id: str = Form(...), doc_type: str = Form(...), file: UploadFile = File(...)):
     import re
 
     logger.info("Uploading document", filename=file.filename, doc_type=doc_type)
@@ -284,9 +267,7 @@ async def upload_document(
         extracted = {"gstin": gstin, "legal_name": "Demo Corporation Private Limited"}
 
         async with pool.acquire() as conn:
-            user = await conn.fetchrow(
-                "SELECT company_id FROM users WHERE id = $1", UUID(user_id)
-            )
+            user = await conn.fetchrow("SELECT company_id FROM users WHERE id = $1", UUID(user_id))
             if user and user["company_id"]:
                 await conn.execute(
                     "UPDATE companies SET gstin = $1, pan = $2 WHERE id = $3",
@@ -309,9 +290,7 @@ async def upload_document(
         extracted = {"udyam_registration_no": udyam, "enterprise_type": ent_type}
 
         async with pool.acquire() as conn:
-            user = await conn.fetchrow(
-                "SELECT company_id FROM users WHERE id = $1", UUID(user_id)
-            )
+            user = await conn.fetchrow("SELECT company_id FROM users WHERE id = $1", UUID(user_id))
             if user and user["company_id"]:
                 await conn.execute(
                     "UPDATE companies SET entity_type = $1 WHERE id = $2",
@@ -343,9 +322,7 @@ async def list_documents(user_id: str):
                 "name": row["name"],
                 "type": row["type"],
                 "uploaded_at": (
-                    row["uploaded_at"].isoformat()
-                    if isinstance(row["uploaded_at"], datetime)
-                    else row["uploaded_at"]
+                    row["uploaded_at"].isoformat() if isinstance(row["uploaded_at"], datetime) else row["uploaded_at"]
                 ),
                 "verified": row["verified"],
             }

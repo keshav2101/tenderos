@@ -108,9 +108,7 @@ def start_scheduler():
             )
 
     _scheduler.start()
-    logger.info(
-        "TenderOS Connector Scheduler started", total_jobs=len(_scheduler.get_jobs())
-    )
+    logger.info("TenderOS Connector Scheduler started", total_jobs=len(_scheduler.get_jobs()))
 
 
 def stop_scheduler():
@@ -132,9 +130,7 @@ def get_scheduler_status() -> dict:
             {
                 "id": job.id,
                 "name": job.name,
-                "next_run": (
-                    job.next_run_time.isoformat() if job.next_run_time else None
-                ),
+                "next_run": (job.next_run_time.isoformat() if job.next_run_time else None),
                 "trigger": str(job.trigger),
             }
         )
@@ -154,9 +150,7 @@ def disable_connector_schedule(source_id: str):
             _scheduler.pause_job(f"sync_{source_id}")
             logger.info("Paused connector schedule", source=source_id)
         except Exception as e:
-            logger.warning(
-                "Could not pause connector schedule", source=source_id, error=str(e)
-            )
+            logger.warning("Could not pause connector schedule", source=source_id, error=str(e))
 
 
 def enable_connector_schedule(source_id: str):
@@ -167,6 +161,4 @@ def enable_connector_schedule(source_id: str):
             _scheduler.resume_job(f"sync_{source_id}")
             logger.info("Resumed connector schedule", source=source_id)
         except Exception as e:
-            logger.warning(
-                "Could not resume connector schedule", source=source_id, error=str(e)
-            )
+            logger.warning("Could not resume connector schedule", source=source_id, error=str(e))

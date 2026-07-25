@@ -61,9 +61,7 @@ assert_pass("JWT User Authentication", login_ok, "POST /api/v1/auth/login")
 
 # Mock SSO login redirection
 sso_redirect_ok = True
-assert_pass(
-    "SSO SAML Login Redirection", sso_redirect_ok, "GET /api/v1/auth/sso/login/acme"
-)
+assert_pass("SSO SAML Login Redirection", sso_redirect_ok, "GET /api/v1/auth/sso/login/acme")
 
 # Mock SSO assertion callback
 sso_callback_ok = True
@@ -149,15 +147,9 @@ assert_pass(
 test_section("6. Notification Prefs & Multi-Channel Alerts")
 
 channels = ["email", "sms", "whatsapp", "slack"]
-assert_pass(
-    "Multi-Channel Preferences Check", True, "preferences resolved: email, sms, slack"
-)
-assert_pass(
-    "Slack Webhook Alert Dispatch", True, "Incoming webhook request posted successfully"
-)
-assert_pass(
-    "Twilio SMS & WhatsApp Sandboxed Send", True, "message delivered successfully"
-)
+assert_pass("Multi-Channel Preferences Check", True, "preferences resolved: email, sms, slack")
+assert_pass("Slack Webhook Alert Dispatch", True, "Incoming webhook request posted successfully")
+assert_pass("Twilio SMS & WhatsApp Sandboxed Send", True, "message delivered successfully")
 
 
 # ─── 7. Scheduler Crawler Runs ────────────────────────────────────────────────

@@ -72,9 +72,7 @@ async def deep_health_check():
     overall_status = "healthy" if critical_healthy else "degraded"
 
     # Count optional degradation for transparency
-    optional_down = [
-        k for k, v in optional_services.items() if v["status"] != "healthy"
-    ]
+    optional_down = [k for k, v in optional_services.items() if v["status"] != "healthy"]
 
     return JSONResponse(
         status_code=200,  # Always return 200; callers check body for status
@@ -84,13 +82,9 @@ async def deep_health_check():
             "optional_services": optional_services,
             "optional_degraded": optional_down,
             "summary": {
-                "critical_healthy": sum(
-                    1 for v in critical_services.values() if v["status"] == "healthy"
-                ),
+                "critical_healthy": sum(1 for v in critical_services.values() if v["status"] == "healthy"),
                 "critical_total": len(critical_services),
-                "optional_healthy": sum(
-                    1 for v in optional_services.values() if v["status"] == "healthy"
-                ),
+                "optional_healthy": sum(1 for v in optional_services.values() if v["status"] == "healthy"),
                 "optional_total": len(optional_services),
             },
         },

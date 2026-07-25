@@ -14,9 +14,7 @@ _scheduler_proxy = ServiceProxy(settings.SCHEDULER_SERVICE_URL)
 def require_admin(request: Request):
     user = getattr(request.state, "user", None)
     if not user or user.get("role") != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
 
 
 @router.get("/connectors", summary="List all connectors and their health")
@@ -25,9 +23,7 @@ async def list_connectors(request: Request):
     return await _connector_proxy.get("/connectors")
 
 
-@router.post(
-    "/connectors/{source_id}/sync", summary="Trigger manual sync for a connector"
-)
+@router.post("/connectors/{source_id}/sync", summary="Trigger manual sync for a connector")
 async def trigger_sync(request: Request, source_id: str):
     require_admin(request)
     return await _connector_proxy.post(f"/connectors/{source_id}/sync")

@@ -30,9 +30,7 @@ class LLMClient:
             )
 
         # Grounded local fallback: parse document excerpts OR live tender data
-        last_user_msg = next(
-            (m["content"] for m in reversed(messages) if m["role"] == "user"), ""
-        )
+        last_user_msg = next((m["content"] for m in reversed(messages) if m["role"] == "user"), "")
         # Detect live tender data format (contains "Live Tender Data:" header)
         if "Live Tender Data:" in last_user_msg:
             return self._generate_live_tender_response(last_user_msg)
@@ -69,9 +67,7 @@ class LLMClient:
 
         client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
         anthropic_messages = [m for m in messages if m["role"] != "system"]
-        system_prompt = next(
-            (m["content"] for m in messages if m["role"] == "system"), ""
-        )
+        system_prompt = next((m["content"] for m in messages if m["role"] == "system"), "")
 
         response = await client.messages.create(
             model="claude-3-5-sonnet-latest",
@@ -125,9 +121,7 @@ class LLMClient:
             if raw_source_url and raw_source_url not in ("N/A", "None", "—")
             else f"https://{source.lower()}.gov.in"
         )
-        if not source_url.startswith("http://") and not source_url.startswith(
-            "https://"
-        ):
+        if not source_url.startswith("http://") and not source_url.startswith("https://"):
             source_url = f"https://{source_url}"
 
         # Extract user question
@@ -217,10 +211,7 @@ class LLMClient:
 *(Ref: `{source_tender_id}`)*"""
 
         # Intent 4: Scope / Summary / What is this tender
-        elif any(
-            k in q_lower
-            for k in ["summary", "scope", "what is", "about", "detail", "deliverable"]
-        ):
+        elif any(k in q_lower for k in ["summary", "scope", "what is", "about", "detail", "deliverable"]):
             ans = f"""### 🎯 Executive Procurement Summary — {title}
 
 **Overview:**  
@@ -289,9 +280,7 @@ class LLMClient:
             sec_match = re.search(r"\[Section\s*([^\]]+)\]", header)
             if not sec_match:
                 all_brackets = re.findall(r"\[([^\]]+)\]", header)
-                non_meta = [
-                    b for b in all_brackets if "Doc:" not in b and "Page" not in b
-                ]
+                non_meta = [b for b in all_brackets if "Doc:" not in b and "Page" not in b]
                 section = non_meta[0] if non_meta else ""
             else:
                 section = sec_match.group(1)
@@ -374,9 +363,7 @@ class LLMClient:
 
             quote = " ".join(quoted_sentences[:2])
 
-            section_ref = (
-                f", Section '{best_exc['section']}'" if best_exc["section"] else ""
-            )
+            section_ref = f", Section '{best_exc['section']}'" if best_exc["section"] else ""
             ans = (
                 f"Based on the retrieved tender document '{best_exc['doc_name']}' (Page {best_exc['page']}{section_ref}):\n\n"
                 f"**Quoted source text:**\n"
@@ -389,9 +376,7 @@ class LLMClient:
         else:
             if excerpts:
                 best_exc = excerpts[0]
-                section_ref = (
-                    f", Section '{best_exc['section']}'" if best_exc["section"] else ""
-                )
+                section_ref = f", Section '{best_exc['section']}'" if best_exc["section"] else ""
                 ans = (
                     f"Based on the general context in '{best_exc['doc_name']}' (Page {best_exc['page']}{section_ref}):\n\n"
                     f"**Quoted source text:**\n"

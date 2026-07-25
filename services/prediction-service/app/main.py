@@ -122,9 +122,7 @@ async def get_predictions(
 
     except Exception as e:
         logger.error("Failed to fetch dynamic predictions from database", error=str(e))
-        raise HTTPException(
-            status_code=500, detail="Failed to retrieve predictions from database."
-        )
+        raise HTTPException(status_code=500, detail="Failed to retrieve predictions from database.")
 
 
 @app.get("/predictions/seasonal")
@@ -162,9 +160,7 @@ async def get_seasonal_patterns(ministry: str | None = None):
             for m_num in range(1, 13):
                 # Find count for this month
                 cnt = next((r["cnt"] for r in rows if int(r["month_num"]) == m_num), 0)
-                share = (
-                    round((cnt / total_count * 100.0), 2) if total_count > 0 else 8.33
-                )
+                share = round((cnt / total_count * 100.0), 2) if total_count > 0 else 8.33
 
                 intensity = "LOW"
                 if share > 12.0:

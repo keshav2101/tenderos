@@ -67,11 +67,7 @@ async def health():
 
 @app.post("/billing/checkout")
 async def create_checkout_session(req: CheckoutRequest):
-    price_id = (
-        settings.STRIPE_PRICE_SME
-        if req.plan_tier == "sme"
-        else settings.STRIPE_PRICE_ENTERPRISE
-    )
+    price_id = settings.STRIPE_PRICE_SME if req.plan_tier == "sme" else settings.STRIPE_PRICE_ENTERPRISE
 
     pool = await get_db()
     async with pool.acquire() as conn:
@@ -111,13 +107,9 @@ async def create_checkout_session(req: CheckoutRequest):
 async def create_portal_session(req: PortalRequest):
     pool = await get_db()
     async with pool.acquire() as conn:
-        user = await conn.fetchrow(
-            "SELECT stripe_customer_id FROM users WHERE id = $1", UUID(req.user_id)
-        )
+        user = await conn.fetchrow("SELECT stripe_customer_id FROM users WHERE id = $1", UUID(req.user_id))
         if not user or not user["stripe_customer_id"]:
-            raise HTTPException(
-                status_code=400, detail="User has no Stripe customer billing record"
-            )
+            raise HTTPException(status_code=400, detail="User has no Stripe customer billing record")
 
     try:
         session = stripe.billing_portal.Session.create(
@@ -140,23 +132,15 @@ async def stripe_webhook(request: Request, stripe_signature: str | None = Header
 
     try:
         # Verify webhook signature
-        if (
-            stripe_signature
-            and settings.STRIPE_WEBHOOK_SECRET
-            != "whsec_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-        ):
-            event = stripe.Webhook.construct_event(
-                payload, stripe_signature, settings.STRIPE_WEBHOOK_SECRET
-            )
+        if stripe_signature and settings.STRIPE_WEBHOOK_SECRET != "whsec_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx":
+            event = stripe.Webhook.construct_event(payload, stripe_signature, settings.STRIPE_WEBHOOK_SECRET)
         else:
             # Fallback for dev mode / testing without signatures
             data = json.loads(payload.decode("utf-8"))
             event = stripe.Event.construct_from(data, stripe.api_key)
     except Exception as e:
         logger.error("Invalid webhook payload or signature", error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid webhook signature"
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid webhook signature")
 
     event_type = event["type"]
     logger.info("Received Stripe webhook event", type=event_type)
@@ -217,9 +201,7 @@ async def handle_subscription_change(subscription: dict):
             )
         else:
             # Fallback: Lookup user by stripe_customer_id
-            user = await conn.fetchrow(
-                "SELECT id FROM users WHERE stripe_customer_id = $1", customer_id
-            )
+            user = await conn.fetchrow("SELECT id FROM users WHERE stripe_customer_id = $1", customer_id)
             if user:
                 await conn.execute(
                     """

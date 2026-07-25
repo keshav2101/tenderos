@@ -60,9 +60,7 @@ async def generate_proposal(tender_id: str, user_id: str = "default_user"):
     # Fetch company profile from digital-twin-service
     async with httpx.AsyncClient(timeout=5.0) as client:
         try:
-            resp = await client.get(
-                f"{settings.DIGITAL_TWIN_SERVICE_URL}/profile/{user_id}"
-            )
+            resp = await client.get(f"{settings.DIGITAL_TWIN_SERVICE_URL}/profile/{user_id}")
             if resp.status_code != 200:
                 raise HTTPException(
                     status_code=resp.status_code,
@@ -71,30 +69,20 @@ async def generate_proposal(tender_id: str, user_id: str = "default_user"):
             data = resp.json()
             company_profile = {
                 "name": data.get("legal_name") or data.get("company_name", ""),
-                "experience_years": float(
-                    data.get("total_experience_years")
-                    or data.get("experience_years")
-                    or 0.0
-                ),
+                "experience_years": float(data.get("total_experience_years") or data.get("experience_years") or 0.0),
                 "average_turnover_lakhs": float(
-                    data.get("avg_turnover_3yr_lakhs")
-                    or data.get("average_turnover_lakhs")
-                    or 0.0
+                    data.get("avg_turnover_3yr_lakhs") or data.get("average_turnover_lakhs") or 0.0
                 ),
                 "certifications": data.get("certifications") or [],
             }
         except httpx.HTTPError as he:
             logger.error("Failed to connect to digital twin service", error=str(he))
-            raise HTTPException(
-                status_code=502, detail="Digital twin service is unreachable."
-            )
+            raise HTTPException(status_code=502, detail="Digital twin service is unreachable.")
 
     # Fetch tender details from tender-service
     async with httpx.AsyncClient(timeout=5.0) as client:
         try:
-            resp = await client.get(
-                f"{settings.TENDER_SERVICE_URL}/tenders/{tender_id}"
-            )
+            resp = await client.get(f"{settings.TENDER_SERVICE_URL}/tenders/{tender_id}")
             if resp.status_code != 200:
                 raise HTTPException(
                     status_code=resp.status_code,
@@ -111,9 +99,7 @@ async def generate_proposal(tender_id: str, user_id: str = "default_user"):
             }
         except httpx.HTTPError as he:
             logger.error("Failed to connect to tender service", error=str(he))
-            raise HTTPException(
-                status_code=502, detail="Tender service is unreachable."
-            )
+            raise HTTPException(status_code=502, detail="Tender service is unreachable.")
 
     # 2. Run multi-agent proposal assembly
     compliance_agent = ComplianceAgent(GEMINI_API_KEY)
@@ -121,9 +107,7 @@ async def generate_proposal(tender_id: str, user_id: str = "default_user"):
     risk_agent = RiskAssessmentAgent(GEMINI_API_KEY)
 
     try:
-        compliance_results = await compliance_agent.analyze(
-            company_profile, tender_spec
-        )
+        compliance_results = await compliance_agent.analyze(company_profile, tender_spec)
         tech_results = await tech_agent.generate_draft(company_profile, tender_spec)
         risk_results = await risk_agent.assess_risks(tender_spec)
     except Exception as e:

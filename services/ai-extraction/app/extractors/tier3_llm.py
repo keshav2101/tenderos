@@ -70,9 +70,7 @@ class Tier3LLMExtractor:
 
     async def _get_redis(self) -> aioredis.Redis:
         if self._redis is None:
-            self._redis = await aioredis.from_url(
-                settings.redis_url, decode_responses=True
-            )
+            self._redis = await aioredis.from_url(settings.redis_url, decode_responses=True)
         return self._redis
 
     def _cache_key(self, text: str) -> str:

@@ -110,9 +110,7 @@ async def add_process_time_header(request: Request, call_next):
     response.headers["X-TenderOS-Version"] = settings.VERSION
 
     # Production Security Hardening Headers
-    response.headers[
-        "Strict-Transport-Security"
-    ] = "max-age=63072000; includeSubDomains; preload"
+    response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains; preload"
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
         "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
@@ -170,13 +168,9 @@ app.include_router(
     prefix=f"{API_V1}/recommendations",
     tags=["Recommendations"],
 )
-app.include_router(
-    eligibility.router, prefix=f"{API_V1}/eligibility", tags=["Eligibility"]
-)
+app.include_router(eligibility.router, prefix=f"{API_V1}/eligibility", tags=["Eligibility"])
 app.include_router(chat.router, prefix=f"{API_V1}/chat", tags=["Tender Copilot"])
-app.include_router(
-    copilot.router, prefix=f"{API_V1}/copilot", tags=["Copilot Orchestrator"]
-)
+app.include_router(copilot.router, prefix=f"{API_V1}/copilot", tags=["Copilot Orchestrator"])
 app.include_router(company.router, prefix=f"{API_V1}/company", tags=["Company Profile"])
 app.include_router(proposals.router, prefix=f"{API_V1}/proposals", tags=["Proposals"])
 app.include_router(
@@ -187,10 +181,6 @@ app.include_router(
 app.include_router(admin.router, prefix=f"{API_V1}/admin", tags=["Admin"])
 app.include_router(billing.router, prefix=f"{API_V1}/billing", tags=["Billing"])
 app.include_router(graph.router, prefix=f"{API_V1}/graph", tags=["Knowledge Graph"])
-app.include_router(
-    intelligence.router, prefix=f"{API_V1}/intelligence", tags=["Market Intelligence"]
-)
-app.include_router(
-    governance.router, prefix=f"{API_V1}/governance", tags=["AI Governance"]
-)
+app.include_router(intelligence.router, prefix=f"{API_V1}/intelligence", tags=["Market Intelligence"])
+app.include_router(governance.router, prefix=f"{API_V1}/governance", tags=["AI Governance"])
 app.include_router(quality.router, prefix=f"{API_V1}/quality", tags=["Data Quality"])

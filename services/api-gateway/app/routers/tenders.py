@@ -29,9 +29,7 @@ _proxy = ServiceProxy(settings.TENDER_SERVICE_URL)
 
 @router.get("/intelligence/buyers", summary="Get buyer profiles")
 async def get_buyer_profiles(request: Request, limit: int = Query(20, ge=1, le=100)):
-    return await _proxy.get(
-        "/tenders/intelligence/buyers", params={"limit": limit}, request=request
-    )
+    return await _proxy.get("/tenders/intelligence/buyers", params={"limit": limit}, request=request)
 
 
 @router.get("/intelligence/market-trends", summary="Get market trends")
@@ -55,9 +53,7 @@ async def list_tenders(
     deadline_from: str | None = None,
     deadline_to: str | None = None,
     source: str | None = None,
-    sort_by: str = Query(
-        "published", enum=["published", "deadline", "cost_high", "cost_low"]
-    ),
+    sort_by: str = Query("published", enum=["published", "deadline", "cost_high", "cost_low"]),
 ):
     params = {
         k: v
@@ -99,15 +95,11 @@ async def get_tender_summary(tender_id: str = Path(...)):
 
 
 @router.get("/{tender_id}/similar", summary="Find similar tenders")
-async def get_similar_tenders(
-    tender_id: str = Path(...), limit: int = Query(5, ge=1, le=20)
-):
+async def get_similar_tenders(tender_id: str = Path(...), limit: int = Query(5, ge=1, le=20)):
     return await _proxy.get(f"/tenders/{tender_id}/similar", params={"limit": limit})
 
 
-@router.get(
-    "/{tender_id}/winners", summary="Get award history for this tender category"
-)
+@router.get("/{tender_id}/winners", summary="Get award history for this tender category")
 async def get_winner_history(tender_id: str = Path(...)):
     return await _proxy.get(f"/tenders/{tender_id}/winners")
 
@@ -120,14 +112,10 @@ async def get_tender_documents(tender_id: str = Path(...)):
 @router.post("/{tender_id}/watchlist", summary="Add tender to watchlist")
 async def add_to_watchlist(request: Request, tender_id: str = Path(...)):
     user = _require_user(request)
-    return await _proxy.post(
-        f"/tenders/{tender_id}/watchlist", json={"user_id": user["user_id"]}
-    )
+    return await _proxy.post(f"/tenders/{tender_id}/watchlist", json={"user_id": user["user_id"]})
 
 
 @router.delete("/{tender_id}/watchlist", summary="Remove tender from watchlist")
 async def remove_from_watchlist(request: Request, tender_id: str = Path(...)):
     user = _require_user(request)
-    return await _proxy.delete(
-        f"/tenders/{tender_id}/watchlist?user_id={user['user_id']}"
-    )
+    return await _proxy.delete(f"/tenders/{tender_id}/watchlist?user_id={user['user_id']}")

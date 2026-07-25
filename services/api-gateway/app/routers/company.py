@@ -36,16 +36,12 @@ async def get_profile_score(request: Request):
     return await _proxy.get(f"/profile/{user['user_id']}/score")
 
 
-@router.get(
-    "/profile/{user_id}/score", summary="Get profile completeness score by user ID"
-)
+@router.get("/profile/{user_id}/score", summary="Get profile completeness score by user ID")
 async def get_profile_score_by_user(request: Request, user_id: str):
     return await _proxy.get(f"/profile/{user_id}/score")
 
 
-@router.post(
-    "/documents", summary="Upload company document (GST, ISO, Experience cert, etc.)"
-)
+@router.post("/documents", summary="Upload company document (GST, ISO, Experience cert, etc.)")
 async def upload_document(request: Request):
     """
     Upload and auto-extract company documents.

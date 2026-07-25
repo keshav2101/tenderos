@@ -18,14 +18,7 @@ from datetime import datetime, timedelta
 import httpx
 from bs4 import BeautifulSoup
 
-from app.connectors.base import (
-    BaseConnector,
-    CadenceConfig,
-    HealthStatus,
-    RateLimitConfig,
-    RawTender,
-    RetryPolicy,
-)
+from app.connectors.base import BaseConnector, CadenceConfig, HealthStatus, RateLimitConfig, RawTender, RetryPolicy
 
 
 class CPPPConnector(BaseConnector):
@@ -84,31 +77,20 @@ class CPPPConnector(BaseConnector):
 
                 title = lines[0] if lines else ""
                 ref_no = lines[1] if len(lines) > 1 else ""
-                tender_id = (
-                    lines[2]
-                    if len(lines) > 2
-                    else (ref_no or cells[0].get_text(strip=True))
-                )
+                tender_id = lines[2] if len(lines) > 2 else (ref_no or cells[0].get_text(strip=True))
 
                 link_tag = title_ref_cell.find("a")
                 detail_url = source_url
                 if link_tag and link_tag.get("href"):
                     href = link_tag["href"]
-                    detail_url = (
-                        href
-                        if href.startswith("http")
-                        else f"https://eprocure.gov.in{href}"
-                    )
+                    detail_url = href if href.startswith("http") else f"https://eprocure.gov.in{href}"
 
                 organisation = cells[5].get_text(strip=True)
 
                 # Parse dates
-                published_at = (
-                    self._parse_date(pub_date) or datetime.utcnow().isoformat()
-                )
+                published_at = self._parse_date(pub_date) or datetime.utcnow().isoformat()
                 submission_deadline = (
-                    self._parse_date(close_date)
-                    or (datetime.utcnow() + timedelta(days=14)).isoformat()
+                    self._parse_date(close_date) or (datetime.utcnow() + timedelta(days=14)).isoformat()
                 )
                 opening_at = self._parse_date(opening_date)
 
@@ -193,13 +175,9 @@ class CPPPConnector(BaseConnector):
             return "Ministry of Health and Family Welfare"
         if any(k in org_lower for k in ["railway", "rail"]):
             return "Ministry of Railways"
-        if any(
-            k in org_lower for k in ["defence", "army", "navy", "air force", "drdo"]
-        ):
+        if any(k in org_lower for k in ["defence", "army", "navy", "air force", "drdo"]):
             return "Ministry of Defence"
-        if any(
-            k in org_lower for k in ["education", "school", "university", "iit", "nit"]
-        ):
+        if any(k in org_lower for k in ["education", "school", "university", "iit", "nit"]):
             return "Ministry of Education"
         if any(k in org_lower for k in ["road", "highway", "nhai", "morth"]):
             return "Ministry of Road Transport and Highways"
@@ -238,23 +216,15 @@ class CPPPConnector(BaseConnector):
             ]
         ):
             cats.append("Civil & Construction")
-        if any(
-            k in title_lower
-            for k in ["medical", "health", "hospital", "equipment", "medicine"]
-        ):
+        if any(k in title_lower for k in ["medical", "health", "hospital", "equipment", "medicine"]):
             cats.append("Healthcare")
         if any(k in title_lower for k in ["supply", "purchase", "procure", "goods"]):
             cats.append("Goods & Services")
-        if any(
-            k in title_lower
-            for k in ["consult", "service", "advisory", "amc", "maintenance"]
-        ):
+        if any(k in title_lower for k in ["consult", "service", "advisory", "amc", "maintenance"]):
             cats.append("Consultancy & Professional Services")
         return cats or ["General"]
 
-    async def fetch_tenders(
-        self, since: datetime | None = None
-    ) -> AsyncIterator[RawTender]:
+    async def fetch_tenders(self, since: datetime | None = None) -> AsyncIterator[RawTender]:
         """
         Scrape active tenders from NIC eProcure CPPP listing.
         """
@@ -290,9 +260,7 @@ class CPPPConnector(BaseConnector):
                         break
 
                     for raw in tenders:
-                        tender_id = (
-                            raw.get("source_nit_no") or f"CPPP-P{page_no}-{yielded}"
-                        )
+                        tender_id = raw.get("source_nit_no") or f"CPPP-P{page_no}-{yielded}"
                         yield RawTender(
                             source_id=self.source_id,
                             source_tender_id=tender_id,
@@ -307,18 +275,14 @@ class CPPPConnector(BaseConnector):
                     self.log_warning("CPPPConnector: timeout on page", page=page_no)
                     break
                 except Exception as err:
-                    self.log_error(
-                        "CPPPConnector: scrape error", error=str(err), page=page_no
-                    )
+                    self.log_error("CPPPConnector: scrape error", error=str(err), page=page_no)
                     break
 
         self.log_info("CPPPConnector: crawl complete", total=yielded)
 
     async def health_check(self) -> HealthStatus:
         try:
-            async with httpx.AsyncClient(
-                timeout=10.0, follow_redirects=True, verify=False
-            ) as client:  # nosec B501
+            async with httpx.AsyncClient(timeout=10.0, follow_redirects=True, verify=False) as client:  # nosec B501
                 resp = await client.get(
                     self.PORTAL_BASE,
                     headers={"User-Agent": self.HEADERS["User-Agent"]},

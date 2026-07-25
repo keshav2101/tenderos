@@ -128,8 +128,6 @@ async def parse_natural_language_query(query: str) -> dict[str, Any]:
     # Clean query text
     clean_query = re.sub(r"\s+", " ", clean_query).strip()
     # Remove hanging words like "tenders", "procurement", "tenders in" at the end
-    clean_query = re.sub(
-        r"\b(tenders?|procurement)\b", "", clean_query, flags=re.IGNORECASE
-    ).strip()
+    clean_query = re.sub(r"\b(tenders?|procurement)\b", "", clean_query, flags=re.IGNORECASE).strip()
 
     return {"query": clean_query or query, "filters": filters}

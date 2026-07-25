@@ -63,9 +63,7 @@ class AuthService:
             "exp": expire,
             "type": "access",
         }
-        return jwt.encode(
-            payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM
-        )
+        return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
 
     def create_refresh_token(self, user_id: str) -> str:
         now = datetime.utcnow()
@@ -77,15 +75,11 @@ class AuthService:
             "type": "refresh",
             "jti": str(uuid4()),  # Unique token ID for revocation
         }
-        return jwt.encode(
-            payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM
-        )
+        return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
 
     def decode_token(self, token: str) -> dict | None:
         try:
-            return jwt.decode(
-                token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM]
-            )
+            return jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
         except Exception:
             return None
 

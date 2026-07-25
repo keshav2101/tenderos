@@ -20,9 +20,7 @@ async def get_trends(
     category: str | None = None,
     state: str | None = None,
 ):
-    return await _market.get(
-        "/trends", params={"period": period, "category": category, "state": state}
-    )
+    return await _market.get("/trends", params={"period": period, "category": category, "state": state})
 
 
 @router.get("/ministries", summary="Top ministries by procurement volume")
@@ -99,6 +97,4 @@ async def get_tender_competitors(tender_id: str):
 
 @router.get("/market-share", summary="Vendor market share by category")
 async def get_market_share(category: str, period: str = "12m"):
-    return await _competitor.get(
-        "/market-share", params={"category": category, "period": period}
-    )
+    return await _competitor.get("/market-share", params={"category": category, "period": period})

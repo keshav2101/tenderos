@@ -20,14 +20,7 @@ from typing import Any
 import httpx
 from bs4 import BeautifulSoup
 
-from app.connectors.base import (
-    BaseConnector,
-    CadenceConfig,
-    HealthStatus,
-    RateLimitConfig,
-    RawTender,
-    RetryPolicy,
-)
+from app.connectors.base import BaseConnector, CadenceConfig, HealthStatus, RateLimitConfig, RawTender, RetryPolicy
 
 
 class PSUBaseConnector(BaseConnector):
@@ -61,17 +54,11 @@ class PSUBaseConnector(BaseConnector):
     }
 
     # Use nicgep/app as fallback
-    NIC_URL = (
-        "https://eprocure.gov.in/eprocure/app"
-        "?page=FrontEndLatestActiveTenders&service=page"
-    )
+    NIC_URL = "https://eprocure.gov.in/eprocure/app" "?page=FrontEndLatestActiveTenders&service=page"
     NIC_BASE = "https://eprocure.gov.in"
 
     def _is_login_gated(self, body: str) -> bool:
-        return any(
-            k in body.lower()
-            for k in ["login", "captcha", "j_username", "otp", "password"]
-        )
+        return any(k in body.lower() for k in ["login", "captcha", "j_username", "otp", "password"])
 
     def _parse_date(self, s: str) -> str | None:
         if not s:
@@ -101,9 +88,7 @@ class PSUBaseConnector(BaseConnector):
     def _infer_categories(self, title: str) -> list[str]:
         t = title.lower()
         cats = []
-        if any(
-            k in t for k in ["software", "it ", "digital", "ict", "erp", "sap", "cloud"]
-        ):
+        if any(k in t for k in ["software", "it ", "digital", "ict", "erp", "sap", "cloud"]):
             cats.append("IT & Software")
         if any(
             k in t
@@ -125,9 +110,7 @@ class PSUBaseConnector(BaseConnector):
             cats.append("Consultancy & Professional Services")
         return cats or ["General"]
 
-    async def _scrape_portal(
-        self, client: httpx.AsyncClient, url: str
-    ) -> list[dict[str, Any]]:
+    async def _scrape_portal(self, client: httpx.AsyncClient, url: str) -> list[dict[str, Any]]:
         """Scrape a PSU tender page — link extraction + table parsing."""
         results = []
         try:
@@ -141,9 +124,7 @@ class PSUBaseConnector(BaseConnector):
                 return results
             body = resp.text
             if self._is_login_gated(body):
-                self.log_warning(
-                    f"{self.source_id}: login gate at {url} — BLOCKED_AUTH"
-                )
+                self.log_warning(f"{self.source_id}: login gate at {url} — BLOCKED_AUTH")
                 return results
 
             soup = BeautifulSoup(body, "html.parser")
@@ -186,18 +167,12 @@ class PSUBaseConnector(BaseConnector):
                     if link and link.get("href"):
                         href = link["href"]
                         base_url = f"https://{resp.url.host}"
-                        detail_url = (
-                            href
-                            if href.startswith("http")
-                            else f"{base_url}/{href.lstrip('/')}"
-                        )
+                        detail_url = href if href.startswith("http") else f"{base_url}/{href.lstrip('/')}"
                     # Try to find date in neighboring cells
                     date_str = ""
                     for c in cells:
                         text = c.get_text(strip=True)
-                        if re.search(r"\d{2}[/-]\d{2}[/-]\d{4}", text) or re.search(
-                            r"\d{2}-[A-Za-z]{3}-\d{4}", text
-                        ):
+                        if re.search(r"\d{2}[/-]\d{2}[/-]\d{4}", text) or re.search(r"\d{2}-[A-Za-z]{3}-\d{4}", text):
                             date_str = text
                             break
                     results.append(
@@ -225,19 +200,12 @@ class PSUBaseConnector(BaseConnector):
                     text = a.get_text(strip=True)
                     if len(text) < 15 or text in seen_titles:
                         continue
-                    if not any(
-                        k in text.lower()
-                        for k in ["tender", "nit", "rfp", "bid", "notice", "quotation"]
-                    ):
+                    if not any(k in text.lower() for k in ["tender", "nit", "rfp", "bid", "notice", "quotation"]):
                         continue
                     seen_titles.add(text)
                     href = a["href"]
                     base_url = f"https://{resp.url.host}"
-                    full_url = (
-                        href
-                        if href.startswith("http")
-                        else f"{base_url}/{href.lstrip('/')}"
-                    )
+                    full_url = href if href.startswith("http") else f"{base_url}/{href.lstrip('/')}"
                     results.append(
                         {
                             "title": text[:300],
@@ -299,11 +267,7 @@ class PSUBaseConnector(BaseConnector):
 
                     title = lines[0] if lines else ""
                     ref_no = lines[1] if len(lines) > 1 else ""
-                    tender_id = (
-                        lines[2]
-                        if len(lines) > 2
-                        else (ref_no or cells[0].get_text(strip=True))
-                    )
+                    tender_id = lines[2] if len(lines) > 2 else (ref_no or cells[0].get_text(strip=True))
 
                     # Filter by PSU keywords
                     combined = (org + " " + title).lower()
@@ -314,11 +278,7 @@ class PSUBaseConnector(BaseConnector):
                     detail_url = url
                     if link_tag and link_tag.get("href"):
                         href = link_tag["href"]
-                        detail_url = (
-                            href
-                            if href.startswith("http")
-                            else f"https://eprocure.gov.in{href}"
-                        )
+                        detail_url = href if href.startswith("http") else f"https://eprocure.gov.in{href}"
 
                     pub_date = cells[1].get_text(strip=True)
                     close_date = cells[2].get_text(strip=True)
@@ -335,8 +295,7 @@ class PSUBaseConnector(BaseConnector):
                             "categories": self._infer_categories(title),
                             "procurement_method": "open",
                             "status": "active",
-                            "published_at": self._parse_date(pub_date)
-                            or datetime.utcnow().isoformat(),
+                            "published_at": self._parse_date(pub_date) or datetime.utcnow().isoformat(),
                             "submission_deadline": self._parse_date(close_date)
                             or (datetime.utcnow() + timedelta(days=14)).isoformat(),
                             "source_nit_no": ref_no or tender_id,
@@ -354,9 +313,7 @@ class PSUBaseConnector(BaseConnector):
 
         return results
 
-    async def fetch_tenders(
-        self, since: datetime | None = None
-    ) -> AsyncIterator[RawTender]:
+    async def fetch_tenders(self, since: datetime | None = None) -> AsyncIterator[RawTender]:
         """Fetch PSU tenders from own portal + NIC eProcure. No fixture data."""
         self.log_info(f"{self.source_id}: starting PSU scrape", psu=self.PSU_NAME)
         yielded = 0
@@ -374,8 +331,7 @@ class PSUBaseConnector(BaseConnector):
                 for i, raw in enumerate(results):
                     yield RawTender(
                         source_id=self.source_id,
-                        source_tender_id=raw.get("source_nit_no")
-                        or f"{self.source_id.upper()}-{i}",
+                        source_tender_id=raw.get("source_nit_no") or f"{self.source_id.upper()}-{i}",
                         source_url=raw.get("source_detail_url", url),
                         raw_json=raw,
                     )
@@ -389,8 +345,7 @@ class PSUBaseConnector(BaseConnector):
             for i, raw in enumerate(nic):
                 yield RawTender(
                     source_id=self.source_id,
-                    source_tender_id=raw.get("source_nit_no")
-                    or f"{self.source_id.upper()}-NIC-{i}",
+                    source_tender_id=raw.get("source_nit_no") or f"{self.source_id.upper()}-NIC-{i}",
                     source_url=raw.get("source_detail_url", self.NIC_URL),
                     raw_json=raw,
                 )
@@ -402,23 +357,15 @@ class PSUBaseConnector(BaseConnector):
                 psu=self.PSU_NAME,
             )
         else:
-            self.log_info(
-                f"{self.source_id}: crawl complete", psu=self.PSU_NAME, total=yielded
-            )
+            self.log_info(f"{self.source_id}: crawl complete", psu=self.PSU_NAME, total=yielded)
 
     async def health_check(self) -> HealthStatus:
         if not self.TENDER_URL:
             return HealthStatus.DEGRADED
         try:
-            async with httpx.AsyncClient(
-                timeout=10.0, follow_redirects=True, verify=False
-            ) as client:  # nosec B501
-                resp = await client.get(
-                    self.TENDER_URL, headers={"User-Agent": self.HEADERS["User-Agent"]}
-                )
-                if resp.status_code == 200 and not self._is_login_gated(
-                    resp.text[:1000]
-                ):
+            async with httpx.AsyncClient(timeout=10.0, follow_redirects=True, verify=False) as client:  # nosec B501
+                resp = await client.get(self.TENDER_URL, headers={"User-Agent": self.HEADERS["User-Agent"]})
+                if resp.status_code == 200 and not self._is_login_gated(resp.text[:1000]):
                     return HealthStatus.HEALTHY
                 return HealthStatus.DEGRADED
         except Exception:

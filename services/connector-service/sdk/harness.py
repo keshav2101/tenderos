@@ -32,9 +32,7 @@ class SDKTestHarness:
             for idx, rec in enumerate(raw_records):
                 try:
                     validated = self.connector.validate_tender(rec)
-                    print(
-                        f"  [{idx + 1}] Validated: '{validated.title}' (ID: {validated.tender_id})"
-                    )
+                    print(f"  [{idx + 1}] Validated: '{validated.title}' (ID: {validated.tender_id})")
                     valid_count += 1
                 except Exception as e:
                     print(f"  [x] [{idx + 1}] Validation Failed: {e!s}")

@@ -205,9 +205,7 @@ async def reindex_tenders(limit: int = Query(1000, ge=1, le=10000)):
             payload = dict(row)
             payload["id"] = str(payload["id"])
             if payload.get("submission_deadline"):
-                payload["submission_deadline"] = payload[
-                    "submission_deadline"
-                ].isoformat()
+                payload["submission_deadline"] = payload["submission_deadline"].isoformat()
             if payload.get("estimated_cost_lakhs") is not None:
                 payload["estimated_cost_lakhs"] = float(payload["estimated_cost_lakhs"])
             if payload.get("emd_lakhs") is not None:
@@ -219,9 +217,7 @@ async def reindex_tenders(limit: int = Query(1000, ge=1, le=10000)):
                 failures.append({"id": payload["id"], "error": str(index_err)})
 
     except Exception as db_err:
-        raise HTTPException(
-            status_code=502, detail=f"Reindex failed while reading PostgreSQL: {db_err}"
-        )
+        raise HTTPException(status_code=502, detail=f"Reindex failed while reading PostgreSQL: {db_err}")
     finally:
         if conn:
             await conn.close()

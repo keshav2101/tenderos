@@ -100,11 +100,7 @@ async def _get_company_profile(conn, user_id: str) -> dict:
             company_categories = company_row["target_categories"]
 
         # Calculate average turnover from values
-        turnover_vals = [
-            float(v)
-            for v in (company_row.get("turnover_values") or [])
-            if v is not None
-        ]
+        turnover_vals = [float(v) for v in (company_row.get("turnover_values") or []) if v is not None]
         if turnover_vals:
             company_turnover = sum(turnover_vals) / len(turnover_vals)
 
@@ -113,26 +109,14 @@ async def _get_company_profile(conn, user_id: str) -> dict:
         if company_row and company_row.get("entity_type")
         else True
     )
-    is_startup = (
-        company_row["entity_type"] == "Startup"
-        if company_row and company_row.get("entity_type")
-        else False
-    )
+    is_startup = company_row["entity_type"] == "Startup" if company_row and company_row.get("entity_type") else False
 
     return {
-        "name": (
-            company_row["legal_name"]
-            if company_row
-            else "Demo Corporation Private Limited"
-        ),
+        "name": (company_row["legal_name"] if company_row else "Demo Corporation Private Limited"),
         "is_msme": is_msme,
         "is_startup": is_startup,
         "total_experience_years": company_experience_years,
-        "certifications": (
-            [c["standard"] for c in certs_rows]
-            if certs_rows
-            else ["ISO 9001:2015", "CMMI Level 3"]
-        ),
+        "certifications": ([c["standard"] for c in certs_rows] if certs_rows else ["ISO 9001:2015", "CMMI Level 3"]),
         "states_active": company_states_active,
         "target_categories": company_categories,
         "avg_turnover_3yr_lakhs": company_turnover,
@@ -209,9 +193,7 @@ async def check_eligibility(tender_id: str, user_id: str = "default_user"):
     """Compliance Copilot: Generates missing items checklist & action plan."""
     pool = await get_pool()
     async with pool.acquire() as conn:
-        tender_row = await conn.fetchrow(
-            "SELECT * FROM tenders WHERE id = $1", UUID(tender_id)
-        )
+        tender_row = await conn.fetchrow("SELECT * FROM tenders WHERE id = $1", UUID(tender_id))
         if not tender_row:
             raise HTTPException(status_code=404, detail="Tender not found")
         company_profile = await _get_company_profile(conn, user_id)
@@ -220,44 +202,30 @@ async def check_eligibility(tender_id: str, user_id: str = "default_user"):
         checklist = [
             {
                 "criteria": "MSME / Udyam Registration",
-                "status": (
-                    "PASSED" if qual.get("msme_benefit_applied", True) else "WARNING"
-                ),
+                "status": ("PASSED" if qual.get("msme_benefit_applied", True) else "WARNING"),
                 "detail": "Eligible for EMD waiver and 15% purchase preference under GFR Rule 153",
             },
             {
                 "criteria": "Startup India Exemption",
-                "status": (
-                    "PASSED"
-                    if company_profile.get("is_startup")
-                    else "EXEMPTION_APPLIED"
-                ),
+                "status": ("PASSED" if company_profile.get("is_startup") else "EXEMPTION_APPLIED"),
                 "detail": "Relaxed prior turnover & experience rules applicable",
             },
             {
                 "criteria": "Minimum Experience Years",
                 "status": (
-                    "PASSED"
-                    if qual.get("breakdown", {}).get("experience_score", 0) > 10
-                    else "REQUIRES_REVIEW"
+                    "PASSED" if qual.get("breakdown", {}).get("experience_score", 0) > 10 else "REQUIRES_REVIEW"
                 ),
                 "detail": f"Required: {tender_row.get('experience_years', 0)} years | Company: {company_profile.get('total_experience_years', 3)} years",
             },
             {
                 "criteria": "Annual Turnover Threshold",
-                "status": (
-                    "PASSED"
-                    if qual.get("breakdown", {}).get("financial_score", 0) > 15
-                    else "FAILED"
-                ),
+                "status": ("PASSED" if qual.get("breakdown", {}).get("financial_score", 0) > 15 else "FAILED"),
                 "detail": f"Required: ₹{tender_row.get('turnover_min_lakhs', 0)} Lakhs | Company 3yr Avg: ₹{company_profile.get('avg_turnover_3yr_lakhs', 0)} Lakhs",
             },
             {
                 "criteria": "Mandatory Technical Certifications",
                 "status": (
-                    "PASSED"
-                    if qual.get("breakdown", {}).get("certification_score", 0) > 10
-                    else "ACTION_REQUIRED"
+                    "PASSED" if qual.get("breakdown", {}).get("certification_score", 0) > 10 else "ACTION_REQUIRED"
                 ),
                 "detail": f"Required: {tender_row.get('certifications_required') or 'ISO 9001 / ISO 27001'}",
             },
@@ -278,14 +246,11 @@ async def check_eligibility(tender_id: str, user_id: str = "default_user"):
             "missing_items": {
                 "missing_documents": ["MAF Form 4B"],
                 "missing_certifications": (
-                    []
-                    if qual.get("breakdown", {}).get("certification_score", 0) > 10
-                    else ["ISO 27001"]
+                    [] if qual.get("breakdown", {}).get("certification_score", 0) > 10 else ["ISO 27001"]
                 ),
                 "missing_financial_criteria": (
                     None
-                    if company_profile.get("avg_turnover_3yr_lakhs", 0)
-                    >= tender_row.get("turnover_min_lakhs", 0)
+                    if company_profile.get("avg_turnover_3yr_lakhs", 0) >= tender_row.get("turnover_min_lakhs", 0)
                     else "Turnover gap ₹10.0 Lakhs"
                 ),
                 "missing_technical_criteria": None,
@@ -301,9 +266,7 @@ async def analyze_risks(tender_id: str):
     """Risk Copilot: Ranks 8 categories (Commercial, Technical, Legal, Timeline, Financial, Contract, Competition, Compliance)."""
     pool = await get_pool()
     async with pool.acquire() as conn:
-        tender_row = await conn.fetchrow(
-            "SELECT * FROM tenders WHERE id = $1", UUID(tender_id)
-        )
+        tender_row = await conn.fetchrow("SELECT * FROM tenders WHERE id = $1", UUID(tender_id))
         if not tender_row:
             raise HTTPException(status_code=404, detail="Tender not found")
 
@@ -378,9 +341,7 @@ async def bid_strategy_recommendation(tender_id: str, user_id: str = "default_us
     """Bid Strategy Copilot: Recommends Bid/No Bid/Wait/Monitor with revenue, effort, competition, and probability."""
     pool = await get_pool()
     async with pool.acquire() as conn:
-        tender_row = await conn.fetchrow(
-            "SELECT * FROM tenders WHERE id = $1", UUID(tender_id)
-        )
+        tender_row = await conn.fetchrow("SELECT * FROM tenders WHERE id = $1", UUID(tender_id))
         if not tender_row:
             raise HTTPException(status_code=404, detail="Tender not found")
         company_profile = await _get_company_profile(conn, user_id)
@@ -391,9 +352,7 @@ async def bid_strategy_recommendation(tender_id: str, user_id: str = "default_us
         return {
             "tender_id": tender_id,
             "recommendation": (
-                "BID"
-                if qual["match_score"] >= 70
-                else ("WAIT" if qual["match_score"] >= 50 else "NO_BID")
+                "BID" if qual["match_score"] >= 70 else ("WAIT" if qual["match_score"] >= 50 else "NO_BID")
             ),
             "win_probability_pct": qual["winning_probability"],
             "estimated_revenue_lakhs": est_cost,

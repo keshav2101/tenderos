@@ -45,9 +45,7 @@ async def startup_event():
     pool = await get_pool()
     try:
         async with pool.acquire() as conn:
-            await conn.execute(
-                "DELETE FROM tenders WHERE source IN ('mock', 'demo') OR source ILIKE 'mock%'"
-            )
+            await conn.execute("DELETE FROM tenders WHERE source IN ('mock', 'demo') OR source ILIKE 'mock%'")
             logger.info("Purged mock tenders from database")
     except Exception as e:
         logger.warning("Could not purge mock tenders on startup", error=str(e))
@@ -218,15 +216,9 @@ async def get_buyer_profiles(limit: int = 20):
         profiles = []
         for r in rows:
             d = dict(r)
-            d["total_value_lakhs"] = (
-                float(d["total_value_lakhs"])
-                if d["total_value_lakhs"] is not None
-                else 0.0
-            )
+            d["total_value_lakhs"] = float(d["total_value_lakhs"]) if d["total_value_lakhs"] is not None else 0.0
             d["avg_tender_val_lakhs"] = (
-                float(d["avg_tender_val_lakhs"])
-                if d["avg_tender_val_lakhs"] is not None
-                else 0.0
+                float(d["avg_tender_val_lakhs"]) if d["avg_tender_val_lakhs"] is not None else 0.0
             )
             profiles.append(d)
         return {"buyer_profiles": profiles, "total": len(profiles)}
@@ -254,9 +246,7 @@ async def get_market_trends():
             ORDER BY tender_count DESC
             """
         )
-        msme_count = await conn.fetchval(
-            "SELECT COUNT(*) FROM tenders WHERE msme_eligible = true"
-        )
+        msme_count = await conn.fetchval("SELECT COUNT(*) FROM tenders WHERE msme_eligible = true")
         total_tenders = await conn.fetchval("SELECT COUNT(*) FROM tenders")
 
         return {
@@ -272,9 +262,7 @@ async def calculate_opportunity_score(tender_id: str):
     """Calculate 0-100 win probability and qualification fit score for a specific tender."""
     pool = await get_pool()
     async with pool.acquire() as conn:
-        row = await conn.fetchrow(
-            "SELECT * FROM tenders WHERE id = $1", UUID(tender_id)
-        )
+        row = await conn.fetchrow("SELECT * FROM tenders WHERE id = $1", UUID(tender_id))
         if not row:
             raise HTTPException(status_code=404, detail="Tender not found")
 
@@ -316,9 +304,7 @@ async def calculate_opportunity_score(tender_id: str):
         return {
             "tender_id": tender_id,
             "opportunity_score": final_score,
-            "match_grade": (
-                "A+" if final_score >= 85 else "A" if final_score >= 75 else "B"
-            ),
+            "match_grade": ("A+" if final_score >= 85 else "A" if final_score >= 75 else "B"),
             "scoring_factors": factors,
             "mii_compliance": "Class-I Local Supplier Preference",
             "emd_waiver_eligible": t.get("msme_eligible", False),
@@ -329,9 +315,7 @@ async def calculate_opportunity_score(tender_id: str):
 async def get_tender(tender_id: str):
     pool = await get_pool()
     async with pool.acquire() as conn:
-        row = await conn.fetchrow(
-            "SELECT * FROM tenders WHERE id = $1", UUID(tender_id)
-        )
+        row = await conn.fetchrow("SELECT * FROM tenders WHERE id = $1", UUID(tender_id))
         if not row:
             raise HTTPException(status_code=404, detail="Tender not found")
         data = dict(row)

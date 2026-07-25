@@ -89,11 +89,7 @@ async def list_notifications(user_id: str):
                     "body": r["body"],
                     "read": r["is_read"],
                     "type": r["type"],
-                    "created_at": (
-                        r["created_at"].isoformat()
-                        if r["created_at"]
-                        else datetime.utcnow().isoformat()
-                    ),
+                    "created_at": (r["created_at"].isoformat() if r["created_at"] else datetime.utcnow().isoformat()),
                 }
                 for r in rows
             ]
@@ -178,9 +174,7 @@ async def update_preferences(req: UpdatePreferencesRequest):
             return {"status": "success", "message": "Preferences updated successfully"}
     except Exception as e:
         logger.error("Failed to save preferences", error=str(e))
-        raise HTTPException(
-            status_code=500, detail="Failed to save preferences to database"
-        )
+        raise HTTPException(status_code=500, detail="Failed to save preferences to database")
 
 
 @app.post("/notifications/send")
@@ -232,17 +226,13 @@ async def send_notification(req: SendNotificationRequest):
 
     # 2. SMS Channel
     if prefs["sms_enabled"] and prefs.get("phone_number"):
-        sms_ok = await twilio_dispatcher.send_sms(
-            to_number=prefs["phone_number"], text=f"{req.title}: {req.body}"
-        )
+        sms_ok = await twilio_dispatcher.send_sms(to_number=prefs["phone_number"], text=f"{req.title}: {req.body}")
         if sms_ok:
             channels_sent.append("sms")
 
     # 3. WhatsApp Channel
     if prefs["whatsapp_enabled"] and prefs.get("phone_number"):
-        wa_ok = await twilio_dispatcher.send_whatsapp(
-            to_number=prefs["phone_number"], text=f"{req.title}: {req.body}"
-        )
+        wa_ok = await twilio_dispatcher.send_whatsapp(to_number=prefs["phone_number"], text=f"{req.title}: {req.body}")
         if wa_ok:
             channels_sent.append("whatsapp")
 

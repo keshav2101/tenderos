@@ -48,25 +48,17 @@ def validate_tender(tender: NormalizedTender) -> tuple[bool, list[str]]:
 
     # 3. Invalid/Negative Cost values
     if tender.estimated_cost_lakhs is not None and tender.estimated_cost_lakhs < 0:
-        errors.append(
-            f"Invalid currency/cost: estimated_cost_lakhs ({tender.estimated_cost_lakhs}) cannot be negative"
-        )
+        errors.append(f"Invalid currency/cost: estimated_cost_lakhs ({tender.estimated_cost_lakhs}) cannot be negative")
     if tender.emd_lakhs is not None and tender.emd_lakhs < 0:
-        errors.append(
-            f"Invalid currency/cost: emd_lakhs ({tender.emd_lakhs}) cannot be negative"
-        )
+        errors.append(f"Invalid currency/cost: emd_lakhs ({tender.emd_lakhs}) cannot be negative")
     if tender.tender_fee is not None and tender.tender_fee < 0:
-        errors.append(
-            f"Invalid currency/cost: tender_fee ({tender.tender_fee}) cannot be negative"
-        )
+        errors.append(f"Invalid currency/cost: tender_fee ({tender.tender_fee}) cannot be negative")
 
     # 4. Corrupt/Broken Document URLs Check
     if tender.document_urls:
         for url in tender.document_urls:
             if not (url.startswith("http://") or url.startswith("https://")):
-                errors.append(
-                    f"Broken document link: '{url}' is not a valid HTTP/HTTPS URL"
-                )
+                errors.append(f"Broken document link: '{url}' is not a valid HTTP/HTTPS URL")
 
     # Log to DLQ if errors found
     if errors:

@@ -66,14 +66,10 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 import hashlib
                 from uuid import UUID
 
-                tenant_hash = hashlib.md5(
-                    subdomain.encode(), usedforsecurity=False
-                ).hexdigest()
+                tenant_hash = hashlib.md5(subdomain.encode(), usedforsecurity=False).hexdigest()
                 tenant_id = str(UUID(tenant_hash))
 
-                headers = [
-                    h for h in request.scope["headers"] if h[0] != b"x-tenant-id"
-                ]
+                headers = [h for h in request.scope["headers"] if h[0] != b"x-tenant-id"]
                 headers.append((b"x-tenant-id", tenant_id.encode()))
                 request.scope["headers"] = headers
 
@@ -96,9 +92,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
                     return res
                 return await call_next(request)
             if not is_public:
-                return JSONResponse(
-                    status_code=401, content={"detail": "Invalid API key"}
-                )
+                return JSONResponse(status_code=401, content={"detail": "Invalid API key"})
 
         if auth_header and auth_header.startswith("Bearer "):
             token = auth_header.removeprefix("Bearer ").strip()
@@ -136,9 +130,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             if role not in ("admin", "enterprise", "consultant", "sme"):
                 return JSONResponse(
                     status_code=403,
-                    content={
-                        "detail": "Role does not have permission to transition bid workflow states"
-                    },
+                    content={"detail": "Role does not have permission to transition bid workflow states"},
                 )
         return None
 

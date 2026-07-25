@@ -312,9 +312,7 @@ def extract_consortium_jv_oem(text: str) -> tuple[bool, bool, bool]:
 
     jv = False
     if "joint venture" in text_lower or " jv" in text_lower:
-        if any(
-            w in text_lower for w in ["allowed", "permitted", "eligible", "acceptable"]
-        ):
+        if any(w in text_lower for w in ["allowed", "permitted", "eligible", "acceptable"]):
             jv = True
 
     oem = False
@@ -420,35 +418,21 @@ def extract_funding_agency(text: str) -> str | None:
 def derive_codes(title: str) -> tuple[str | None, str | None]:
     """Derive CPV and UNSPSC codes based on keywords."""
     title_lower = title.lower()
-    if any(
-        k in title_lower
-        for k in ["software", "erp", "app ", "application", "portal", "cloud", "saas"]
-    ):
+    if any(k in title_lower for k in ["software", "erp", "app ", "application", "portal", "cloud", "saas"]):
         return "72200000", "43230000"  # Software, System/Application Software
-    if any(
-        k in title_lower
-        for k in ["computer", "hardware", "server", "laptop", "printer"]
-    ):
+    if any(k in title_lower for k in ["computer", "hardware", "server", "laptop", "printer"]):
         return "30200000", "43210000"  # Computer equipment, Computer hardware
-    if any(
-        k in title_lower for k in ["construction", "building", "civil", "structure"]
-    ):
+    if any(k in title_lower for k in ["construction", "building", "civil", "structure"]):
         return "45200000", "72000000"  # Civil construction, Building construction
     if any(k in title_lower for k in ["road", "highway", "bridge", "flyover"]):
         return "45233140", "72141103"  # Road construction, Highway construction
-    if any(
-        k in title_lower
-        for k in ["medical", "health", "hospital", "medicine", "ventilator", "x-ray"]
-    ):
+    if any(k in title_lower for k in ["medical", "health", "hospital", "medicine", "ventilator", "x-ray"]):
         return "33000000", "42000000"  # Medical equipments
     if any(k in title_lower for k in ["consult", "study", "dpr", "advisory"]):
         return "79311100", "80100000"  # Research/consultancy, Management advisory
     if any(k in title_lower for k in ["security", "cctv", "surveillance", "guard"]):
         return "79710000", "46171600"  # Security services, Surveillance
-    if any(
-        k in title_lower
-        for k in ["solar", "wind", "substation", "transformer", "power", "cabling"]
-    ):
+    if any(k in title_lower for k in ["solar", "wind", "substation", "transformer", "power", "cabling"]):
         return "31000000", "26000000"  # Electrical machinery, Power generation
     return None, None
 
@@ -525,9 +509,7 @@ class Tier1Extractor:
         result["consortium_allowed"] = consortium
         result["jv_allowed"] = jv
         result["oem_required"] = oem
-        result["_fields_extracted"].extend(
-            ["consortium_allowed", "jv_allowed", "oem_required"]
-        )
+        result["_fields_extracted"].extend(["consortium_allowed", "jv_allowed", "oem_required"])
 
         # Warranty / completion duration / milestones
         warranty = extract_warranty_months(text)
@@ -556,9 +538,7 @@ class Tier1Extractor:
         # Derive title codes
         derived_title = ""
         # Match title patterns
-        m_title = re.search(
-            r"(?:Subject|Name of work|Title)[:\s]+([^\n]+)", text, re.IGNORECASE
-        )
+        m_title = re.search(r"(?:Subject|Name of work|Title)[:\s]+([^\n]+)", text, re.IGNORECASE)
         if m_title:
             derived_title = m_title.group(1).strip()
             cpv, unspsc = derive_codes(derived_title)
@@ -577,9 +557,7 @@ class Tier1Extractor:
             "procurement_method",
             "eligibility_raw_text",
         }
-        result["_fields_pending"] = list(
-            required_fields - set(result["_fields_extracted"])
-        )
+        result["_fields_pending"] = list(required_fields - set(result["_fields_extracted"]))
 
         return result
 

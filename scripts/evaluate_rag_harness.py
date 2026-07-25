@@ -124,10 +124,7 @@ def run_rag_eval():
                         if sources or "[" in ans:
                             citation_present += 1
                     else:
-                        if any(
-                            k in ans.lower()
-                            for k in ["verify", "not found", "could not", "unavailable"]
-                        ):
+                        if any(k in ans.lower() for k in ["verify", "not found", "could not", "unavailable"]):
                             fallback_correct += 1
                 else:
                     failed_retrievals += 1
@@ -137,31 +134,18 @@ def run_rag_eval():
     expected_grounded = sum(1 for x in BENCHMARK_QUESTIONS if x["expect_evidence"])
     expected_fallback = total_queries - expected_grounded
 
-    retrieval_recall = (
-        round((grounded_correct / expected_grounded) * 100, 1)
-        if expected_grounded
-        else 100.0
-    )
+    retrieval_recall = round((grounded_correct / expected_grounded) * 100, 1) if expected_grounded else 100.0
     retrieval_precision = (
         round((grounded_correct / (grounded_correct + failed_retrievals)) * 100, 1)
         if (grounded_correct + failed_retrievals)
         else 100.0
     )
-    citation_accuracy = (
-        round((citation_present / expected_grounded) * 100, 1)
-        if expected_grounded
-        else 100.0
-    )
-    fallback_accuracy = (
-        round((fallback_correct / expected_fallback) * 100, 1)
-        if expected_fallback
-        else 100.0
-    )
+    citation_accuracy = round((citation_present / expected_grounded) * 100, 1) if expected_grounded else 100.0
+    fallback_accuracy = round((fallback_correct / expected_fallback) * 100, 1) if expected_fallback else 100.0
     hallucination_rate = round(100.0 - fallback_accuracy, 1)
     avg_latency = round(total_latency_ms / total_queries, 1)
     grounding_score = round(
-        (retrieval_recall * 0.4 + citation_accuracy * 0.4 + fallback_accuracy * 0.2)
-        / 100.0,
+        (retrieval_recall * 0.4 + citation_accuracy * 0.4 + fallback_accuracy * 0.2) / 100.0,
         2,
     )
 

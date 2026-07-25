@@ -41,9 +41,7 @@ def test_route(name, url, expected_code=200, check_text=None, headers=None):
                     "payload_kb": round(len(content) / 1024, 2),
                 }
             )
-            print(
-                f"[{status_str}] {name} ({url}) -> HTTP {code} in {round(ms, 1)}ms ({round(len(content)/1024, 1)}KB)"
-            )
+            print(f"[{status_str}] {name} ({url}) -> HTTP {code} in {round(ms, 1)}ms ({round(len(content)/1024, 1)}KB)")
             return content
     except urllib.error.HTTPError as e:
         ms = (time.perf_counter() - t0) * 1000
@@ -110,9 +108,7 @@ test_route(
 # 3. Interactive Auth & API Token Verification
 print("\n=== VERIFYING AUTHENTICATED FLOWS ===")
 try:
-    auth_data = urllib.parse.urlencode(
-        {"username": "demo@tenderos.in", "password": "DemoPassword123!"}
-    ).encode("utf-8")
+    auth_data = urllib.parse.urlencode({"username": "demo@tenderos.in", "password": "DemoPassword123!"}).encode("utf-8")
     req = urllib.request.Request(
         f"{BASE_BACKEND}/api/v1/auth/token",
         data=auth_data,
@@ -121,9 +117,7 @@ try:
     with urllib.request.urlopen(req) as resp:
         token_res = json.loads(resp.read().decode("utf-8"))
         access_token = token_res.get("access_token")
-        print(
-            f"[PASS] Authentication Token Generation -> Issued JWT ({access_token[:15]}...)"
-        )
+        print(f"[PASS] Authentication Token Generation -> Issued JWT ({access_token[:15]}...)")
 
         # Test Authenticated Connector Status
         test_route(
@@ -142,6 +136,4 @@ with open("reports/live_smoke_test_results.json", "w") as f:
 passed_count = sum(1 for r in results if r["status"] == "PASS")
 total_count = len(results)
 
-print(
-    f"\n=== LIVE PRODUCTION SMOKE TEST RESULT: {passed_count}/{total_count} PASSED ==="
-)
+print(f"\n=== LIVE PRODUCTION SMOKE TEST RESULT: {passed_count}/{total_count} PASSED ===")

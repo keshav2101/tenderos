@@ -32,14 +32,7 @@ from typing import Any
 import httpx
 from bs4 import BeautifulSoup
 
-from app.connectors.base import (
-    BaseConnector,
-    CadenceConfig,
-    HealthStatus,
-    RateLimitConfig,
-    RawTender,
-    RetryPolicy,
-)
+from app.connectors.base import BaseConnector, CadenceConfig, HealthStatus, RateLimitConfig, RawTender, RetryPolicy
 
 # Optional shared NIC credentials (for session-based access)
 STATE_NIC_USERNAME = os.environ.get("STATE_NIC_USERNAME", "")
@@ -57,9 +50,7 @@ class StateBaseConnector(BaseConnector):
     PORTAL_TYPE: str = "state"
     description: str = ""
 
-    cadence = CadenceConfig(
-        cron="0 */6 * * *", min_interval_seconds=21600, description="Every 6 hours"
-    )
+    cadence = CadenceConfig(cron="0 */6 * * *", min_interval_seconds=21600, description="Every 6 hours")
     rate_limit = RateLimitConfig(requests_per_second=0.5, burst=2)
     retry_policy = RetryPolicy(max_attempts=3, backoff_base=2.0)
     timeout_seconds = 25
@@ -80,10 +71,7 @@ class StateBaseConnector(BaseConnector):
     }
 
     # Central NIC eProcure as a universal fallback (requires CAPTCHA for full search)
-    NIC_ACTIVE_URL = (
-        "https://eprocure.gov.in/eprocure/app"
-        "?page=FrontEndLatestActiveTenders&service=page"
-    )
+    NIC_ACTIVE_URL = "https://eprocure.gov.in/eprocure/app" "?page=FrontEndLatestActiveTenders&service=page"
     NIC_BASE = "https://eprocure.gov.in"
 
     # ── Live portal check ──────────────────────────────────────────────────────
@@ -96,10 +84,7 @@ class StateBaseConnector(BaseConnector):
                 resp = await client.get(self.PORTAL_URL, headers=self.HEADERS)
                 if resp.status_code == 200:
                     body = resp.text[:3000]
-                    if any(
-                        w in body.lower()
-                        for w in ["captcha", "j_username", "otp", "password"]
-                    ):
+                    if any(w in body.lower() for w in ["captcha", "j_username", "otp", "password"]):
                         return False
                     return True
                 return False
@@ -121,9 +106,7 @@ class StateBaseConnector(BaseConnector):
             return f"https://{self.PORTAL_DOMAIN}/nicgep/app"
         return None
 
-    def _parse_nic_tender_table(
-        self, soup: BeautifulSoup, base_url: str, state_name: str
-    ) -> list[dict[str, Any]]:
+    def _parse_nic_tender_table(self, soup: BeautifulSoup, base_url: str, state_name: str) -> list[dict[str, Any]]:
         """
         Parse NIC eProcure tender listing tables.
         NIC tender tables have columns: Tender Title | Reference No | Closing Date | Opening Date
@@ -143,10 +126,7 @@ class StateBaseConnector(BaseConnector):
             header_text = " ".join(c.get_text(strip=True).lower() for c in header_cells)
 
             # Must have tender-related columns
-            if not any(
-                kw in header_text
-                for kw in ["reference no", "closing date", "tender title"]
-            ):
+            if not any(kw in header_text for kw in ["reference no", "closing date", "tender title"]):
                 continue
 
             # Parse data rows
@@ -220,11 +200,7 @@ class StateBaseConnector(BaseConnector):
                 results.append(
                     {
                         "title": title,
-                        "ministry": (
-                            f"Government of {state_name}"
-                            if state_name
-                            else "Government of India"
-                        ),
+                        "ministry": (f"Government of {state_name}" if state_name else "Government of India"),
                         "department": state_name or "Central Government",
                         "organisation": state_name or "Central Government",
                         "state": state_name or "",
@@ -244,9 +220,7 @@ class StateBaseConnector(BaseConnector):
 
         return results
 
-    async def _scrape_nic_portal(
-        self, client: httpx.AsyncClient, base_url: str
-    ) -> list[dict[str, Any]]:
+    async def _scrape_nic_portal(self, client: httpx.AsyncClient, base_url: str) -> list[dict[str, Any]]:
         """
         Scrape a NIC eProcure portal at base_url/nicgep/app.
         Handles pagination by fetching subsequent pages.
@@ -263,10 +237,7 @@ class StateBaseConnector(BaseConnector):
                 return results
 
             body = resp.text
-            if any(
-                w in body.lower()
-                for w in ["j_username", "otp required", "please login"]
-            ):
+            if any(w in body.lower() for w in ["j_username", "otp required", "please login"]):
                 self.log_warning(
                     f"{self.source_id}: NIC portal BLOCKED_AUTH — login required",
                     url=base_url,
@@ -286,17 +257,13 @@ class StateBaseConnector(BaseConnector):
         except httpx.TimeoutException:
             self.log_warning(f"{self.source_id}: NIC portal timeout", url=base_url)
         except Exception as e:
-            self.log_warning(
-                f"{self.source_id}: NIC portal error", error=str(e), url=base_url
-            )
+            self.log_warning(f"{self.source_id}: NIC portal error", error=str(e), url=base_url)
 
         return results
 
     # ── Own portal link scrape ─────────────────────────────────────────────────
 
-    async def _scrape_own_portal(
-        self, client: httpx.AsyncClient
-    ) -> list[dict[str, Any]]:
+    async def _scrape_own_portal(self, client: httpx.AsyncClient) -> list[dict[str, Any]]:
         """Scrape the state's own portal homepage for tender hyperlinks."""
         results = []
         if not self.PORTAL_URL:
@@ -387,9 +354,7 @@ class StateBaseConnector(BaseConnector):
             except ValueError:
                 continue
         # Try extracting just the date part
-        m = re.search(
-            r"(\d{2}-\w{3}-\d{4}|\d{2}/\d{2}/\d{4}|\d{2}-\d{2}-\d{4})", date_str
-        )
+        m = re.search(r"(\d{2}-\w{3}-\d{4}|\d{2}/\d{2}/\d{4}|\d{2}-\d{2}-\d{4})", date_str)
         if m:
             return self._parse_date(m.group(1))
         return None
@@ -436,9 +401,7 @@ class StateBaseConnector(BaseConnector):
             ]
         ):
             cats.append("Healthcare")
-        if any(
-            k in t for k in ["supply", "purchase", "procurement", "goods", "material"]
-        ):
+        if any(k in t for k in ["supply", "purchase", "procurement", "goods", "material"]):
             cats.append("Goods & Services")
         if any(k in t for k in ["consult", "advisory", "study", "survey", "dpr"]):
             cats.append("Consultancy & Professional Services")
@@ -446,10 +409,7 @@ class StateBaseConnector(BaseConnector):
             cats.append("Railways")
         if any(k in t for k in ["port", "dredge", "vessel", "marine", "jetty"]):
             cats.append("Maritime")
-        if any(
-            k in t
-            for k in ["power", "energy", "electricity", "solar", "wind", "substation"]
-        ):
+        if any(k in t for k in ["power", "energy", "electricity", "solar", "wind", "substation"]):
             cats.append("Power & Energy")
         if any(k in t for k in ["water", "irrigation", "sewage", "drainage", "pump"]):
             cats.append("Water & Sanitation")
@@ -457,9 +417,7 @@ class StateBaseConnector(BaseConnector):
 
     # ── Main fetch ─────────────────────────────────────────────────────────────
 
-    async def fetch_tenders(
-        self, since: datetime | None = None
-    ) -> AsyncIterator[RawTender]:
+    async def fetch_tenders(self, since: datetime | None = None) -> AsyncIterator[RawTender]:
         """
         Fetch state procurement tenders from live sources.
         Order of attempts:
@@ -484,9 +442,7 @@ class StateBaseConnector(BaseConnector):
             if nic_base:
                 nic_results = await self._scrape_nic_portal(client, nic_base)
                 for i, raw in enumerate(nic_results):
-                    tid = (
-                        raw.get("source_nit_no") or f"{self.source_id.upper()}-NIC-{i}"
-                    )
+                    tid = raw.get("source_nit_no") or f"{self.source_id.upper()}-NIC-{i}"
                     yield RawTender(
                         source_id=self.source_id,
                         source_tender_id=tid,
@@ -501,9 +457,7 @@ class StateBaseConnector(BaseConnector):
             if yielded == 0:
                 own_results = await self._scrape_own_portal(client)
                 for i, raw in enumerate(own_results):
-                    tid = (
-                        raw.get("source_nit_no") or f"{self.source_id.upper()}-OWN-{i}"
-                    )
+                    tid = raw.get("source_nit_no") or f"{self.source_id.upper()}-OWN-{i}"
                     yield RawTender(
                         source_id=self.source_id,
                         source_tender_id=tid,

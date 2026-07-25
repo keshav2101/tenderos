@@ -32,10 +32,7 @@ def record(name, passed, detail, ms=None):
         "detail": detail,
         **({"latency_ms": round(ms, 1)} if ms else {}),
     }
-    print(
-        f"  {'✅' if passed else '❌'} {name}: {detail}"
-        + (f" ({ms:.0f}ms)" if ms else "")
-    )
+    print(f"  {'✅' if passed else '❌'} {name}: {detail}" + (f" ({ms:.0f}ms)" if ms else ""))
 
 
 # PostgreSQL — asyncpg IS in venv
@@ -46,9 +43,7 @@ async def check_postgres():
         dsn = "postgresql://tenderos:6sNOvAaIBDUF7JVukYTXMsVhY8RsPV0D@localhost:5432/tenderos"
         t0 = time.perf_counter()
         conn = await asyncpg.connect(dsn, timeout=10)
-        row = await conn.fetchrow(
-            "SELECT COUNT(*) AS cnt, MAX(created_at) AS latest FROM tenders"
-        )
+        row = await conn.fetchrow("SELECT COUNT(*) AS cnt, MAX(created_at) AS latest FROM tenders")
         await conn.close()
         ms = (time.perf_counter() - t0) * 1000
         record(
@@ -96,9 +91,7 @@ def check_qdrant():
 def check_minio():
     try:
         t0 = time.perf_counter()
-        resp = urllib.request.urlopen(
-            "http://localhost:9000/minio/health/live", timeout=10
-        )
+        resp = urllib.request.urlopen("http://localhost:9000/minio/health/live", timeout=10)
         ms = (time.perf_counter() - t0) * 1000
         record("MinIO", resp.getcode() == 200, f"HTTP {resp.getcode()}", ms)
     except Exception as e:
@@ -109,9 +102,7 @@ def check_minio():
 def check_opensearch():
     try:
         t0 = time.perf_counter()
-        resp = urllib.request.urlopen(
-            "http://localhost:9200/_cluster/health", timeout=15
-        )
+        resp = urllib.request.urlopen("http://localhost:9200/_cluster/health", timeout=15)
         data = json.loads(resp.read())
         ms = (time.perf_counter() - t0) * 1000
         s = data.get("status", "?")
@@ -163,21 +154,15 @@ def check_rabbitmq():
 def check_gemini():
     api_key = "ooetvL9Xr7nVj6c_K_1_eOn-fHaq7zpW"
     try:
-        payload = json.dumps(
-            {"contents": [{"parts": [{"text": "Reply with exactly: TENDEROS_OK"}]}]}
-        ).encode()
+        payload = json.dumps({"contents": [{"parts": [{"text": "Reply with exactly: TENDEROS_OK"}]}]}).encode()
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
-        req = urllib.request.Request(
-            url, data=payload, headers={"Content-Type": "application/json"}
-        )
+        req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
         t0 = time.perf_counter()
         resp = urllib.request.urlopen(req, timeout=20)
         data = json.loads(resp.read())
         ms = (time.perf_counter() - t0) * 1000
         text = data["candidates"][0]["content"]["parts"][0]["text"]
-        record(
-            "Gemini API", "TENDEROS_OK" in text, f'Response: "{text.strip()[:60]}"', ms
-        )
+        record("Gemini API", "TENDEROS_OK" in text, f'Response: "{text.strip()[:60]}"', ms)
     except Exception as e:
         record("Gemini API", False, str(e))
 

@@ -251,9 +251,7 @@ def make_tender():
 
     extra_cats = []
     if cat_name == "AI":
-        extra_cats = random.sample(
-            ["IT", "Data Analytics", "Cloud"], k=random.randint(0, 2)
-        )
+        extra_cats = random.sample(["IT", "Data Analytics", "Cloud"], k=random.randint(0, 2))
     elif cat_name == "Smart City":
         extra_cats = random.sample(["IoT", "IT", "GIS"], k=random.randint(0, 2))
 
