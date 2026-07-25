@@ -55,6 +55,9 @@ function getPortal(source: string) {
 function ensureAbsoluteUrl(url?: string | null, defaultUrl: string = "https://eprocure.gov.in/eprocure/app"): string {
   if (!url || typeof url !== "string" || !url.trim()) return defaultUrl;
   const trimmed = url.trim();
+  if (trimmed.includes("localhost") || trimmed.includes("127.0.0.1") || trimmed.startsWith("/")) {
+    return defaultUrl;
+  }
   if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
     return trimmed;
   }
