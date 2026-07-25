@@ -8,6 +8,7 @@ Answers user questions about specific tenders by:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 import structlog
@@ -210,13 +211,16 @@ class CopilotRAGPipeline:
             query_embedding = self._embed(query)
             qdrant = await self._get_qdrant()
 
-            results = await qdrant.search(
-                collection_name=CHUNK_COLLECTION,
-                query_vector=query_embedding,
-                query_filter=Filter(must=[FieldCondition(key="tender_id", match=MatchValue(value=tender_id))]),
-                limit=top_k,
-                with_payload=True,
-                score_threshold=0.3,  # Minimum relevance threshold
+            results = await asyncio.wait_for(
+                qdrant.search(
+                    collection_name=CHUNK_COLLECTION,
+                    query_vector=query_embedding,
+                    query_filter=Filter(must=[FieldCondition(key="tender_id", match=MatchValue(value=tender_id))]),
+                    limit=top_k,
+                    with_payload=True,
+                    score_threshold=0.3,
+                ),
+                timeout=2.0,
             )
 
             chunks = []
@@ -234,7 +238,7 @@ class CopilotRAGPipeline:
                 )
             return chunks
         except Exception as e:
-            logger.error("Qdrant retrieval failed, falling back to empty results", error=str(e))
+            logger.warning("Qdrant retrieval timed out or failed, falling back to database tender answer", error=str(e))
             return []
 
     def _build_context(self, chunks: list[dict]) -> str:

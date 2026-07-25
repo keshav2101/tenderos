@@ -204,11 +204,16 @@ export function TenderCopilot({ tenderId, tenderTitle, ministry }: TenderCopilot
           { role: "assistant", content: answer, sources },
         ]);
       } catch (err: unknown) {
-        // On error show an inline error bubble with a retry affordance
-        const message =
-          err instanceof Error && err.message.includes("401")
-            ? "Sign in to ask questions about this tender."
-            : "Could not reach the Copilot service. Please check your connection.";
+        let message = "Could not reach the Copilot service. Please check your connection.";
+        if (typeof err === "object" && err !== null && "response" in err) {
+          const res = (err as { response?: { data?: { detail?: string; error?: string } } }).response;
+          if (res?.data?.detail) message = res.data.detail;
+          else if (res?.data?.error) message = res.data.error;
+        } else if (err instanceof Error && err.message) {
+          if (err.message.includes("401")) {
+            message = "Sign in to ask questions about this tender.";
+          }
+        }
 
         setMessages((prev) => [
           ...prev,
