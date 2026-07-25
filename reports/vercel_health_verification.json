@@ -1,0 +1,54 @@
+{
+  "report": "vercel_health_verification",
+  "timestamp": "2026-07-25T14:31:53Z",
+  "deployment_id": "dpl_3pf3aSPDoDuXFZZaGvg4c7ZBzVLZ",
+  "production_url": "https://tenderos-neon.vercel.app",
+  "railway_backend_url": "https://backend-production-4aa8.up.railway.app",
+  "routes": {
+    "/": {
+      "status": "PASS",
+      "http_code": 200,
+      "latency_ms": 1018.4
+    },
+    "/login": {
+      "status": "PASS",
+      "http_code": 200,
+      "latency_ms": 811.6
+    },
+    "/dashboard": {
+      "status": "PASS",
+      "http_code": 200,
+      "latency_ms": 794.0
+    },
+    "/dashboard/search": {
+      "status": "PASS",
+      "http_code": 200,
+      "latency_ms": 796.7
+    },
+    "/dashboard/intelligence": {
+      "status": "PASS",
+      "http_code": 200,
+      "latency_ms": 564.7
+    },
+    "/dashboard/connectors": {
+      "status": "PASS",
+      "http_code": 200,
+      "latency_ms": 660.7
+    },
+    "/dashboard/analytics": {
+      "status": "PASS",
+      "http_code": 200,
+      "latency_ms": 804.3
+    },
+    "/dashboard/admin": {
+      "status": "PASS",
+      "http_code": 200,
+      "latency_ms": 674.4
+    },
+    "/non-existent-page-404": {
+      "status": "PASS",
+      "http_code": 404,
+      "latency_ms": 341.2
+    }
+  }
+}
