@@ -1,7 +1,19 @@
-from app.connectors.plugins.psu.psu_connectors import (AAIConnector, BELPSUConnector, BHELConnector, CoalIndiaConnector,
-                                                       GAILConnector, HALConnector, HPCLConnector, IOCLConnector,
-                                                       NHAIConnector, NTPCConnector, ONGCConnector, PGCILConnector,
-                                                       RINLConnector, SAILConnector)
+from app.connectors.plugins.psu.psu_connectors import (
+    AAIConnector,
+    BELPSUConnector,
+    BHELConnector,
+    CoalIndiaConnector,
+    GAILConnector,
+    HALConnector,
+    HPCLConnector,
+    IOCLConnector,
+    NHAIConnector,
+    NTPCConnector,
+    ONGCConnector,
+    PGCILConnector,
+    RINLConnector,
+    SAILConnector,
+)
 
 __all__ = [
     "AAIConnector",

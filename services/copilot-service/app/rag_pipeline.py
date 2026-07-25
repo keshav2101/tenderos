@@ -9,6 +9,7 @@ Answers user questions about specific tenders by:
 from __future__ import annotations
 
 from typing import Any
+
 import structlog
 from app.config import settings
 from app.llm_client import LLMClient

@@ -231,9 +231,9 @@ async def orchestrate_agents(req: OrchestrationRequest):
             "current_filters": mem["current_filters"],
         },
         "confidence_score": rag_response.get("confidence") if rag_response else 0.92,
-        "grounding_status": "VERIFIED_EVIDENCE"
-        if rag_response
-        else "SYNTHESIZED_ROUTING",
+        "grounding_status": (
+            "VERIFIED_EVIDENCE" if rag_response else "SYNTHESIZED_ROUTING"
+        ),
     }
 
 

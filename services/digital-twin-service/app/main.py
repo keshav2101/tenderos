@@ -276,9 +276,11 @@ async def list_documents(user_id: str):
                 "id": str(row["id"]),
                 "name": row["name"],
                 "type": row["type"],
-                "uploaded_at": row["uploaded_at"].isoformat()
-                if isinstance(row["uploaded_at"], datetime)
-                else row["uploaded_at"],
+                "uploaded_at": (
+                    row["uploaded_at"].isoformat()
+                    if isinstance(row["uploaded_at"], datetime)
+                    else row["uploaded_at"]
+                ),
                 "verified": row["verified"],
             }
             for row in rows

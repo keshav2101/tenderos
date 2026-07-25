@@ -18,7 +18,14 @@ from datetime import datetime, timedelta
 from typing import Any
 
 import httpx
-from app.connectors.base import BaseConnector, CadenceConfig, HealthStatus, RateLimitConfig, RawTender, RetryPolicy
+from app.connectors.base import (
+    BaseConnector,
+    CadenceConfig,
+    HealthStatus,
+    RateLimitConfig,
+    RawTender,
+    RetryPolicy,
+)
 from bs4 import BeautifulSoup
 
 

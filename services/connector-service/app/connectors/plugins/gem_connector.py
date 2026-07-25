@@ -24,7 +24,14 @@ from collections.abc import AsyncIterator
 from datetime import datetime
 
 import httpx
-from app.connectors.base import BaseConnector, CadenceConfig, HealthStatus, RateLimitConfig, RawTender, RetryPolicy
+from app.connectors.base import (
+    BaseConnector,
+    CadenceConfig,
+    HealthStatus,
+    RateLimitConfig,
+    RawTender,
+    RetryPolicy,
+)
 
 
 class GeMConnector(BaseConnector):

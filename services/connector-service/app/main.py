@@ -95,7 +95,11 @@ async def run_ingestion_pipeline(source_id: str):
         logger.error("Failed to load connector", source=source_id, error=str(e))
         return
 
-    from app.connectors.quality_engine import ConnectorQualityReport, compute_quality_score, is_quality_acceptable
+    from app.connectors.quality_engine import (
+        ConnectorQualityReport,
+        compute_quality_score,
+        is_quality_acceptable,
+    )
 
     stats = {
         "fetched": 0,
@@ -428,9 +432,9 @@ async def get_connectors_status():
             metrics = r_client.hgetall(f"connector_status:{source_id}")
             if metrics:
                 result[source_id] = {
-                    k.decode() if isinstance(k, bytes) else k: v.decode()
-                    if isinstance(v, bytes)
-                    else v
+                    k.decode() if isinstance(k, bytes) else k: (
+                        v.decode() if isinstance(v, bytes) else v
+                    )
                     for k, v in metrics.items()
                 }
                 result[source_id]["source_id"] = source_id

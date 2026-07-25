@@ -59,9 +59,9 @@ class ConnectorState:
             "enabled": self.enabled,
             "status": self.status,
             "last_run": self.last_run.isoformat() if self.last_run else None,
-            "last_success": self.last_success.isoformat()
-            if self.last_success
-            else None,
+            "last_success": (
+                self.last_success.isoformat() if self.last_success else None
+            ),
             "success_count": self.success_count,
             "failure_count": self.failure_count,
             "total_tenders": self.total_tenders,

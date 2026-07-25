@@ -88,9 +88,11 @@ async def list_notifications(user_id: str):
                     "body": r["body"],
                     "read": r["is_read"],
                     "type": r["type"],
-                    "created_at": r["created_at"].isoformat()
-                    if r["created_at"]
-                    else datetime.utcnow().isoformat(),
+                    "created_at": (
+                        r["created_at"].isoformat()
+                        if r["created_at"]
+                        else datetime.utcnow().isoformat()
+                    ),
                 }
                 for r in rows
             ]

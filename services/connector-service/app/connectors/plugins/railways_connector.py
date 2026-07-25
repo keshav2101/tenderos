@@ -27,7 +27,14 @@ from collections.abc import AsyncIterator
 from datetime import datetime
 
 import httpx
-from app.connectors.base import BaseConnector, CadenceConfig, HealthStatus, RateLimitConfig, RawTender, RetryPolicy
+from app.connectors.base import (
+    BaseConnector,
+    CadenceConfig,
+    HealthStatus,
+    RateLimitConfig,
+    RawTender,
+    RetryPolicy,
+)
 from bs4 import BeautifulSoup
 
 IREPS_USERNAME = os.environ.get("IREPS_USERNAME", "")
@@ -140,9 +147,9 @@ class RailwaysConnector(BaseConnector):
                 "state": None,
                 "estimated_cost_lakhs": None,
                 "emd_lakhs": None,
-                "categories": ["Railways", tender_type]
-                if tender_type
-                else ["Railways"],
+                "categories": (
+                    ["Railways", tender_type] if tender_type else ["Railways"]
+                ),
                 "procurement_method": "open",
                 "status": "active",
                 "published_at": datetime.utcnow().isoformat(),

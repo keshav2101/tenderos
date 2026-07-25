@@ -18,8 +18,25 @@ import structlog
 from app.config import settings
 from app.middleware.auth import AuthMiddleware
 from app.middleware.rate_limit import RateLimitMiddleware
-from app.routers import (admin, analytics, auth, billing, chat, company, eligibility, governance, graph, health,
-                         intelligence, notifications, proposals, quality, recommendations, search, tenders)
+from app.routers import (
+    admin,
+    analytics,
+    auth,
+    billing,
+    chat,
+    company,
+    eligibility,
+    governance,
+    graph,
+    health,
+    intelligence,
+    notifications,
+    proposals,
+    quality,
+    recommendations,
+    search,
+    tenders,
+)
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware

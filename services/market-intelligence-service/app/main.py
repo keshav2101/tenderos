@@ -98,16 +98,18 @@ async def get_trends(
                 "period": period,
                 "category": category,
                 "state": state,
-                "trends": [
-                    {
-                        "month": r["month"],
-                        "volume_cr": float(r["volume_cr"]),
-                        "tender_count": r["tender_count"],
-                    }
-                    for r in rows
-                ]
-                if rows
-                else [],
+                "trends": (
+                    [
+                        {
+                            "month": r["month"],
+                            "volume_cr": float(r["volume_cr"]),
+                            "tender_count": r["tender_count"],
+                        }
+                        for r in rows
+                    ]
+                    if rows
+                    else []
+                ),
             }
     except Exception as e:
         logger.error("Trends query failed, returning empty trends", error=str(e))
@@ -135,18 +137,20 @@ async def get_ministries(limit: int = 10, period: str = "12m"):
             )
             return {
                 "period": period,
-                "ministries": [
-                    {
-                        "ministry": r["name"],
-                        "name": r["name"],
-                        "total_value_cr": float(r["volume_cr"]),
-                        "volume_cr": float(r["volume_cr"]),
-                        "tender_count": r["tender_count"],
-                    }
-                    for r in rows
-                ]
-                if rows
-                else [],
+                "ministries": (
+                    [
+                        {
+                            "ministry": r["name"],
+                            "name": r["name"],
+                            "total_value_cr": float(r["volume_cr"]),
+                            "volume_cr": float(r["volume_cr"]),
+                            "tender_count": r["tender_count"],
+                        }
+                        for r in rows
+                    ]
+                    if rows
+                    else []
+                ),
             }
     except Exception as e:
         logger.error("Ministries query failed, returning empty list", error=str(e))
@@ -159,8 +163,7 @@ async def get_categories(period: str = "12m"):
     try:
         pool = await get_pool()
         async with pool.acquire() as conn:
-            rows = await conn.fetch(
-                """
+            rows = await conn.fetch("""
                 SELECT unnest(categories) as name,
                        COALESCE(SUM(estimated_cost_lakhs) / 100.0, 0.0) as volume_cr,
                        COUNT(id) as tender_count
@@ -169,22 +172,23 @@ async def get_categories(period: str = "12m"):
                 GROUP BY name
                 ORDER BY volume_cr DESC
                 LIMIT 10
-                """
-            )
+                """)
             return {
                 "period": period,
-                "categories": [
-                    {
-                        "category": r["name"],
-                        "name": r["name"],
-                        "tender_count": r["tender_count"],
-                        "volume_cr": float(r["volume_cr"]),
-                        "growth_pct": 15.0,
-                    }
-                    for r in rows
-                ]
-                if rows
-                else [],
+                "categories": (
+                    [
+                        {
+                            "category": r["name"],
+                            "name": r["name"],
+                            "tender_count": r["tender_count"],
+                            "volume_cr": float(r["volume_cr"]),
+                            "growth_pct": 15.0,
+                        }
+                        for r in rows
+                    ]
+                    if rows
+                    else []
+                ),
             }
     except Exception as e:
         logger.error("Categories query failed, returning empty list", error=str(e))
@@ -197,8 +201,7 @@ async def get_states(period: str = "12m"):
     try:
         pool = await get_pool()
         async with pool.acquire() as conn:
-            rows = await conn.fetch(
-                """
+            rows = await conn.fetch("""
                 SELECT state as name,
                        COALESCE(SUM(estimated_cost_lakhs) / 100.0, 0.0) as volume_cr,
                        COUNT(id) as tender_count
@@ -207,20 +210,21 @@ async def get_states(period: str = "12m"):
                 GROUP BY state
                 ORDER BY volume_cr DESC
                 LIMIT 10
-                """
-            )
+                """)
             return {
                 "period": period,
-                "states": [
-                    {
-                        "name": r["name"],
-                        "volume_cr": float(r["volume_cr"]),
-                        "tender_count": r["tender_count"],
-                    }
-                    for r in rows
-                ]
-                if rows
-                else [],
+                "states": (
+                    [
+                        {
+                            "name": r["name"],
+                            "volume_cr": float(r["volume_cr"]),
+                            "tender_count": r["tender_count"],
+                        }
+                        for r in rows
+                    ]
+                    if rows
+                    else []
+                ),
             }
     except Exception as e:
         logger.error("States query failed, returning empty list", error=str(e))
@@ -262,8 +266,7 @@ async def get_overview():
     try:
         pool = await get_pool()
         async with pool.acquire() as conn:
-            stats = await conn.fetchrow(
-                """
+            stats = await conn.fetchrow("""
                 SELECT COUNT(id) as total_active_tenders,
                        COALESCE(SUM(estimated_cost_lakhs) / 100.0, 0.0) as total_value_cr,
                        COUNT(id) FILTER(WHERE created_at >= NOW() - INTERVAL '1 day') as tenders_indexed_today,
@@ -271,13 +274,14 @@ async def get_overview():
                        COUNT(DISTINCT state) as active_states
                 FROM tenders
                 WHERE status = 'active'
-                """
-            )
+                """)
             return {
                 "total_active_tenders": stats["total_active_tenders"] if stats else 0,
-                "total_value_cr": round(float(stats["total_value_cr"]), 2)
-                if stats and stats["total_value_cr"]
-                else 0.0,
+                "total_value_cr": (
+                    round(float(stats["total_value_cr"]), 2)
+                    if stats and stats["total_value_cr"]
+                    else 0.0
+                ),
                 "tenders_indexed_today": stats["tenders_indexed_today"] if stats else 0,
                 "active_ministries": stats["active_ministries"] if stats else 0,
                 "active_states": stats["active_states"] if stats else 0,
@@ -535,8 +539,7 @@ async def get_continuous_buyer_intelligence():
     """Tracks buyer spending shifts, tender frequency anomalies, and annual budget growth."""
     pool = await get_pool()
     async with pool.acquire() as conn:
-        rows = await conn.fetch(
-            """
+        rows = await conn.fetch("""
             SELECT 
                 COALESCE(organisation, ministry, department, 'Central Procurement') as buyer_name,
                 COUNT(*) as active_tenders,
@@ -547,8 +550,7 @@ async def get_continuous_buyer_intelligence():
             GROUP BY COALESCE(organisation, ministry, department, 'Central Procurement')
             ORDER BY active_tenders DESC
             LIMIT 10
-            """
-        )
+            """)
         alerts = [
             {
                 "buyer": "Department of Military Affairs",

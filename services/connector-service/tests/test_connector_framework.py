@@ -25,8 +25,13 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from app.connectors.base import BaseConnector, ConnectorState, HealthStatus, RawTender
 from app.connectors.normalization import normalize_state, normalize_tender
-from app.connectors.quality_engine import (QUALITY_THRESHOLD, ConnectorQualityReport, compute_dedup_key,
-                                           compute_quality_score, is_quality_acceptable)
+from app.connectors.quality_engine import (
+    QUALITY_THRESHOLD,
+    ConnectorQualityReport,
+    compute_dedup_key,
+    compute_quality_score,
+    is_quality_acceptable,
+)
 from app.connectors.validation import validate_tender
 
 # ─── Fixtures ────────────────────────────────────────────────────────────────
@@ -299,9 +304,9 @@ class TestRegistry:
 
         connectors = list_connectors()
         all_ids = get_all_source_ids()
-        assert len(connectors) >= 5, (
-            f"Expected at least 5 connectors, got {len(connectors)}"
-        )
+        assert (
+            len(connectors) >= 5
+        ), f"Expected at least 5 connectors, got {len(connectors)}"
         assert len(all_ids) >= 5
 
     def test_get_connector_returns_instance(self):

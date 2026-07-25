@@ -226,23 +226,19 @@ async def get_market_trends():
     """Aggregated market intelligence, state distribution, and spending breakdowns."""
     pool = await get_pool()
     async with pool.acquire() as conn:
-        state_rows = await conn.fetch(
-            """
+        state_rows = await conn.fetch("""
             SELECT COALESCE(state, 'Pan-India') as state_name, COUNT(*) as tender_count
             FROM tenders
             GROUP BY COALESCE(state, 'Pan-India')
             ORDER BY tender_count DESC
             LIMIT 15
-            """
-        )
-        source_rows = await conn.fetch(
-            """
+            """)
+        source_rows = await conn.fetch("""
             SELECT source, COUNT(*) as tender_count
             FROM tenders
             GROUP BY source
             ORDER BY tender_count DESC
-            """
-        )
+            """)
         msme_count = await conn.fetchval(
             "SELECT COUNT(*) FROM tenders WHERE msme_eligible = true"
         )
@@ -305,11 +301,9 @@ async def calculate_opportunity_score(tender_id: str):
         return {
             "tender_id": tender_id,
             "opportunity_score": final_score,
-            "match_grade": "A+"
-            if final_score >= 85
-            else "A"
-            if final_score >= 75
-            else "B",
+            "match_grade": (
+                "A+" if final_score >= 85 else "A" if final_score >= 75 else "B"
+            ),
             "scoring_factors": factors,
             "mii_compliance": "Class-I Local Supplier Preference",
             "emd_waiver_eligible": t.get("msme_eligible", False),

@@ -119,15 +119,19 @@ async def _get_company_profile(conn, user_id: str) -> dict:
     )
 
     return {
-        "name": company_row["legal_name"]
-        if company_row
-        else "Demo Corporation Private Limited",
+        "name": (
+            company_row["legal_name"]
+            if company_row
+            else "Demo Corporation Private Limited"
+        ),
         "is_msme": is_msme,
         "is_startup": is_startup,
         "total_experience_years": company_experience_years,
-        "certifications": [c["standard"] for c in certs_rows]
-        if certs_rows
-        else ["ISO 9001:2015", "CMMI Level 3"],
+        "certifications": (
+            [c["standard"] for c in certs_rows]
+            if certs_rows
+            else ["ISO 9001:2015", "CMMI Level 3"]
+        ),
         "states_active": company_states_active,
         "target_categories": company_categories,
         "avg_turnover_3yr_lakhs": company_turnover,
@@ -179,9 +183,11 @@ async def recommendations(user_id: str, limit: int = 10, min_score: int = 60):
                         "department": t["department"],
                         "state": t["state"],
                         "estimated_cost_lakhs": t["estimated_cost_lakhs"],
-                        "submission_deadline": t["submission_deadline"].isoformat()
-                        if isinstance(t["submission_deadline"], datetime)
-                        else t["submission_deadline"],
+                        "submission_deadline": (
+                            t["submission_deadline"].isoformat()
+                            if isinstance(t["submission_deadline"], datetime)
+                            else t["submission_deadline"]
+                        ),
                         "categories": t["categories"],
                         "match_score": qual["match_score"],
                         "winning_probability": qual["winning_probability"],
@@ -213,37 +219,45 @@ async def check_eligibility(tender_id: str, user_id: str = "default_user"):
         checklist = [
             {
                 "criteria": "MSME / Udyam Registration",
-                "status": "PASSED"
-                if qual.get("msme_benefit_applied", True)
-                else "WARNING",
+                "status": (
+                    "PASSED" if qual.get("msme_benefit_applied", True) else "WARNING"
+                ),
                 "detail": "Eligible for EMD waiver and 15% purchase preference under GFR Rule 153",
             },
             {
                 "criteria": "Startup India Exemption",
-                "status": "PASSED"
-                if company_profile.get("is_startup")
-                else "EXEMPTION_APPLIED",
+                "status": (
+                    "PASSED"
+                    if company_profile.get("is_startup")
+                    else "EXEMPTION_APPLIED"
+                ),
                 "detail": "Relaxed prior turnover & experience rules applicable",
             },
             {
                 "criteria": "Minimum Experience Years",
-                "status": "PASSED"
-                if qual.get("breakdown", {}).get("experience_score", 0) > 10
-                else "REQUIRES_REVIEW",
+                "status": (
+                    "PASSED"
+                    if qual.get("breakdown", {}).get("experience_score", 0) > 10
+                    else "REQUIRES_REVIEW"
+                ),
                 "detail": f"Required: {tender_row.get('experience_years', 0)} years | Company: {company_profile.get('total_experience_years', 3)} years",
             },
             {
                 "criteria": "Annual Turnover Threshold",
-                "status": "PASSED"
-                if qual.get("breakdown", {}).get("financial_score", 0) > 15
-                else "FAILED",
+                "status": (
+                    "PASSED"
+                    if qual.get("breakdown", {}).get("financial_score", 0) > 15
+                    else "FAILED"
+                ),
                 "detail": f"Required: ₹{tender_row.get('turnover_min_lakhs', 0)} Lakhs | Company 3yr Avg: ₹{company_profile.get('avg_turnover_3yr_lakhs', 0)} Lakhs",
             },
             {
                 "criteria": "Mandatory Technical Certifications",
-                "status": "PASSED"
-                if qual.get("breakdown", {}).get("certification_score", 0) > 10
-                else "ACTION_REQUIRED",
+                "status": (
+                    "PASSED"
+                    if qual.get("breakdown", {}).get("certification_score", 0) > 10
+                    else "ACTION_REQUIRED"
+                ),
                 "detail": f"Required: {tender_row.get('certifications_required') or 'ISO 9001 / ISO 27001'}",
             },
         ]
@@ -262,13 +276,17 @@ async def check_eligibility(tender_id: str, user_id: str = "default_user"):
             "compliance_checklist": checklist,
             "missing_items": {
                 "missing_documents": ["MAF Form 4B"],
-                "missing_certifications": []
-                if qual.get("breakdown", {}).get("certification_score", 0) > 10
-                else ["ISO 27001"],
-                "missing_financial_criteria": None
-                if company_profile.get("avg_turnover_3yr_lakhs", 0)
-                >= tender_row.get("turnover_min_lakhs", 0)
-                else "Turnover gap ₹10.0 Lakhs",
+                "missing_certifications": (
+                    []
+                    if qual.get("breakdown", {}).get("certification_score", 0) > 10
+                    else ["ISO 27001"]
+                ),
+                "missing_financial_criteria": (
+                    None
+                    if company_profile.get("avg_turnover_3yr_lakhs", 0)
+                    >= tender_row.get("turnover_min_lakhs", 0)
+                    else "Turnover gap ₹10.0 Lakhs"
+                ),
                 "missing_technical_criteria": None,
                 "missing_msme_benefits": None,
                 "missing_startup_benefits": None,
@@ -371,9 +389,11 @@ async def bid_strategy_recommendation(tender_id: str, user_id: str = "default_us
 
         return {
             "tender_id": tender_id,
-            "recommendation": "BID"
-            if qual["match_score"] >= 70
-            else ("WAIT" if qual["match_score"] >= 50 else "NO_BID"),
+            "recommendation": (
+                "BID"
+                if qual["match_score"] >= 70
+                else ("WAIT" if qual["match_score"] >= 50 else "NO_BID")
+            ),
             "win_probability_pct": qual["winning_probability"],
             "estimated_revenue_lakhs": est_cost,
             "proposal_effort_hours": 18,

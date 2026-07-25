@@ -616,15 +616,21 @@ class HybridSearchEngine:
                         "organisation": r["organisation"],
                         "state": r["state"],
                         "categories": r["categories"] or [],
-                        "estimated_cost_lakhs": float(r["estimated_cost_lakhs"])
-                        if r["estimated_cost_lakhs"] is not None
-                        else None,
-                        "emd_lakhs": float(r["emd_lakhs"])
-                        if r["emd_lakhs"] is not None
-                        else None,
-                        "submission_deadline": r["submission_deadline"].isoformat()
-                        if r["submission_deadline"]
-                        else None,
+                        "estimated_cost_lakhs": (
+                            float(r["estimated_cost_lakhs"])
+                            if r["estimated_cost_lakhs"] is not None
+                            else None
+                        ),
+                        "emd_lakhs": (
+                            float(r["emd_lakhs"])
+                            if r["emd_lakhs"] is not None
+                            else None
+                        ),
+                        "submission_deadline": (
+                            r["submission_deadline"].isoformat()
+                            if r["submission_deadline"]
+                            else None
+                        ),
                         "status": r["status"],
                         "source": r["source"],
                         "ai_summary": r["ai_summary"],

@@ -13,3 +13,7 @@ ignore = [
     "W293",  # blank line whitespace
     "F841",  # unused variable
 ]
+
+[tool.isort]
+profile = "black"
+line_length = 120

@@ -30,7 +30,14 @@ from datetime import datetime
 from typing import Any
 
 import httpx
-from app.connectors.base import BaseConnector, CadenceConfig, HealthStatus, RateLimitConfig, RawTender, RetryPolicy
+from app.connectors.base import (
+    BaseConnector,
+    CadenceConfig,
+    HealthStatus,
+    RateLimitConfig,
+    RawTender,
+    RetryPolicy,
+)
 from bs4 import BeautifulSoup
 
 # Optional shared NIC credentials (for session-based access)
@@ -212,9 +219,11 @@ class StateBaseConnector(BaseConnector):
                 results.append(
                     {
                         "title": title,
-                        "ministry": f"Government of {state_name}"
-                        if state_name
-                        else "Government of India",
+                        "ministry": (
+                            f"Government of {state_name}"
+                            if state_name
+                            else "Government of India"
+                        ),
                         "department": state_name or "Central Government",
                         "organisation": state_name or "Central Government",
                         "state": state_name or "",
