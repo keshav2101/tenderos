@@ -1,0 +1,10 @@
+{
+  "name": "tenderos-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "npm --prefix apps/frontend run build",
+    "dev": "npm --prefix apps/frontend run dev",
+    "start": "npm --prefix apps/frontend run start"
+  }
+}
