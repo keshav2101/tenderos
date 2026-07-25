@@ -65,7 +65,9 @@ async def generate_proposal(tender_id: str, user_id: str = "default_user"):
                 data = resp.json()
                 company_profile = {
                     "name": data.get("legal_name") or data.get("company_name") or "System Integrator Corp",
-                    "experience_years": float(data.get("total_experience_years") or data.get("experience_years") or 7.5),
+                    "experience_years": float(
+                        data.get("total_experience_years") or data.get("experience_years") or 7.5
+                    ),
                     "average_turnover_lakhs": float(
                         data.get("avg_turnover_3yr_lakhs") or data.get("average_turnover_lakhs") or 500.0
                     ),
