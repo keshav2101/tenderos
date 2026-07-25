@@ -23,6 +23,63 @@ class ExtractionRequest(BaseModel):
     source_json: Optional[Dict] = None
 
 
+import asyncio
+import os
+import asyncpg
+from contextlib import asynccontextmanager
+
+_pool: Optional[asyncpg.Pool] = None
+
+async def get_pool() -> asyncpg.Pool:
+    global _pool
+    if _pool is None:
+        db_url = os.getenv("DATABASE_URL", "postgresql://tenderos:tenderos_dev_2026@tenderos-postgres:5432/tenderos")
+        _pool = await asyncpg.create_pool(db_url, min_size=1, max_size=5)
+    return _pool
+
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(auto_extraction_loop())
+
+async def auto_extraction_loop():
+    """Background job processing raw tender records through Tier 1 / Tier 3 intelligence rules."""
+    logger.info("AI Auto-Extraction queue background job started")
+    await asyncio.sleep(5)
+    while True:
+        try:
+            pool = await get_pool()
+            async with pool.acquire() as conn:
+                rows = await conn.fetch("""
+                    SELECT id, title, description, lineage, category, source
+                    FROM tenders
+                    WHERE extracted_attributes IS NULL
+                    ORDER BY created_at DESC
+                    LIMIT 10
+                """)
+                for r in rows:
+                    t_id = str(r["id"])
+                    raw_text = f"{r['title'] or ''}\n{r['description'] or ''}"
+                    source_json = r["lineage"] or {}
+                    try:
+                        extracted = t1_extractor.extract(raw_text, source_json)
+                        # Add metadata
+                        extracted["_auto_extracted"] = True
+                        extracted["_extracted_at"] = asyncio.get_event_loop().time()
+                        
+                        import json
+                        await conn.execute("""
+                            UPDATE tenders
+                            SET extracted_attributes = $1::jsonb
+                            WHERE id = $2
+                        """, json.dumps(extracted), r["id"])
+                        logger.info("Successfully auto-extracted attributes for tender", tender_id=t_id)
+                    except Exception as err:
+                        logger.warning("Failed auto-extraction for tender", tender_id=t_id, error=str(err))
+        except Exception as e:
+            logger.error("Auto-extraction loop error", error=str(e))
+        await asyncio.sleep(30)
+
+
 @app.get("/health")
 async def health():
     return {"status": "healthy", "service": "ai-extraction"}

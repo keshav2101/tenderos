@@ -193,7 +193,7 @@ class BaseConnector(ABC):
         # Extract structural elements only (tags + classes), ignore content
         structural = re.sub(r'>([^<]+)<', '><', html)
         structural = re.sub(r'\s+', ' ', structural)
-        return hashlib.md5(structural.encode()).hexdigest()
+        return hashlib.md5(structural.encode(), usedforsecurity=False).hexdigest()  # noqa: S324
 
     async def is_accessible(self) -> bool:
         """Check if the source portal is reachable."""

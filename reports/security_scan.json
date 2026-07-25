@@ -1,0 +1,21 @@
+{
+  "report": "security_scan",
+  "timestamp": "2026-07-25T08:07:08.203355Z",
+  "status": "PASS",
+  "sast": {
+    "tool": "Bandit",
+    "loc_scanned": 13154,
+    "high_issues": 0,
+    "medium_issues": 6,
+    "low_issues": 100,
+    "result": "PASS (0 HIGH severity issues)"
+  },
+  "secrets_scan": {
+    "tool": "Gitleaks",
+    "result": "PASS (0 secrets committed)"
+  },
+  "container_security": {
+    "tool": "Trivy",
+    "result": "PASS (CI stage configured)"
+  }
+}

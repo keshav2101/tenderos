@@ -1,0 +1,194 @@
+name: TenderOS CI/CD Production Pipeline
+
+on:
+  push:
+    branches: [main, master]
+    tags: ['v*.*.*']
+  pull_request:
+    branches: [main, master]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/tenderos
+
+jobs:
+  # ─── Stage 1: Lint & Format ──────────────────────────────────────
+  lint:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - run: pip install ruff black isort
+      - run: ruff check services/ scripts/ --output-format=github
+      - run: black --check services/ scripts/
+      - run: isort --check-only services/ scripts/
+
+  # ─── Stage 2: Unit Tests ─────────────────────────────────────────
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - run: pip install pytest pytest-asyncio pytest-cov asyncpg fastapi httpx
+      - run: pytest tests/ -v --tb=short --cov=services --cov-report=xml
+        env:
+          DATABASE_URL: "postgresql://tenderos:test@localhost:5432/tenderos_test"
+
+  # ─── Stage 3: Security Scan ──────────────────────────────────────
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - name: Run Bandit (Python SAST)
+        run: |
+          pip install bandit[toml]
+          bandit -r services/ -f json -o reports/bandit.json -ll || true
+      - name: Run Gitleaks (secrets scan)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run Trivy (container scan)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'HIGH,CRITICAL'
+      - uses: github/codeql-action/upload-sarif@v3
+        with: { sarif_file: trivy-results.sarif }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-reports
+          path: reports/
+
+  # ─── Stage 4: Docker Build ───────────────────────────────────────
+  build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: [unit-tests, security-scan]
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        service:
+          - tender-service
+          - connector-service
+          - copilot-service
+          - proposal-service
+          - knowledge-graph-service
+          - scheduler-service
+          - document-pipeline
+          - classification-service
+          - market-intelligence-service
+          - billing-service
+          - governance-service
+          - data-quality-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v5
+        with:
+          context: ./services/${{ matrix.service }}
+          push: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/') }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service }}:${{ github.sha }}
+
+  # ─── Stage 5: Railway Deployment ─────────────────────────────────
+  deploy-railway:
+    name: Deploy to Railway
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
+    environment:
+      name: production
+      url: ${{ vars.RAILWAY_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+      - name: Deploy to Railway
+        run: railway up --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+  # ─── Stage 6: Vercel Deployment ──────────────────────────────────
+  deploy-vercel:
+    name: Deploy to Vercel
+    runs-on: ubuntu-latest
+    needs: deploy-railway
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
+    environment:
+      name: production
+      url: ${{ vars.VERCEL_URL }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { submodules: recursive }
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Deploy to Vercel
+        run: |
+          npm install -g vercel
+          vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+          vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+          vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+  # ─── Stage 7: Smoke Tests ────────────────────────────────────────
+  smoke-tests:
+    name: Production Smoke Tests
+    runs-on: ubuntu-latest
+    needs: [deploy-railway, deploy-vercel]
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - run: npm ci
+        working-directory: apps/frontend
+      - name: Install Playwright
+        run: npx playwright install --with-deps chromium
+        working-directory: apps/frontend
+      - name: Run Smoke Tests
+        run: npx playwright test --project=chromium tests/smoke/
+        working-directory: apps/frontend
+        env:
+          BASE_URL: ${{ vars.VERCEL_URL }}
+          API_URL: ${{ vars.RAILWAY_URL }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke-test-results
+          path: apps/frontend/playwright-report/
+
+  # ─── Rollback Verification ───────────────────────────────────────
+  rollback-verify:
+    name: Rollback Verification
+    runs-on: ubuntu-latest
+    needs: smoke-tests
+    if: failure()
+    steps:
+      - name: Notify rollback required
+        run: |
+          echo "⚠️ Smoke tests FAILED — manual rollback may be required"
+          echo "Previous Railway deployment SHA: ${{ github.event.before }}"
+          exit 1

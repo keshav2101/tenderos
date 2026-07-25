@@ -67,9 +67,8 @@ class NTPCConnector(PSUBaseConnector):
     PSU_KEYWORDS = ["ntpc", "national thermal power"]
     MINISTRY = "Ministry of Power"
     STATE = "Delhi"
-    TENDER_URL = "https://ntpctender.in"
+    TENDER_URL = "https://www.ntpc.co.in/en/procurement/tenders"
     TENDER_URL_ALT = [
-        "https://www.ntpc.co.in/en/procurement/tenders",
         "https://ntpc.co.in/tenders",
     ]
 
@@ -94,9 +93,9 @@ class NHAIConnector(PSUBaseConnector):
     PSU_KEYWORDS = ["nhai", "national highways authority", "national highway"]
     MINISTRY = "Ministry of Road Transport and Highways"
     STATE = "Delhi"
-    TENDER_URL = "https://www.nhai.gov.in/en/tender-notices"
+    TENDER_URL = "https://nhai.gov.in/en/tenders"
     TENDER_URL_ALT = [
-        "https://nhai.gov.in/en/tenders",
+        "https://www.nhai.gov.in/en/tender-notices",
         "https://nhaigis.co.in/tenders",
     ]
 
@@ -201,3 +200,40 @@ class RINLConnector(PSUBaseConnector):
         "https://www.vizagsteel.com/tenders",
         "https://vizagsteel.com/tenders/index.asp",
     ]
+
+
+class NPCILConnector(PSUBaseConnector):
+    source_id = "npcil"
+    display_name = "NPCIL — Nuclear Power Corporation of India"
+    description = "Nuclear power plant procurement notices"
+    PSU_NAME = "Nuclear Power Corporation of India Limited"
+    PSU_KEYWORDS = ["npcil", "nuclear power corporation"]
+    MINISTRY = "Department of Atomic Energy"
+    STATE = "Gujarat"
+    TENDER_URL = "https://www.npcil.nic.in/tenders"
+    TENDER_URL_ALT = ["https://npcil.nic.in/tenders"]
+
+
+class ISROConnector(PSUBaseConnector):
+    source_id = "isro"
+    display_name = "ISRO — Indian Space Research Organisation"
+    description = "Space technology and research procurement"
+    PSU_NAME = "Indian Space Research Organisation"
+    PSU_KEYWORDS = ["isro", "indian space research", "vssc", "sac ", "isac", "ursc"]
+    MINISTRY = "Department of Space"
+    STATE = "Karnataka"
+    TENDER_URL = "https://www.isro.gov.in/tenders"
+    TENDER_URL_ALT = ["https://isro.gov.in/tenders"]
+
+
+class BPCLConnector(PSUBaseConnector):
+    source_id = "bpcl"
+    display_name = "BPCL — Bharat Petroleum Corporation Limited"
+    description = "Petroleum downstream and retail procurement"
+    PSU_NAME = "Bharat Petroleum Corporation Limited"
+    PSU_KEYWORDS = ["bpcl", "bharat petroleum"]
+    MINISTRY = "Ministry of Petroleum and Natural Gas"
+    STATE = "Maharashtra"
+    TENDER_URL = "https://bpcltenders.bpcl.in"
+    TENDER_URL_ALT = ["https://bpcl.in/tenders"]
+

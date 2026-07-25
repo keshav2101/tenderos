@@ -1,0 +1,51 @@
+{
+  "report": "infrastructure_verification",
+  "version": "v1.0.0-RC1",
+  "timestamp": "2026-07-25T07:38:05.712385Z",
+  "components": {
+    "PostgreSQL": {
+      "status": "PASS",
+      "detail": "1610 tenders, latest: 2026-07-25",
+      "latency_ms": 3515.5
+    },
+    "Redis": {
+      "status": "FAIL",
+      "detail": "Raw RESP: -NOAUTH Authentication required.",
+      "latency_ms": 1276.8
+    },
+    "Qdrant": {
+      "status": "PASS",
+      "detail": "0 collections (v1.13.6)",
+      "latency_ms": 1876.5
+    },
+    "MinIO": {
+      "status": "PASS",
+      "detail": "HTTP 200",
+      "latency_ms": 2990.5
+    },
+    "OpenSearch": {
+      "status": "FAIL",
+      "detail": "<urlopen error [Errno 61] Connection refused>"
+    },
+    "Neo4j": {
+      "status": "PASS",
+      "detail": "HTTP 200 \u2014 browser UI accessible",
+      "latency_ms": 8702.9
+    },
+    "RabbitMQ": {
+      "status": "PASS",
+      "detail": "v3.13.7, messages_ready=0",
+      "latency_ms": 1317.9
+    },
+    "Gemini API": {
+      "status": "FAIL",
+      "detail": "HTTP Error 400: Bad Request"
+    }
+  },
+  "summary": {
+    "total": 8,
+    "passed": 5,
+    "failed": 3,
+    "score": "5/8"
+  }
+}

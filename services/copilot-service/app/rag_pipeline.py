@@ -210,12 +210,11 @@ class CopilotRAGPipeline:
 
         if not chunks:
             return {
-                "answer": (
-                    "I could not find relevant information in the tender documents to answer this question. "
-                    "The tender documents may not have been processed yet, or this information may not be present."
-                ),
+                "answer": "I could not verify this from available procurement data.",
                 "sources": [],
                 "chunks_used": 0,
+                "confidence": 0.0,
+                "evidence_details": []
             }
 
         context = self._build_context(chunks)
@@ -246,15 +245,29 @@ class CopilotRAGPipeline:
                 "page": chunk["page"],
                 "section": chunk["section"],
                 "doc_type": chunk["doc_type"],
+                "document_name": chunk.get("document_name", "notice.pdf"),
                 "relevance_score": round(chunk["score"], 3),
             }
             for chunk in chunks
         ]
 
+        avg_score = sum(c["score"] for c in chunks) / len(chunks) if chunks else 0.0
+
         return {
             "answer": answer_text,
             "sources": sources,
             "chunks_used": len(chunks),
+            "confidence": round(avg_score, 2),
+            "evidence_details": [
+                {
+                    "document_name": c.get("document_name", "notice.pdf"),
+                    "page": c.get("page", 1),
+                    "section": c.get("section", "General"),
+                    "excerpt": c.get("text", "")[:300],
+                    "confidence": round(c.get("score", 0.9), 2),
+                    "pdf_viewer_url": f"/tenders/{tender_id}/documents/{c.get('document_name', 'notice.pdf')}#page={c.get('page', 1)}"
+                } for c in chunks
+            ]
         }
 
     async def index_tender_documents(

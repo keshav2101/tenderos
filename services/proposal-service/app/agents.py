@@ -3,6 +3,7 @@ Multi-agent autonomous proposal assembly system using the Google Antigravity SDK
 Includes Compliance, Technical, and Risk agents.
 """
 from typing import Dict, Any, List
+import asyncio
 import structlog
 
 logger = structlog.get_logger()
@@ -70,16 +71,27 @@ class ComplianceAgent:
         Provide a compliance check list showing requirements that PASS or need a WARNING.
         """
         
-        try:
-            if not self.api_key:
-                raise ValueError("Gemini API key is not configured")
-            config = ConfigClass(api_key=self.api_key) if HAS_SDK else {}
-            async with AgentClass(config) as agent:
-                resp = await agent.chat(prompt)
-                return await resp.text()
-        except Exception as e:
-            logger.error("Compliance Agent SDK call failed", error=str(e))
-            raise e
+        if not self.api_key or not self.api_key.startswith("AIzaSy"):
+            raise ValueError("Gemini API key is invalid or unconfigured (must start with AIzaSy)")
+        
+        config = ConfigClass(api_key=self.api_key) if HAS_SDK else {}
+        max_retries = 3
+        backoff = 1.0
+        
+        for attempt in range(max_retries):
+            try:
+                async with AgentClass(config) as agent:
+                    resp = await asyncio.wait_for(agent.chat(prompt), timeout=10.0)
+                    return await resp.text()
+            except asyncio.TimeoutError as te:
+                logger.warning("Compliance Agent request timed out, retrying...", attempt=attempt + 1, max_retries=max_retries)
+                if attempt == max_retries - 1:
+                    raise te
+                await asyncio.sleep(backoff)
+                backoff *= 2.0
+            except Exception as e:
+                logger.error("Compliance Agent SDK call failed", error=str(e), attempt=attempt + 1)
+                raise e
 
 
 class TechnicalProposalAgent:
@@ -97,16 +109,27 @@ class TechnicalProposalAgent:
         Draft details about architecture, system implementation phases, and security alignment.
         """
         
-        try:
-            if not self.api_key:
-                raise ValueError("Gemini API key is not configured")
-            config = ConfigClass(api_key=self.api_key) if HAS_SDK else {}
-            async with AgentClass(config) as agent:
-                resp = await agent.chat(prompt)
-                return await resp.text()
-        except Exception as e:
-            logger.error("Technical Proposal Agent SDK call failed", error=str(e))
-            raise e
+        if not self.api_key or not self.api_key.startswith("AIzaSy"):
+            raise ValueError("Gemini API key is invalid or unconfigured (must start with AIzaSy)")
+        
+        config = ConfigClass(api_key=self.api_key) if HAS_SDK else {}
+        max_retries = 3
+        backoff = 1.0
+        
+        for attempt in range(max_retries):
+            try:
+                async with AgentClass(config) as agent:
+                    resp = await asyncio.wait_for(agent.chat(prompt), timeout=10.0)
+                    return await resp.text()
+            except asyncio.TimeoutError as te:
+                logger.warning("Technical Proposal Agent request timed out, retrying...", attempt=attempt + 1, max_retries=max_retries)
+                if attempt == max_retries - 1:
+                    raise te
+                await asyncio.sleep(backoff)
+                backoff *= 2.0
+            except Exception as e:
+                logger.error("Technical Proposal Agent SDK call failed", error=str(e), attempt=attempt + 1)
+                raise e
 
 
 class RiskAssessmentAgent:
@@ -123,14 +146,25 @@ class RiskAssessmentAgent:
         Provide risk mitigations for payment delays, late performance penalties, or guarantees.
         """
         
-        try:
-            if not self.api_key:
-                raise ValueError("Gemini API key is not configured")
-            config = ConfigClass(api_key=self.api_key) if HAS_SDK else {}
-            async with AgentClass(config) as agent:
-                resp = await agent.chat(prompt)
-                return await resp.text()
-        except Exception as e:
-            logger.error("Risk Assessment Agent SDK call failed", error=str(e))
-            raise e
+        if not self.api_key or not self.api_key.startswith("AIzaSy"):
+            raise ValueError("Gemini API key is invalid or unconfigured (must start with AIzaSy)")
+        
+        config = ConfigClass(api_key=self.api_key) if HAS_SDK else {}
+        max_retries = 3
+        backoff = 1.0
+        
+        for attempt in range(max_retries):
+            try:
+                async with AgentClass(config) as agent:
+                    resp = await asyncio.wait_for(agent.chat(prompt), timeout=10.0)
+                    return await resp.text()
+            except asyncio.TimeoutError as te:
+                logger.warning("Risk Assessment Agent request timed out, retrying...", attempt=attempt + 1, max_retries=max_retries)
+                if attempt == max_retries - 1:
+                    raise te
+                await asyncio.sleep(backoff)
+                backoff *= 2.0
+            except Exception as e:
+                logger.error("Risk Assessment Agent SDK call failed", error=str(e), attempt=attempt + 1)
+                raise e
 

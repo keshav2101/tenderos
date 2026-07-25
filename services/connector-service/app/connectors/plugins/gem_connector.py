@@ -182,7 +182,7 @@ class GeMConnector(BaseConnector):
                 return
 
             # ── Step 2: Paginate through bids ─────────────────────────────────
-            max_pages = 10  # ~200 bids per crawl cycle
+            max_pages = 60  # ~1200 bids per crawl cycle to capture 1000+ bids
             for page in range(1, max_pages + 1):
                 try:
                     payload_json = json.dumps({

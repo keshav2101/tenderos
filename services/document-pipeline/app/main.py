@@ -15,7 +15,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from qdrant_client import QdrantClient
 from qdrant_client.http import models
-from sentence_transformers import SentenceTransformer
+try:
+    from sentence_transformers import SentenceTransformer
+except ImportError:
+    SentenceTransformer = None
+
 
 logger = structlog.get_logger()
 app = FastAPI(title="TenderOS Document Pipeline")
@@ -61,9 +65,22 @@ class DocumentProcessRequest(BaseModel):
 
 @app.on_event("startup")
 async def startup_event():
-    # Columns document_status, current_state, embedding_status, etc. are now
-    # declared in infrastructure/postgres/init.sql — no runtime ALTER needed.
-    # Qdrant collection setup below.
+    # Ensure persistence databases have required state tracking columns
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute("""
+            ALTER TABLE tender_documents ADD COLUMN IF NOT EXISTS document_status VARCHAR(50) DEFAULT 'QUEUED';
+            ALTER TABLE tender_documents ADD COLUMN IF NOT EXISTS current_state VARCHAR(50) DEFAULT 'QUEUED';
+            ALTER TABLE tender_documents ADD COLUMN IF NOT EXISTS embedding_status VARCHAR(50) DEFAULT 'pending';
+            ALTER TABLE tender_documents ADD COLUMN IF NOT EXISTS last_processed TIMESTAMPTZ;
+            ALTER TABLE tender_documents ADD COLUMN IF NOT EXISTS processing_errors TEXT;
+            ALTER TABLE tender_documents ADD COLUMN IF NOT EXISTS failure_reason TEXT;
+            ALTER TABLE tender_documents ADD COLUMN IF NOT EXISTS last_successful_stage VARCHAR(100);
+            ALTER TABLE tender_documents ADD COLUMN IF NOT EXISTS processing_duration_ms INT;
+            ALTER TABLE tender_documents ADD COLUMN IF NOT EXISTS ocr_confidence_score DECIMAL(5,4);
+            ALTER TABLE tender_documents ADD COLUMN IF NOT EXISTS embedding_model_version VARCHAR(255);
+        """)
+
 
     # Qdrant Setup
     if not qdrant_client:
@@ -80,17 +97,64 @@ async def startup_event():
                     distance=models.Distance.COSINE
                 )
             )
-            logger.info("Created Qdrant collection", name=COLLECTION_NAME)
+        logger.info("Created Qdrant collection", name=COLLECTION_NAME)
     except Exception as e:
         logger.error("Failed to connect or create Qdrant collection", error=str(e))
+
+    # Launch background document auto-fetcher worker
+    asyncio.create_task(auto_fetch_documents_loop())
+
+
+async def auto_fetch_documents_loop():
+    """Background job automatically crawling and processing PDFs for newly ingested tenders."""
+    logger.info("Document auto-fetcher background job started")
+    # Wait initial 10s for startup
+    await asyncio.sleep(10)
+    while True:
+        try:
+            pool = await get_pool()
+            async with pool.acquire() as conn:
+                # Find tenders that do not yet have a record in tender_documents
+                rows = await conn.fetch("""
+                    SELECT t.id, t.source, t.source_tender_id, t.source_url, t.lineage
+                    FROM tenders t
+                    LEFT JOIN tender_documents td ON t.id = td.tender_id
+                    WHERE td.id IS NULL AND t.source_url IS NOT NULL AND t.source_url != ''
+                    ORDER BY t.created_at DESC
+                    LIMIT 5
+                """)
+                for r in rows:
+                    t_id = str(r["id"])
+                    doc_url = r["source_url"]
+                    lineage = r["lineage"] or {}
+                    doc_urls = lineage.get("document_urls") or [doc_url]
+                    target_url = doc_urls[0] if doc_urls else doc_url
+                    doc_name = f"{r['source_tender_id'].replace('/', '_')}_spec.pdf"
+                    
+                    try:
+                        logger.info("Auto-fetcher processing document for tender", tender_id=t_id, url=target_url)
+                        req = DocumentProcessRequest(
+                            tender_id=t_id,
+                            document_url=target_url,
+                            document_name=doc_name
+                        )
+                        await process_document(req)
+                    except Exception as err:
+                        logger.warning("Auto-fetcher document process failed", tender_id=t_id, error=str(err))
+        except Exception as e:
+            logger.error("Auto-fetcher loop error", error=str(e))
+        await asyncio.sleep(60)
 
 
 def get_embedding(text: str) -> List[float]:
     """Generate a production embedding using the configured sentence-transformer."""
     global _embedder
     if _embedder is None:
+        if SentenceTransformer is None:
+            raise ImportError("sentence-transformers is not installed. Enable Qdrant/SentenceTransformers in config.")
         _embedder = SentenceTransformer(EMBEDDING_MODEL)
     return _embedder.encode(text, normalize_embeddings=True).tolist()
+
 
 
 def split_text(text: str, chunk_size: int = 1000, overlap: int = 200) -> List[str]:
@@ -329,4 +393,39 @@ async def process_document(req: DocumentProcessRequest):
         "doc_id": str(doc_id),
         "chunks_indexed": len(points),
         "tender_id": req.tender_id
+    }
+
+
+@app.get("/health")
+async def health():
+    """Health check endpoint — verifies Postgres and Qdrant connectivity."""
+    checks: dict = {"service": "document-pipeline", "status": "healthy"}
+    try:
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.fetchval("SELECT 1")
+        checks["postgres"] = "ok"
+    except Exception as exc:
+        checks["postgres"] = f"error: {exc}"
+        checks["status"] = "degraded"
+    try:
+        if qdrant_client is not None:
+            qdrant_client.get_collections()
+            checks["qdrant"] = "ok"
+        else:
+            checks["qdrant"] = "disabled"
+    except Exception as exc:
+        checks["qdrant"] = f"error: {exc}"
+        checks["status"] = "degraded"
+    return checks
+
+
+@app.get("/metrics")
+async def metrics():
+    """Prometheus-compatible metrics stub."""
+    return {
+        "service": "document-pipeline",
+        "documents_processed_total": 0,
+        "chunks_indexed_total": 0,
+        "processing_errors_total": 0,
     }

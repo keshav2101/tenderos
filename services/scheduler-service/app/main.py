@@ -167,6 +167,21 @@ def cron_matches(cron_expr: str, dt: datetime) -> bool:
         return True
 
 
+def get_cron_interval_minutes(cron_expr: str) -> int:
+    """Approximate cron interval in minutes for backoff calculation."""
+    try:
+        parts = cron_expr.split()
+        if len(parts) == 5:
+            minute = parts[0]
+            hour = parts[1]
+            if '/' in minute:
+                return int(minute.split('/')[1])
+            if '/' in hour:
+                return int(hour.split('/')[1]) * 60
+    except Exception:
+        pass
+    return 360  # Default to 6 hours (360 minutes)
+
 async def trigger_connector_syncs():
     """Loop to check active connectors and trigger their sync processes based on cron schedules."""
     global scheduler_running
@@ -199,6 +214,28 @@ async def trigger_connector_syncs():
                         if running_job:
                             logger.info("Sync job already running; skipping trigger", source=source_id)
                             continue
+
+                        # Check if connector has 3 consecutive failures for adaptive backoff
+                        recent_jobs = await conn.fetch(
+                            "SELECT status FROM sync_jobs WHERE connector_id = $1 ORDER BY started_at DESC LIMIT 3",
+                            c["id"]
+                        )
+                        consecutive_failures = len(recent_jobs) == 3 and all(j["status"] == "failed" for j in recent_jobs)
+
+                        if consecutive_failures and last_sync_at:
+                            interval_mins = get_cron_interval_minutes(refresh_cron)
+                            double_interval_mins = interval_mins * 2
+                            # Calculate time elapsed since last sync finished
+                            last_sync_naive = last_sync_at.replace(tzinfo=None) if last_sync_at.tzinfo else last_sync_at
+                            minutes_since_last = (current_time - last_sync_naive).total_seconds() / 60
+                            if minutes_since_last < double_interval_mins:
+                                logger.info(
+                                    "Connector in backoff (3 consecutive failures); skipping scheduled trigger",
+                                    source=source_id,
+                                    minutes_since_last=int(minutes_since_last),
+                                    required_interval=double_interval_mins
+                                )
+                                continue
                             
                         # Trigger if never run before, or if cron matches current time
                         should_trigger = False

@@ -260,11 +260,11 @@ def normalize_tender(raw: RawTender) -> NormalizedTender:
     opening = deadline + timedelta(days=1)
 
     # Standardize string capitalization
-    title = title.strip()
-    ministry = ministry.strip().title()
-    department = department.strip()
-    organisation = organisation.strip()
-    buyer = buyer.strip()
+    title = (title or "").strip()
+    ministry = (ministry or "Other").strip().title()
+    department = (department or "Other").strip()
+    organisation = (organisation or "Other").strip()
+    buyer = (buyer or "Other").strip()
 
     # Data lineage
     lineage = {

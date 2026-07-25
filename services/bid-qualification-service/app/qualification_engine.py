@@ -72,8 +72,8 @@ class BidQualificationEngine:
         tender_startup_eligible = tender.get("startup_eligible", False)
 
         # ─── Turnover Check ───────────────────────────────────────────────────
-        required_turnover = tender.get("turnover_min_lakhs")
-        company_turnover = company.get("avg_turnover_3yr_lakhs") or company.get("max_turnover_lakhs")
+        required_turnover = float(tender.get("turnover_min_lakhs") or 0.0)
+        company_turnover = float(company.get("avg_turnover_3yr_lakhs") or company.get("max_turnover_lakhs") or 0.0)
         turnover_waived = (is_msme and tender_msme_eligible) or (is_startup and tender_startup_eligible)
         
         if required_turnover and required_turnover > 0:
@@ -115,8 +115,8 @@ class BidQualificationEngine:
         checks["turnover_company_lakhs"] = company_turnover
 
         # ─── Experience Check ─────────────────────────────────────────────────
-        required_exp = tender.get("experience_years", 0) or 0
-        company_exp = company.get("total_experience_years", 0) or 0
+        required_exp = float(tender.get("experience_years") or 0.0)
+        company_exp = float(company.get("total_experience_years") or company.get("experience_years") or 0.0)
         exp_waived = (is_msme and tender_msme_eligible) or (is_startup and tender_startup_eligible)
         
         if required_exp > 0:

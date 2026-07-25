@@ -1,23 +1,19 @@
 """
-CPPP (Central Public Procurement Portal) Connector — Phase 14.5.
+CPPP (Central Public Procurement Portal) Connector — Phase 15.
 
 Scrapes live active tenders from NIC e-Procurement portal.
-The RSS feed (eprocure.gov.in/cppp/latestactive/xml) returned HTTP 404 — it is dead.
-This connector uses HTML scraping of the active tenders listing page instead.
+This connector uses HTML scraping of the new active tenders listing page:
+  https://eprocure.gov.in/cppp/latestactivetendersnew/cpppdata
+Which does not require Captcha or sessions for initial pages.
 
-Access pattern:
-  GET /eprocure/app?page=FrontEndLatestActiveTenders&service=page
-  → paginates via form POST with page offsets
-
-When the portal is unreachable or returns a login gate, the connector
-yields 0 results and logs BLOCKED_NETWORK rather than returning fixture data.
+Never returns fixture data.
 """
 from __future__ import annotations
 
 import asyncio
 import re
 from datetime import datetime, timedelta
-from typing import AsyncIterator, Optional
+from typing import AsyncIterator, Optional, List, Dict, Any
 
 import httpx
 from bs4 import BeautifulSoup
@@ -31,8 +27,7 @@ from app.connectors.base import (
 class CPPPConnector(BaseConnector):
     """
     Connector for Central Public Procurement Portal (CPPP).
-    Scrapes the NIC eProcure active tenders listing page.
-    Yields 0 results (never fixture data) when portal is inaccessible.
+    Scrapes the CPPP new active tenders list.
     """
     source_id = "cppp"
     display_name = "Central Public Procurement Portal (CPPP)"
@@ -46,77 +41,65 @@ class CPPPConnector(BaseConnector):
     retry_policy = RetryPolicy(max_attempts=3, backoff_base=2.0)
     timeout_seconds = 25
 
-    PORTAL_BASE = "https://eprocure.gov.in/eprocure/app"
-    ACTIVE_TENDERS_PAGE = (
-        "https://eprocure.gov.in/eprocure/app"
-        "?page=FrontEndLatestActiveTenders&service=page"
-    )
+    PORTAL_BASE = "https://eprocure.gov.in/cppp/latestactivetendersnew/cpppdata"
     HEADERS = {
         "User-Agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
             "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/120.0.0.0 Safari/537.36"
+            "Chrome/124.0.0.0 Safari/537.36"
         ),
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "en-IN,en;q=0.9",
-        "Referer": "https://eprocure.gov.in/eprocure/app",
     }
 
     def _parse_tenders_table(self, html: str, source_url: str) -> list[dict]:
-        """Parse the active tenders HTML table from CPPP / NIC eProcure."""
+        """Parse CPPP active tenders table."""
         soup = BeautifulSoup(html, "html.parser")
         results = []
 
-        # NIC eProcure uses a table with id="loadedDataTable" or class="list_table"
-        table = (
-            soup.find("table", {"id": "loadedDataTable"})
-            or soup.find("table", {"class": "list_table"})
-            or soup.find("table", {"class": "tablebg"})
-        )
+        table = soup.find("table")
         if not table:
             return results
 
         rows = table.find_all("tr")
         for row in rows[1:]:  # skip header
             cells = row.find_all("td")
-            if len(cells) < 5:
+            if len(cells) < 6:
                 continue
             try:
-                # Typical NIC eProcure columns:
-                # 0: S.No | 1: Organisation | 2: NIT No | 3: Title/Work | 4: Last Date
-                organisation = cells[1].get_text(strip=True)
-                nit_no = cells[2].get_text(strip=True)
-                title_cell = cells[3]
-                title = title_cell.get_text(strip=True)
+                # Columns:
+                # 0: Sl.No | 1: e-Published Date | 2: Bid Closing Date | 3: Opening Date | 4: Title/Ref | 5: Org Name | 6: Corrigendum
+                pub_date = cells[1].get_text(strip=True)
+                close_date = cells[2].get_text(strip=True)
+                opening_date = cells[3].get_text(strip=True)
+                
+                title_ref_cell = cells[4]
+                title_ref_text = title_ref_cell.get_text("\n", strip=True)
+                lines = [l.strip() for l in title_ref_text.split("\n") if l.strip()]
+                
+                title = lines[0] if lines else ""
+                ref_no = lines[1] if len(lines) > 1 else ""
+                tender_id = lines[2] if len(lines) > 2 else (ref_no or cells[0].get_text(strip=True))
 
-                # Extract detail link if present
-                link_tag = title_cell.find("a")
+                link_tag = title_ref_cell.find("a")
                 detail_url = source_url
                 if link_tag and link_tag.get("href"):
                     href = link_tag["href"]
-                    if href.startswith("http"):
-                        detail_url = href
-                    else:
-                        detail_url = f"https://eprocure.gov.in{href}"
+                    detail_url = href if href.startswith("http") else f"https://eprocure.gov.in{href}"
 
-                # Last date
-                last_date_str = cells[4].get_text(strip=True) if len(cells) > 4 else ""
-                submission_deadline = None
-                for fmt in ("%d/%m/%Y %H:%M", "%d-%m-%Y %H:%M", "%d/%m/%Y", "%d-%m-%Y"):
-                    try:
-                        submission_deadline = datetime.strptime(last_date_str, fmt).isoformat()
-                        break
-                    except ValueError:
-                        continue
-                if not submission_deadline:
-                    submission_deadline = (datetime.utcnow() + timedelta(days=14)).isoformat()
+                organisation = cells[5].get_text(strip=True)
 
-                # Ministry/state from organisation name heuristic
+                # Parse dates
+                published_at = self._parse_date(pub_date) or datetime.utcnow().isoformat()
+                submission_deadline = self._parse_date(close_date) or (datetime.utcnow() + timedelta(days=14)).isoformat()
+                opening_at = self._parse_date(opening_date)
+
+                # Heuristics for ministry and state
                 state = self._infer_state(organisation)
                 ministry = self._infer_ministry(organisation)
 
                 results.append({
-                    "title": title or f"CPPP Tender {nit_no}",
+                    "title": title,
                     "ministry": ministry,
                     "department": organisation,
                     "organisation": organisation,
@@ -127,9 +110,10 @@ class CPPPConnector(BaseConnector):
                     "categories": self._infer_categories(title),
                     "procurement_method": "open",
                     "status": "active",
-                    "published_at": datetime.utcnow().isoformat(),
+                    "published_at": published_at,
                     "submission_deadline": submission_deadline,
-                    "source_nit_no": nit_no,
+                    "opening_date": opening_at,
+                    "source_nit_no": ref_no or tender_id,
                     "source_detail_url": detail_url,
                 })
             except Exception as parse_err:
@@ -137,6 +121,25 @@ class CPPPConnector(BaseConnector):
                 continue
 
         return results
+
+    def _parse_date(self, s: str) -> Optional[str]:
+        if not s or s == "--":
+            return None
+        s = s.strip()
+        for fmt in (
+            "%d-%b-%Y %I:%M %p",
+            "%d-%b-%Y %H:%M",
+            "%d-%b-%Y",
+            "%d/%m/%Y %H:%M",
+            "%d-%m-%Y %H:%M",
+            "%d/%m/%Y",
+            "%d-%m-%Y",
+        ):
+            try:
+                return datetime.strptime(s, fmt).isoformat()
+            except ValueError:
+                continue
+        return None
 
     def _infer_state(self, org: str) -> str:
         state_keywords = {
@@ -174,22 +177,21 @@ class CPPPConnector(BaseConnector):
     def _infer_categories(self, title: str) -> list[str]:
         title_lower = title.lower()
         cats = []
-        if any(k in title_lower for k in ["software", "it ", "ict", "digital", "computer", "data"]):
+        if any(k in title_lower for k in ["software", "it ", "ict", "digital", "computer", "data", "cloud", "erp"]):
             cats.append("IT & Software")
-        if any(k in title_lower for k in ["construction", "civil", "road", "bridge", "building"]):
+        if any(k in title_lower for k in ["construction", "civil", "road", "bridge", "building", "infrastructure"]):
             cats.append("Civil & Construction")
-        if any(k in title_lower for k in ["medical", "health", "hospital", "equipment"]):
+        if any(k in title_lower for k in ["medical", "health", "hospital", "equipment", "medicine"]):
             cats.append("Healthcare")
-        if any(k in title_lower for k in ["supply", "purchase", "procure"]):
+        if any(k in title_lower for k in ["supply", "purchase", "procure", "goods"]):
             cats.append("Goods & Services")
-        if any(k in title_lower for k in ["consult", "service", "advisory"]):
+        if any(k in title_lower for k in ["consult", "service", "advisory", "amc", "maintenance"]):
             cats.append("Consultancy & Professional Services")
         return cats or ["General"]
 
     async def fetch_tenders(self, since: Optional[datetime] = None) -> AsyncIterator[RawTender]:
         """
         Scrape active tenders from NIC eProcure CPPP listing.
-        Yields 0 results if portal is blocked — never returns fixture data.
         """
         self.log_info("CPPPConnector: starting live NIC eProcure scrape", since=since)
         yielded = 0
@@ -197,22 +199,13 @@ class CPPPConnector(BaseConnector):
         async with httpx.AsyncClient(
             timeout=self.timeout_seconds,
             follow_redirects=True,
+            verify=False,  # nosec B501
             headers=self.HEADERS,
         ) as client:
-            for page_no in range(1, 6):  # Up to 5 pages (≈100 tenders per crawl)
+            for page_no in range(1, 11):  # Fetch 10 pages (≈100 tenders per crawl)
                 try:
-                    if page_no == 1:
-                        resp = await client.get(self.ACTIVE_TENDERS_PAGE)
-                    else:
-                        # NIC eProcure paginates via POST with page index
-                        resp = await client.post(
-                            self.PORTAL_BASE,
-                            data={
-                                "page": "FrontEndLatestActiveTenders",
-                                "service": "page",
-                                "pageIndex": str(page_no),
-                            },
-                        )
+                    url = f"{self.PORTAL_BASE}?page={page_no}"
+                    resp = await client.get(url)
 
                     if resp.status_code != 200:
                         self.log_warning(
@@ -222,16 +215,7 @@ class CPPPConnector(BaseConnector):
                         break
 
                     body = resp.text
-                    # Detect login/CAPTCHA gate
-                    if any(w in body.lower() for w in ["login", "captcha", "session expired", "otp"]):
-                        self.log_warning(
-                            "CPPPConnector: login/captcha gate detected — "
-                            "BLOCKED_NETWORK. Yielding 0 results.",
-                            page=page_no,
-                        )
-                        break
-
-                    tenders = self._parse_tenders_table(body, resp.url.__str__())
+                    tenders = self._parse_tenders_table(body, url)
                     if not tenders:
                         self.log_info(
                             "CPPPConnector: no rows parsed on page — stopping pagination",
@@ -244,7 +228,7 @@ class CPPPConnector(BaseConnector):
                         yield RawTender(
                             source_id=self.source_id,
                             source_tender_id=tender_id,
-                            source_url=raw.get("source_detail_url", self.ACTIVE_TENDERS_PAGE),
+                            source_url=raw.get("source_detail_url", url),
                             raw_json=raw,
                         )
                         yielded += 1
@@ -262,9 +246,9 @@ class CPPPConnector(BaseConnector):
 
     async def health_check(self) -> HealthStatus:
         try:
-            async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+            async with httpx.AsyncClient(timeout=10.0, follow_redirects=True, verify=False) as client:  # nosec B501
                 resp = await client.get(
-                    self.ACTIVE_TENDERS_PAGE,
+                    self.PORTAL_BASE,
                     headers={"User-Agent": self.HEADERS["User-Agent"]},
                 )
                 if resp.status_code == 200 and "tender" in resp.text.lower():

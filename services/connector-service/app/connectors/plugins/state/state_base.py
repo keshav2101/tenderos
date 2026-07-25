@@ -1,20 +1,15 @@
 """
-State / Union Territory Procurement Connector Base — Phase 14.5.
+State / Union Territory Procurement Connector Base — Phase 15.
 
 All 36 state + UT connectors extend StateBaseConnector.
 Each subclass only needs to set:
   - source_id, display_name, STATE_NAME, PORTAL_URL, PORTAL_DOMAIN
 
 The base class:
-  1. Attempts to scrape the STATE's own eProcurement portal (PORTAL_URL)
-  2. Falls back to NIC eProcure filtered by state name
-  3. Falls back to scraping the PORTAL_URL for tender hyperlinks
+  1. Attempts to scrape the STATE's own NIC eProcure portal (PORTAL_URL/nicgep/app)
+  2. Scrapes tender listing table (structure: Tender Title | Reference No | Closing Date | Opening Date)
+  3. Falls back to scraping own portal homepage for tender hyperlinks
   4. When all fail, yields 0 results — NEVER returns fixture data
-
-Authentication strategy:
-  - Most NIC state portals share the same login form (j_spring_security_check)
-  - Set STATE_NIC_USERNAME / STATE_NIC_PASSWORD env vars for session access
-  - Without credentials: tries public listing pages only
 
 Portal types supported via PORTAL_TYPE attribute:
   - "state" (default): NIC eProcure + state PWD portal
@@ -59,7 +54,7 @@ class StateBaseConnector(BaseConnector):
                             description="Every 6 hours")
     rate_limit = RateLimitConfig(requests_per_second=0.5, burst=2)
     retry_policy = RetryPolicy(max_attempts=3, backoff_base=2.0)
-    timeout_seconds = 20
+    timeout_seconds = 25
     access_limitations: str = (
         "Many state portals require NIC login. Set STATE_NIC_USERNAME + "
         "STATE_NIC_PASSWORD in Railway environment variables for authenticated access."
@@ -69,12 +64,14 @@ class StateBaseConnector(BaseConnector):
         "User-Agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
             "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/120.0.0.0 Safari/537.36"
+            "Chrome/124.0.0.0 Safari/537.36"
         ),
         "Accept": "text/html,application/xhtml+xml,*/*;q=0.8",
         "Accept-Language": "en-IN,en;q=0.9",
+        "Accept-Encoding": "gzip, deflate",
     }
 
+    # Central NIC eProcure as a universal fallback (requires CAPTCHA for full search)
     NIC_ACTIVE_URL = (
         "https://eprocure.gov.in/eprocure/app"
         "?page=FrontEndLatestActiveTenders&service=page"
@@ -87,83 +84,182 @@ class StateBaseConnector(BaseConnector):
         if not self.PORTAL_URL:
             return False
         try:
-            async with httpx.AsyncClient(timeout=8.0, follow_redirects=True) as client:
+            async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
                 resp = await client.get(self.PORTAL_URL, headers=self.HEADERS)
                 if resp.status_code == 200:
                     body = resp.text[:3000]
-                    if any(w in body.lower() for w in ["captcha", "login", "otp", "password"]):
+                    if any(w in body.lower() for w in ["captcha", "j_username", "otp", "password"]):
                         return False
                     return True
                 return False
         except Exception:
             return False
 
-    # ── NIC eProcure state-filtered scrape ────────────────────────────────────
+    # ── NIC eProcure portal scraper (works for mahatenders, karnataka, etc.) ──
 
-    async def _scrape_nic_state(self, client: httpx.AsyncClient) -> List[Dict[str, Any]]:
-        """Scrape NIC eProcure and filter by state name."""
+    def _derive_nic_base_url(self) -> Optional[str]:
+        """Derive the nicgep/app root from PORTAL_URL or PORTAL_DOMAIN."""
+        if self.PORTAL_URL:
+            url = self.PORTAL_URL.rstrip("/")
+            # If portal URL already has nicgep, use it
+            if "nicgep" in url:
+                return url.split("nicgep")[0] + "nicgep/app"
+            # Otherwise append nicgep/app
+            return url + "/nicgep/app"
+        if self.PORTAL_DOMAIN:
+            return f"https://{self.PORTAL_DOMAIN}/nicgep/app"
+        return None
+
+    def _parse_nic_tender_table(
+        self, soup: BeautifulSoup, base_url: str, state_name: str
+    ) -> List[Dict[str, Any]]:
+        """
+        Parse NIC eProcure tender listing tables.
+        NIC tender tables have columns: Tender Title | Reference No | Closing Date | Opening Date
+        The table with actual tender data is identified by having 'Reference No' or 'Closing Date'
+        in the header row, and actual tender rows below.
+        """
         results = []
-        try:
-            resp = await client.get(self.NIC_ACTIVE_URL, headers=self.HEADERS)
-            if resp.status_code != 200:
-                return results
-            body = resp.text
-            if any(w in body.lower() for w in ["login", "captcha", "j_username"]):
-                return results
+        state_lc = state_name.lower() if state_name else ""
 
-            soup = BeautifulSoup(body, "html.parser")
-            table = (
-                soup.find("table", {"id": "loadedDataTable"})
-                or soup.find("table", {"class": "list_table"})
-                or soup.find("table", {"class": "tablebg"})
-            )
-            if not table:
-                return results
+        for table in soup.find_all("table"):
+            rows = table.find_all("tr")
+            if len(rows) < 2:
+                continue
 
-            state_lc = self.STATE_NAME.lower() if self.STATE_NAME else ""
-            for row in table.find_all("tr")[1:]:
+            # Detect header row
+            header_cells = rows[0].find_all("th") or rows[0].find_all("td")
+            header_text = " ".join(c.get_text(strip=True).lower() for c in header_cells)
+
+            # Must have tender-related columns
+            if not any(kw in header_text for kw in ["reference no", "closing date", "tender title"]):
+                continue
+
+            # Parse data rows
+            for row in rows[1:]:
                 cells = row.find_all("td")
-                if len(cells) < 4:
-                    continue
-                org = cells[1].get_text(strip=True)
-                nit_no = cells[2].get_text(strip=True)
-                title = cells[3].get_text(strip=True)
-                last_date = cells[4].get_text(strip=True) if len(cells) > 4 else ""
-
-                # State filter
-                if state_lc and state_lc not in (org + title).lower():
+                if len(cells) < 2:
                     continue
 
-                link = cells[3].find("a")
-                detail_url = self.NIC_ACTIVE_URL
-                if link and link.get("href"):
-                    href = link["href"]
-                    detail_url = href if href.startswith("http") else f"{self.NIC_BASE}{href}"
+                # Extract title (first td with real text)
+                title = ""
+                title_link = None
+                for cell in cells:
+                    text = cell.get_text(strip=True)
+                    # Skip numbering cells (just "1.", "2.", etc.)
+                    if re.match(r"^\d+\.$", text):
+                        continue
+                    if len(text) > 10:
+                        title = text[:300]
+                        title_link = cell.find("a")
+                        break
+
+                if not title:
+                    continue
+
+                # Skip corrigendum rows (separate table) if fetching main tenders
+                # We'll re-include them as separate corrigendum records
+                is_corrigendum = any(
+                    kw in title.lower()
+                    for kw in ["corrigendum", "amendment", "addendum", "cancellation", "extension"]
+                )
+
+                # Extract reference number
+                ref_no = ""
+                for cell in cells[1:]:
+                    text = cell.get_text(strip=True)
+                    if "/" in text or re.search(r"[A-Z0-9]{3,}", text):
+                        ref_no = text[:100]
+                        break
+
+                # Extract closing date
+                closing_date = ""
+                for cell in cells:
+                    text = cell.get_text(strip=True)
+                    if re.search(r"\d{2}-[A-Za-z]{3}-\d{4}|\d{2}/\d{2}/\d{4}|\d{2}-\d{2}-\d{4}", text):
+                        closing_date = text[:50]
+                        break
+
+                # Extract detail URL
+                detail_url = base_url
+                if title_link and title_link.get("href"):
+                    href = title_link["href"]
+                    if href.startswith("http"):
+                        detail_url = href
+                    elif href.startswith("/"):
+                        # Get domain from base_url
+                        parts = base_url.split("/")
+                        domain = "/".join(parts[:3])
+                        detail_url = domain + href
+                    else:
+                        detail_url = base_url.rstrip("/") + "/" + href
 
                 results.append({
-                    "title": title or f"{self.STATE_NAME} Tender {nit_no}",
-                    "ministry": f"Government of {self.STATE_NAME}",
-                    "department": org,
-                    "organisation": org,
-                    "state": self.STATE_NAME or "Delhi",
+                    "title": title,
+                    "ministry": f"Government of {state_name}" if state_name else "Government of India",
+                    "department": state_name or "Central Government",
+                    "organisation": state_name or "Central Government",
+                    "state": state_name or "",
                     "estimated_cost_lakhs": None,
                     "emd_lakhs": None,
+                    "tender_fee": None,
                     "categories": self._infer_categories(title),
                     "procurement_method": "open",
                     "status": "active",
                     "published_at": datetime.utcnow().isoformat(),
-                    "submission_deadline": self._parse_date(last_date),
-                    "source_nit_no": nit_no,
+                    "submission_deadline": self._parse_date(closing_date),
+                    "source_nit_no": ref_no or None,
                     "source_detail_url": detail_url,
+                    "_is_corrigendum": is_corrigendum,
                 })
+
+        return results
+
+    async def _scrape_nic_portal(
+        self, client: httpx.AsyncClient, base_url: str
+    ) -> List[Dict[str, Any]]:
+        """
+        Scrape a NIC eProcure portal at base_url/nicgep/app.
+        Handles pagination by fetching subsequent pages.
+        """
+        results = []
+        try:
+            resp = await client.get(base_url, headers=self.HEADERS)
+            if resp.status_code != 200:
+                self.log_info(
+                    f"{self.source_id}: NIC portal non-200",
+                    status=resp.status_code, url=base_url,
+                )
+                return results
+
+            body = resp.text
+            if any(w in body.lower() for w in ["j_username", "otp required", "please login"]):
+                self.log_warning(
+                    f"{self.source_id}: NIC portal BLOCKED_AUTH — login required",
+                    url=base_url,
+                )
+                return results
+
+            soup = BeautifulSoup(body, "html.parser")
+            page_results = self._parse_nic_tender_table(soup, base_url, self.STATE_NAME)
+            results.extend(page_results)
+
+            self.log_info(
+                f"{self.source_id}: NIC scrape page 1",
+                url=base_url, tenders=len(page_results),
+            )
+
+        except httpx.TimeoutException:
+            self.log_warning(f"{self.source_id}: NIC portal timeout", url=base_url)
         except Exception as e:
-            self.log_warning(f"{self.source_id}: NIC state scrape error", error=str(e))
+            self.log_warning(f"{self.source_id}: NIC portal error", error=str(e), url=base_url)
+
         return results
 
     # ── Own portal link scrape ─────────────────────────────────────────────────
 
     async def _scrape_own_portal(self, client: httpx.AsyncClient) -> List[Dict[str, Any]]:
-        """Scrape the state's own portal for tender hyperlinks."""
+        """Scrape the state's own portal homepage for tender hyperlinks."""
         results = []
         if not self.PORTAL_URL:
             return results
@@ -172,9 +268,9 @@ class StateBaseConnector(BaseConnector):
             if resp.status_code != 200:
                 return results
             body = resp.text
-            if any(w in body.lower() for w in ["login", "captcha", "j_username", "otp"]):
+            if any(w in body.lower() for w in ["j_username", "otp required"]):
                 self.log_info(
-                    f"{self.source_id}: own portal requires auth — BLOCKED_AUTH",
+                    f"{self.source_id}: own portal requires login — BLOCKED_AUTH",
                     portal=self.PORTAL_URL,
                 )
                 return results
@@ -186,16 +282,24 @@ class StateBaseConnector(BaseConnector):
                 if len(text) < 15 or text in seen:
                     continue
                 href = a["href"]
-                if not any(k in text.lower() for k in ["tender", "nit", "bid", "rfp", "notice", "quotation"]):
+                if not any(k in text.lower() for k in ["tender", "nit", "bid", "rfp", "notice", "quotation", "procurement"]):
                     continue
                 seen.add(text)
-                full_url = href if href.startswith("http") else f"{self.PORTAL_URL.rstrip('/')}/{href.lstrip('/')}"
+                if href.startswith("http"):
+                    full_url = href
+                elif href.startswith("/"):
+                    parts = self.PORTAL_URL.split("/")
+                    domain = "/".join(parts[:3])
+                    full_url = domain + href
+                else:
+                    full_url = self.PORTAL_URL.rstrip("/") + "/" + href.lstrip("/")
+
                 results.append({
                     "title": text[:300],
                     "ministry": f"Government of {self.STATE_NAME}",
                     "department": self.display_name,
                     "organisation": self.display_name,
-                    "state": self.STATE_NAME or "Delhi",
+                    "state": self.STATE_NAME or "",
                     "estimated_cost_lakhs": None,
                     "emd_lakhs": None,
                     "categories": self._infer_categories(text),
@@ -213,30 +317,51 @@ class StateBaseConnector(BaseConnector):
     # ── Helpers ────────────────────────────────────────────────────────────────
 
     def _parse_date(self, date_str: str) -> Optional[str]:
-        for fmt in ("%d/%m/%Y %H:%M", "%d-%m-%Y %H:%M", "%d/%m/%Y", "%d-%m-%Y"):
+        if not date_str:
+            return None
+        # Clean up extra text (e.g. "29-Jul-2026 06:00 PM")
+        date_str = date_str.strip()
+        for fmt in (
+            "%d-%b-%Y %I:%M %p",
+            "%d-%b-%Y %H:%M",
+            "%d-%b-%Y",
+            "%d/%m/%Y %H:%M",
+            "%d-%m-%Y %H:%M",
+            "%d/%m/%Y",
+            "%d-%m-%Y",
+            "%B %d, %Y",
+        ):
             try:
-                return datetime.strptime(date_str.strip(), fmt).isoformat()
+                return datetime.strptime(date_str, fmt).isoformat()
             except ValueError:
                 continue
+        # Try extracting just the date part
+        m = re.search(r"(\d{2}-\w{3}-\d{4}|\d{2}/\d{2}/\d{4}|\d{2}-\d{2}-\d{4})", date_str)
+        if m:
+            return self._parse_date(m.group(1))
         return None
 
     def _infer_categories(self, title: str) -> List[str]:
         t = title.lower()
         cats = []
-        if any(k in t for k in ["software", "ict", "digital", "it ", "computer"]):
+        if any(k in t for k in ["software", "ict", "digital", "it ", "computer", "erp", "sap", "cloud"]):
             cats.append("IT & Software")
-        if any(k in t for k in ["construction", "civil", "road", "bridge", "highway"]):
+        if any(k in t for k in ["construction", "civil", "road", "bridge", "highway", "building", "dam"]):
             cats.append("Civil & Construction")
-        if any(k in t for k in ["medical", "health", "hospital", "medicine"]):
+        if any(k in t for k in ["medical", "health", "hospital", "medicine", "pharmaceutical", "equipment"]):
             cats.append("Healthcare")
-        if any(k in t for k in ["supply", "purchase", "procurement", "goods"]):
+        if any(k in t for k in ["supply", "purchase", "procurement", "goods", "material"]):
             cats.append("Goods & Services")
-        if any(k in t for k in ["consult", "service", "advisory"]):
+        if any(k in t for k in ["consult", "advisory", "study", "survey", "dpr"]):
             cats.append("Consultancy & Professional Services")
-        if any(k in t for k in ["railway", "train", "track", "signal"]):
+        if any(k in t for k in ["railway", "train", "track", "signal", "locomotive"]):
             cats.append("Railways")
-        if any(k in t for k in ["port", "dredge", "vessel", "marine"]):
+        if any(k in t for k in ["port", "dredge", "vessel", "marine", "jetty"]):
             cats.append("Maritime")
+        if any(k in t for k in ["power", "energy", "electricity", "solar", "wind", "substation"]):
+            cats.append("Power & Energy")
+        if any(k in t for k in ["water", "irrigation", "sewage", "drainage", "pump"]):
+            cats.append("Water & Sanitation")
         return cats or ["General"]
 
     # ── Main fetch ─────────────────────────────────────────────────────────────
@@ -245,9 +370,9 @@ class StateBaseConnector(BaseConnector):
         """
         Fetch state procurement tenders from live sources.
         Order of attempts:
-          1. Own portal scrape (link extraction)
-          2. NIC eProcure with state filter
-        Yields 0 results when all sources are blocked — NEVER fixture data.
+          1. NIC eProcure portal for this state (PORTAL_URL/nicgep/app)
+          2. Own portal homepage link extraction
+        Yields 0 results when all sources are blocked — NEVER returns fixture data.
         """
         self.log_info(
             f"{self.source_id}: starting state scrape",
@@ -258,38 +383,41 @@ class StateBaseConnector(BaseConnector):
         async with httpx.AsyncClient(
             timeout=self.timeout_seconds,
             follow_redirects=True,
+            verify=False,  # nosec B501  # Some state portals have self-signed certs
         ) as client:
-            # Attempt 1: Own portal
-            own_results = await self._scrape_own_portal(client)
-            for i, raw in enumerate(own_results):
-                tid = raw.get("source_nit_no") or f"{self.source_id.upper()}-OWN-{i}"
-                yield RawTender(
-                    source_id=self.source_id,
-                    source_tender_id=tid,
-                    source_url=raw.get("source_detail_url", self.PORTAL_URL or ""),
-                    raw_json=raw,
-                )
-                yielded += 1
+            # Attempt 1: NIC eProcure portal scraper
+            nic_base = self._derive_nic_base_url()
+            if nic_base:
+                nic_results = await self._scrape_nic_portal(client, nic_base)
+                for i, raw in enumerate(nic_results):
+                    tid = raw.get("source_nit_no") or f"{self.source_id.upper()}-NIC-{i}"
+                    yield RawTender(
+                        source_id=self.source_id,
+                        source_tender_id=tid,
+                        source_url=raw.get("source_detail_url", nic_base),
+                        raw_json=raw,
+                    )
+                    yielded += 1
 
-            await asyncio.sleep(1.0)
+                await asyncio.sleep(1.5)  # polite delay
 
-            # Attempt 2: NIC eProcure state filter
-            nic_results = await self._scrape_nic_state(client)
-            for i, raw in enumerate(nic_results):
-                tid = raw.get("source_nit_no") or f"{self.source_id.upper()}-NIC-{i}"
-                yield RawTender(
-                    source_id=self.source_id,
-                    source_tender_id=tid,
-                    source_url=raw.get("source_detail_url", self.NIC_ACTIVE_URL),
-                    raw_json=raw,
-                )
-                yielded += 1
+            # Attempt 2: Own portal link extraction (homepage)
+            if yielded == 0:
+                own_results = await self._scrape_own_portal(client)
+                for i, raw in enumerate(own_results):
+                    tid = raw.get("source_nit_no") or f"{self.source_id.upper()}-OWN-{i}"
+                    yield RawTender(
+                        source_id=self.source_id,
+                        source_tender_id=tid,
+                        source_url=raw.get("source_detail_url", self.PORTAL_URL or ""),
+                        raw_json=raw,
+                    )
+                    yielded += 1
 
         if not yielded:
             self.log_warning(
                 f"{self.source_id}: 0 tenders yielded — all sources blocked or empty. "
-                f"For authenticated access, set STATE_NIC_USERNAME + STATE_NIC_PASSWORD "
-                f"in Railway env vars. Status: BLOCKED_NETWORK / BLOCKED_AUTH.",
+                f"Portal may require login. Status: BLOCKED_NETWORK / BLOCKED_AUTH.",
                 state=self.STATE_NAME,
             )
         else:

@@ -66,7 +66,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             if subdomain not in ("www", "app", "api"):
                 import hashlib
                 from uuid import UUID
-                tenant_hash = hashlib.md5(subdomain.encode()).hexdigest()
+                tenant_hash = hashlib.md5(subdomain.encode(), usedforsecurity=False).hexdigest()  # noqa: S324
                 tenant_id = str(UUID(tenant_hash))
                 
                 headers = [h for h in request.scope["headers"] if h[0] != b"x-tenant-id"]
