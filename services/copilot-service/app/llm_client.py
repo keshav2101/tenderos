@@ -130,11 +130,43 @@ class LLMClient:
 
         # Extract user question
         q_match = re.search(r"User Question:\s*(.+?)(?=\n|$)", user_msg, re.DOTALL)
-        question = q_match.group(1).strip() if q_match else ""
+        question = q_match.group(1).strip() if q_match else user_msg.strip()
         q_lower = question.lower()
 
-        # Intent 1: EMD / Fee / Financial Questions
-        if any(
+        # Intent 1: Contact / Officer / Location / Authority
+        if any(k in q_lower for k in ["contact", "officer", "email", "phone", "nodal", "address", "location", "where"]):
+            ans = f"""### 👤 Contact & Nodal Authority — {title}
+
+**Target Query:** *"{question}"*
+
+- **Issuing Organisation:** **{organisation}**
+- **Nodal Department:** {department} ({ministry})
+- **Location / Jurisdiction:** {state}
+- **Official Tender Reference:** `{source_tender_id}`
+- **Official Portal Source:** {source}
+
+For direct officer contact, verification, and bid clarification meetings, access the official notice:
+---
+🔗 **Official Portal Redirect Link:** [{source} Portal Official Notice ↗]({source_url})"""
+
+        # Intent 2: Submission Process / How to Bid
+        elif any(k in q_lower for k in ["submit", "bidding", "process", "apply", "procedure", "how to"]):
+            ans = f"""### 📝 Submission Process & Bidding Instructions — {title}
+
+**Target Query:** *"{question}"*
+
+1. **Portal Registration:** Ensure active registration on **{source}** ({gem_req}).
+2. **EMD & Fee Payment:** EMD amount: **{emd}** (Tender Fee: ₹{tender_fee}).  
+   *(MSME / Udyam holders: {msme}).*
+3. **Document Checklist:** Upload minimum turnover (₹{turnover}L) & experience ({exp} yrs) proof.
+4. **Deadline:** Submissions close on **{deadline}**.
+
+---
+🔗 **Official Portal Submission Page:** [{source} Portal Official Notice ↗]({source_url})  
+*(Ref: `{source_tender_id}`)*"""
+
+        # Intent 3: EMD / Fee / Financial Questions
+        elif any(
             k in q_lower
             for k in [
                 "emd",
@@ -145,23 +177,27 @@ class LLMClient:
                 "deposit",
                 "money",
                 "guarantee",
+                "price",
+                "budget",
             ]
         ):
             ans = f"""### 💰 Financial Terms & EMD Breakdown — {title}
 
-- **Estimated Contract Value:** {cost}
+**Target Query:** *"{question}"*
+
+- **Estimated Contract Value:** **{cost}**
 - **Earnest Money Deposit (EMD):** **{emd}**
-- **MSME / Udyam EMD Status:** {msme}
-  *(As per GFR 2017 Rule 170, Micro & Small Enterprises holding valid Udyam Registration are 100% exempt from EMD submission).*
+- **MSME / Udyam EMD Exemption:** {msme}
+  *(Micro & Small Enterprises holding valid Udyam Registration are 100% exempt from EMD submission under GFR Rule 170).*
 - **Tender Document Fee:** ₹{tender_fee}
-- **Performance Bank Guarantee (PBG):** {perf_guar}
-- **Issuing Authority:** {organisation} ({department}, {ministry})
+- **Performance Bank Guarantee (PBG):** {perf_guar}%
+- **Issuing Entity:** {organisation} ({department}, {ministry})
 
 ---
 🔗 **Official Portal Redirect Link:** [{source} Portal Official Notice ↗]({source_url})  
 *(Ref: `{source_tender_id}`)*"""
 
-        # Intent 2: Eligibility / Qualification / Documents
+        # Intent 4: Eligibility / Qualification / Documents / MSME / Startup
         elif any(
             k in q_lower
             for k in [
@@ -172,9 +208,13 @@ class LLMClient:
                 "turnover",
                 "experience",
                 "certif",
+                "msme",
+                "startup",
             ]
         ):
             ans = f"""### ✅ Qualification & Eligibility Checklist — {title}
+
+**Target Query:** *"{question}"*
 
 - **Minimum Turnover Requirement:** **{turnover}**
 - **Prior Experience Required:** **{exp}**
@@ -189,7 +229,7 @@ class LLMClient:
 🔗 **Official Portal Redirect Link:** [{source} Portal Official Notice ↗]({source_url})  
 *(Ref: `{source_tender_id}`)*"""
 
-        # Intent 3: Deadline / Dates / Timelines
+        # Intent 5: Deadline / Dates / Timelines
         elif any(
             k in q_lower
             for k in [
@@ -200,23 +240,31 @@ class LLMClient:
                 "validity",
                 "duration",
                 "completion",
+                "when",
+                "schedule",
             ]
         ):
             ans = f"""### 📅 Critical Procurement Timelines & Deadlines — {title}
 
+**Target Query:** *"{question}"*
+
 - **Submission Deadline:** **{deadline}**
 - **Bid Opening Date:** **{opening}**
-- **Bid Validity Period:** {bid_validity}
-- **Work Completion Duration:** {completion}
-- **Current Status:** {status}
+- **Bid Validity Period:** {bid_validity} days
+- **Work Completion Duration:** {completion} days
+- **Current Tender Status:** {status}
 
 ---
 🔗 **Official Portal Redirect Link:** [{source} Portal Official Notice ↗]({source_url})  
 *(Ref: `{source_tender_id}`)*"""
 
-        # Intent 4: Scope / Summary / What is this tender
-        elif any(k in q_lower for k in ["summary", "scope", "what is", "about", "detail", "deliverable"]):
-            ans = f"""### 🎯 Executive Procurement Summary — {title}
+        # Intent 6: Scope / Summary / Technical Requirements
+        elif any(
+            k in q_lower for k in ["summary", "scope", "what is", "about", "detail", "deliverable", "technical", "spec"]
+        ):
+            ans = f"""### 🎯 Executive Procurement Summary & Technical Scope — {title}
+
+**Target Query:** *"{question}"*
 
 **Overview:**  
 {ai_summary}
@@ -232,23 +280,23 @@ class LLMClient:
 🔗 **Official Portal Redirect Link:** [{source} Portal Official Notice ↗]({source_url})  
 *(Ref: `{source_tender_id}`)*"""
 
-        # Intent 5: General Default (Rich Comprehensive Breakdown)
+        # Intent 7: General Default (Direct Answer + Full Overview)
         else:
-            ans = f"""### 📋 {title} — Procurement Analysis
+            ans = f"""### 📋 {title} — Procurement Answer
 
-**Issuing Authority:** {organisation} ({department}, {ministry}, {state})  
-**Ref ID:** `{source_tender_id}` | **Status:** {status} | **Portal:** {source}
+**User Query:** *"{question}"*
 
----
+**Direct Answer Summary:**  
+This tender is published by **{organisation}** ({department}, {ministry}, {state}) under **{source}** reference `{source_tender_id}`.
 
-### Key Information:
+**Key Procurement Details:**
 - **Estimated Cost:** {cost}
 - **EMD Amount:** {emd} ({msme})
 - **Submission Deadline:** **{deadline}**
 - **Bid Opening Date:** {opening}
-- **Min. Turnover:** {turnover} | **Prior Experience:** {exp}
+- **Turnover Required:** {turnover} | **Experience:** {exp}
 
-**AI Summary:**  
+**Overview:**  
 {ai_summary}
 
 ---
