@@ -487,31 +487,53 @@ class HybridSearchEngine:
                     param_idx += 1
 
                 if filters.get("states") or filters.get("state"):
-                    state_filter = filters.get("states") or filters.get("state")
-                    states = state_filter if isinstance(state_filter, list) else [state_filter]
-                    conditions.append(f"state = ANY(${param_idx})")
-                    params.append(states)
-                    param_idx += 1
+                    st = filters.get("state") or (
+                        filters.get("states")[0]
+                        if isinstance(filters.get("states"), list) and filters.get("states")
+                        else None
+                    )
+                    if st:
+                        conditions.append(f"state ILIKE ${param_idx}")
+                        params.append(f"%{st}%")
+                        param_idx += 1
 
                 if filters.get("ministries") or filters.get("ministry"):
-                    ministry_filter = filters.get("ministries") or filters.get("ministry")
-                    ministries = ministry_filter if isinstance(ministry_filter, list) else [ministry_filter]
-                    conditions.append(f"ministry = ANY(${param_idx})")
-                    params.append(ministries)
-                    param_idx += 1
+                    min_val = filters.get("ministry") or (
+                        filters.get("ministries")[0]
+                        if isinstance(filters.get("ministries"), list) and filters.get("ministries")
+                        else None
+                    )
+                    if min_val:
+                        conditions.append(f"ministry ILIKE ${param_idx}")
+                        params.append(f"%{min_val}%")
+                        param_idx += 1
 
                 if filters.get("departments") or filters.get("department"):
-                    dept_filter = filters.get("departments") or filters.get("department")
-                    depts = dept_filter if isinstance(dept_filter, list) else [dept_filter]
-                    conditions.append(f"department = ANY(${param_idx})")
-                    params.append(depts)
-                    param_idx += 1
+                    dept_val = filters.get("department") or (
+                        filters.get("departments")[0]
+                        if isinstance(filters.get("departments"), list) and filters.get("departments")
+                        else None
+                    )
+                    if dept_val:
+                        conditions.append(f"department ILIKE ${param_idx}")
+                        params.append(f"%{dept_val}%")
+                        param_idx += 1
 
                 if filters.get("categories") or filters.get("category"):
                     cats = filters.get("categories") or filters.get("category")
                     cats_list = cats if isinstance(cats, list) else [cats]
                     conditions.append(f"categories && ${param_idx}")
                     params.append(cats_list)
+                    param_idx += 1
+
+                if filters.get("msme_eligible") is not None:
+                    conditions.append(f"msme_eligible = ${param_idx}")
+                    params.append(bool(filters["msme_eligible"]))
+                    param_idx += 1
+
+                if filters.get("startup_eligible") is not None:
+                    conditions.append(f"startup_eligible = ${param_idx}")
+                    params.append(bool(filters["startup_eligible"]))
                     param_idx += 1
 
                 if filters.get("cost_min_lakhs") is not None or filters.get("estimated_cost_min") is not None:

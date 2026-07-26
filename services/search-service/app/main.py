@@ -47,32 +47,43 @@ async def search(
     q: str = "",
     mode: str = "hybrid",
     state: str | None = None,
+    ministry: str | None = None,
+    department: str | None = None,
     category: str | None = None,
     cost_min: float | None = None,
     cost_max: float | None = None,
     msme_eligible: bool | None = None,
+    startup_eligible: bool | None = None,
     page: int = 1,
     page_size: int = 20,
+    limit: int | None = None,
 ):
+    effective_page_size = limit if limit is not None else page_size
     # Map flat query parameters to filters dict
-    filters = {}
+    filters: dict[str, Any] = {}
     if state:
-        filters["states"] = [state]
+        filters["state"] = state
+    if ministry:
+        filters["ministry"] = ministry
+    if department:
+        filters["department"] = department
     if category:
-        filters["categories"] = [category]
+        filters["category"] = category
     if cost_min is not None:
         filters["cost_min_lakhs"] = cost_min
     if cost_max is not None:
         filters["cost_max_lakhs"] = cost_max
     if msme_eligible is not None:
         filters["msme_eligible"] = msme_eligible
+    if startup_eligible is not None:
+        filters["startup_eligible"] = startup_eligible
 
     return await search_engine.search(
         query=q,
         mode=mode,
         filters=filters,
         page=page,
-        page_size=page_size,
+        page_size=effective_page_size,
     )
 
 

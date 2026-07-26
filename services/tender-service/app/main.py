@@ -66,12 +66,14 @@ async def health():
 async def list_tenders(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
+    q: str | None = None,
     state: str | None = None,
     ministry: str | None = None,
     department: str | None = None,
     category: str | None = None,
     status: str | None = "active",
     msme_eligible: bool | None = None,
+    startup_eligible: bool | None = None,
     cost_min: float | None = None,
     cost_max: float | None = None,
     deadline_from: str | None = None,
@@ -86,6 +88,12 @@ async def list_tenders(
     params = []
     idx = 1
 
+    if q and q.strip():
+        conditions.append(
+            f"(t.title ILIKE ${idx} OR t.ministry ILIKE ${idx} OR t.department ILIKE ${idx} OR t.organisation ILIKE ${idx} OR t.ai_summary ILIKE ${idx})"
+        )
+        params.append(f"%{q.strip()}%")
+        idx += 1
     if state:
         conditions.append(f"t.state ILIKE ${idx}")
         params.append(f"%{state}%")
@@ -109,6 +117,10 @@ async def list_tenders(
     if msme_eligible is not None:
         conditions.append(f"t.msme_eligible = ${idx}")
         params.append(msme_eligible)
+        idx += 1
+    if startup_eligible is not None:
+        conditions.append(f"t.startup_eligible = ${idx}")
+        params.append(startup_eligible)
         idx += 1
     if cost_min is not None:
         conditions.append(f"t.estimated_cost_lakhs >= ${idx}")
