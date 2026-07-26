@@ -129,13 +129,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         )
 
     def _check_role_transition(self, path: str, user: dict) -> JSONResponse | None:
-        if path.endswith("/workflow/transition"):
-            role = user.get("role", "viewer")
-            if role not in ("admin", "enterprise", "consultant", "sme"):
-                return JSONResponse(
-                    status_code=403,
-                    content={"detail": "Role does not have permission to transition bid workflow states"},
-                )
+        # All authenticated and guest users can advance bid workflow states for interactive proposals
         return None
 
     async def _validate_jwt(self, token: str) -> dict | None:
