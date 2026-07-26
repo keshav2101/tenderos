@@ -133,6 +133,9 @@ class LLMClient:
         question = q_match.group(1).strip() if q_match else user_msg.strip()
         q_lower = question.lower()
 
+        tender_fee_str = str(tender_fee).lstrip("₹").strip()
+        tender_fee_formatted = f"₹{tender_fee_str}" if tender_fee_str != "0" else "Exempt"
+
         # Intent 1: Contact / Officer / Location / Authority
         if any(k in q_lower for k in ["contact", "officer", "email", "phone", "nodal", "address", "location", "where"]):
             ans = f"""### 👤 Contact & Nodal Authority — {title}
@@ -156,7 +159,7 @@ For direct officer contact, verification, and bid clarification meetings, access
 **Target Query:** *"{question}"*
 
 1. **Portal Registration:** Ensure active registration on **{source}** ({gem_req}).
-2. **EMD & Fee Payment:** EMD amount: **{emd}** (Tender Fee: ₹{tender_fee}).  
+2. **EMD & Fee Payment:** EMD amount: **{emd}** (Tender Fee: {tender_fee_formatted}).  
    *(MSME / Udyam holders: {msme}).*
 3. **Document Checklist:** Upload minimum turnover (₹{turnover}L) & experience ({exp} yrs) proof.
 4. **Deadline:** Submissions close on **{deadline}**.
@@ -189,7 +192,7 @@ For direct officer contact, verification, and bid clarification meetings, access
 - **Earnest Money Deposit (EMD):** **{emd}**
 - **MSME / Udyam EMD Exemption:** {msme}
   *(Micro & Small Enterprises holding valid Udyam Registration are 100% exempt from EMD submission under GFR Rule 170).*
-- **Tender Document Fee:** ₹{tender_fee}
+- **Tender Document Fee:** {tender_fee_formatted}
 - **Performance Bank Guarantee (PBG):** {perf_guar}%
 - **Issuing Entity:** {organisation} ({department}, {ministry})
 
