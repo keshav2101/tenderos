@@ -24,6 +24,8 @@ async def get_eligibility(request: Request, tender_id: str = Path(...)):
             "tender_id": tender_id,
             "company_id": user_id,
             "match_score": 92,
+            "eligibility_score": 92,
+            "winning_probability": 85,
             "recommendation": "BID",
             "recommendation_reason": "High overall match score (92%). Meets all technical, financial, and compliance qualification criteria.",
             "breakdown": {

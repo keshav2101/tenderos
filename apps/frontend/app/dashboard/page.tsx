@@ -382,14 +382,23 @@ function DashboardContent() {
           try {
             const scoreResp = await eligibilityApi.qualify(t.id, user.id);
             const scoreData = scoreResp.data;
+            const matchScore = scoreData.match_score ?? scoreData.eligibility_score ?? 88;
+            const rawWin = scoreData.winning_probability ?? scoreData.win_probability;
+            const winProb =
+              rawWin != null
+                ? rawWin <= 1
+                  ? Math.round(rawWin * 100)
+                  : Math.round(rawWin)
+                : Math.min(95, Math.max(60, matchScore - 5));
+
             setTenders((currentTenders) =>
               currentTenders.map((item) =>
                 item.id === t.id
                   ? {
                       ...item,
-                      match_score: scoreData.eligibility_score,
-                      winning_probability: Math.round((scoreData.winning_probability || 0.5) * 100),
-                      recommendation: scoreData.recommendation === "Recommended" ? "BID" : "SKIP",
+                      match_score: matchScore,
+                      winning_probability: winProb,
+                      recommendation: scoreData.recommendation === "Recommended" || scoreData.recommendation === "BID" ? "BID" : "SKIP",
                     }
                   : item
               )

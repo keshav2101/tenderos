@@ -357,22 +357,22 @@ class BidQualificationEngine:
         scores: dict,
         company: dict,
         tender: dict,
-    ) -> int | None:
+    ) -> int:
         """Heuristic winning probability — calibrated against historical patterns."""
         if not eligible:
-            return None
-        base = match_score * 0.5
+            return 25
+        base = max(60.0, match_score * 0.85)
         # Boost for MSME
         if company.get("is_msme") and tender.get("msme_eligible"):
-            base += 10
+            base += 8.0
         # Boost for exact category match
-        if scores["category_match"] > 0.8:
-            base += 10
+        if scores.get("category_match", 0) > 0.8:
+            base += 5.0
         # Boost for strong turnover
-        if scores["turnover_eligibility"] >= 1.0:
-            base += 5
-        # Cap between 10 and 90 (never claim certainty)
-        return int(min(90, max(10, base)))
+        if scores.get("turnover_eligibility", 0) >= 1.0:
+            base += 5.0
+        # Cap between 30 and 96 (never claim certainty)
+        return int(min(96, max(30, round(base))))
 
     def _recommend(self, match_score: int, eligible: bool, gaps: dict, win_prob: int | None) -> tuple[str, str]:
         if not eligible or match_score < 30:
