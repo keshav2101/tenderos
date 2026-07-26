@@ -487,17 +487,7 @@ export default function TenderDetailPage({ params }: { params: { id: string } })
 
         {activeTab === "proposal" && (
           <div className="space-y-4 animate-fade-in">
-            {/* If not logged in */}
-            {!user ? (
-              <div className="card p-12 text-center">
-                <Lock className="w-8 h-8 text-muted mx-auto mb-3" />
-                <h3 className="text-primary font-semibold text-sm">Authentication Required</h3>
-                <p className="text-secondary text-xs mt-1 mb-4">Sign in to generate compliance matrices and AI proposal drafts for this tender.</p>
-                <Link href="/login" className="btn btn-primary text-xs px-6 py-2">
-                  Sign In / Register
-                </Link>
-              </div>
-            ) : proposalLoading ? (
+            {proposalLoading ? (
               <div className="card p-12 text-center flex flex-col items-center justify-center gap-3">
                 <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
                 <p className="text-secondary text-sm font-semibold">Compiling Proposal Outline...</p>

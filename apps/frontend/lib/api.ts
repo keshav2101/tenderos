@@ -73,14 +73,11 @@ api.interceptors.response.use(
         }
         return api(original);
       } catch {
-        // Refresh failed — clear session and redirect to login
+        // Refresh failed — clear stored tokens so future requests proceed cleanly as guest
         localStorage.removeItem("tenderos_access_token");
         localStorage.removeItem("tenderos_refresh_token");
         localStorage.removeItem("tenderos_user");
         _refreshQueue = [];
-        if (typeof window !== "undefined") {
-          window.location.href = "/login";
-        }
         return Promise.reject(error);
       } finally {
         _isRefreshing = false;
