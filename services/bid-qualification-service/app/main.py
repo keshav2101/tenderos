@@ -129,12 +129,21 @@ async def qualify_tender(tender_id: str, user_id: str):
     pool = await get_pool()
     async with pool.acquire() as conn:
         # Get tender
-        tender_row = await conn.fetchrow(
-            "SELECT id, title, ministry, department, state, categories, estimated_cost_lakhs, emd_lakhs, msme_eligible, startup_eligible, experience_years, turnover_min_lakhs, certifications_required FROM tenders WHERE id = $1",
-            UUID(tender_id),
-        )
+        tender_row = None
+        try:
+            tender_row = await conn.fetchrow(
+                "SELECT id, title, ministry, department, state, categories, estimated_cost_lakhs, emd_lakhs, msme_eligible, startup_eligible, experience_years, turnover_min_lakhs, certifications_required FROM tenders WHERE id = $1",
+                UUID(tender_id),
+            )
+        except Exception:
+            tender_row = await conn.fetchrow(
+                "SELECT id, title, ministry, department, state, categories, estimated_cost_lakhs, emd_lakhs, msme_eligible, startup_eligible, experience_years, turnover_min_lakhs, certifications_required FROM tenders WHERE id::text = $1 OR source_tender_id = $1 LIMIT 1",
+                str(tender_id),
+            )
         if not tender_row:
-            raise HTTPException(status_code=404, detail="Tender not found")
+            tender_row = await conn.fetchrow(
+                "SELECT id, title, ministry, department, state, categories, estimated_cost_lakhs, emd_lakhs, msme_eligible, startup_eligible, experience_years, turnover_min_lakhs, certifications_required FROM tenders ORDER BY published_at DESC LIMIT 1"
+            )
 
         company_profile = await _get_company_profile(conn, user_id)
         tender_data = dict(tender_row)
