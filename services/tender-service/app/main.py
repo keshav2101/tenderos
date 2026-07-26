@@ -107,8 +107,27 @@ async def list_tenders(
         params.append(f"%{department}%")
         idx += 1
     if category:
-        conditions.append(f"${idx} = ANY(t.categories)")
-        params.append(category)
+        cat_terms = [category]
+        cat_upper = category.upper()
+        if "TECH" in cat_upper or "IT" in cat_upper:
+            cat_terms.extend(["IT", "AI", "Cloud", "Cybersecurity", "GIS", "Software", "Data Analytics", "IoT", "Smart City"])
+        elif "INFRA" in cat_upper or "CIVIL" in cat_upper:
+            cat_terms.extend(["Construction", "Infrastructure", "Civil", "Smart City"])
+        elif "DEFENCE" in cat_upper or "AERO" in cat_upper:
+            cat_terms.extend(["Defence", "Drone", "Aerospace"])
+        elif "RAIL" in cat_upper or "MOBILITY" in cat_upper:
+            cat_terms.extend(["Railways", "Mobility", "Transport", "IoT"])
+        elif "HEALTH" in cat_upper or "MED" in cat_upper:
+            cat_terms.extend(["Healthcare", "Medical Equipment", "Medical"])
+        elif "ENERGY" in cat_upper or "POWER" in cat_upper:
+            cat_terms.extend(["Renewable Energy", "Energy", "Power"])
+        elif "EDU" in cat_upper:
+            cat_terms.extend(["Education", "Training"])
+        elif "SEC" in cat_upper:
+            cat_terms.extend(["Cybersecurity", "Surveillance", "Security", "Drone"])
+
+        conditions.append(f"t.categories && ${idx}")
+        params.append(cat_terms)
         idx += 1
     if status and status.lower() != "all":
         conditions.append(f"t.status = ${idx}")

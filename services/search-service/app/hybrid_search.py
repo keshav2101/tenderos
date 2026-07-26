@@ -522,8 +522,25 @@ class HybridSearchEngine:
                 if filters.get("categories") or filters.get("category"):
                     cats = filters.get("categories") or filters.get("category")
                     cats_list = cats if isinstance(cats, list) else [cats]
+                    expanded_cats = list(cats_list)
+                    for c in cats_list:
+                        c_upper = c.upper()
+                        if "TECH" in c_upper or "IT" in c_upper:
+                            expanded_cats.extend(["IT", "AI", "Cloud", "Cybersecurity", "GIS", "Software", "Data Analytics", "IoT", "Smart City"])
+                        elif "INFRA" in c_upper or "CIVIL" in c_upper:
+                            expanded_cats.extend(["Construction", "Infrastructure", "Civil", "Smart City"])
+                        elif "DEFENCE" in c_upper or "AERO" in c_upper:
+                            expanded_cats.extend(["Defence", "Drone", "Aerospace"])
+                        elif "RAIL" in c_upper or "MOBILITY" in c_upper:
+                            expanded_cats.extend(["Railways", "Mobility", "Transport", "IoT"])
+                        elif "HEALTH" in c_upper or "MED" in c_upper:
+                            expanded_cats.extend(["Healthcare", "Medical Equipment", "Medical"])
+                        elif "ENERGY" in c_upper or "POWER" in c_upper:
+                            expanded_cats.extend(["Renewable Energy", "Energy", "Power"])
+                        elif "EDU" in c_upper:
+                            expanded_cats.extend(["Education", "Training"])
                     conditions.append(f"categories && ${param_idx}")
-                    params.append(cats_list)
+                    params.append(list(set(expanded_cats)))
                     param_idx += 1
 
                 if filters.get("msme_eligible") is not None:

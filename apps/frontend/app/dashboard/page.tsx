@@ -440,11 +440,23 @@ function DashboardContent() {
     const matchMsme = !filterMsme || t.msme_eligible;
     const matchStartup = !filterStartup || t.startup_eligible;
 
+    const SECTOR_KEYWORDS: Record<string, string[]> = {
+      "Technology & IT": ["IT", "AI", "Cloud", "Cybersecurity", "GIS", "Software", "Data Analytics", "IoT", "Smart City"],
+      "Infrastructure & Civil Works": ["Construction", "Infrastructure", "Civil", "Smart City"],
+      "Defence & Aerospace": ["Defence", "Drone", "Aerospace"],
+      "Railways & Mobility": ["Railways", "Mobility", "Transport", "IoT"],
+      "Healthcare & Medical Equipment": ["Healthcare", "Medical", "Medical Equipment"],
+      "Energy & Renewable Power": ["Renewable Energy", "Energy", "Power"],
+      "Education & Training": ["Education", "Training"],
+      "Security & Surveillance": ["Cybersecurity", "Surveillance", "Security", "Drone"],
+    };
+
+    const targetKeywords = SECTOR_KEYWORDS[filterSector] || [filterSector];
+
     const matchSector =
       filterSector === "All Sectors" ||
-      (t.sector && t.sector.toLowerCase().includes(filterSector.toLowerCase())) ||
-      (t.categories && t.categories.some((c) => c.toLowerCase().includes(filterSector.toLowerCase()))) ||
-      (t.title && t.title.toLowerCase().includes(filterSector.split(" ")[0].toLowerCase()));
+      (t.categories && t.categories.some((c) => targetKeywords.some((kw) => c.toLowerCase().includes(kw.toLowerCase()) || kw.toLowerCase().includes(c.toLowerCase())))) ||
+      (t.title && targetKeywords.some((kw) => t.title.toLowerCase().includes(kw.toLowerCase())));
 
     return matchSearch && matchRec && matchMsme && matchStartup && matchSector;
   });
