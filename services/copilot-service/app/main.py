@@ -185,8 +185,9 @@ async def orchestrate_agents(req: OrchestrationRequest):
         mem["current_company_id"] = req.company_id
     mem["previous_questions"].append(req.query)
 
-    # If tender_id is provided or general query, run RAG grounding pipeline
-    target_tender_id = req.tender_id or mem.get("current_tender_id") or "global"
+    # If tender_id is explicitly provided, use it; otherwise target_tender_id is 'global'
+    target_tender_id = req.tender_id if req.tender_id else "global"
+    mem["current_tender_id"] = req.tender_id
     context = (
         await _fetch_tender_context(target_tender_id)
         if target_tender_id != "global"
