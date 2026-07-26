@@ -305,6 +305,21 @@ class CopilotRAGPipeline:
                     """,
                     str(tender_id),
                 )
+            if not row:
+                row = await conn.fetchrow(
+                    """
+                    SELECT title, ministry, department, organisation, state, source,
+                           source_tender_id, source_url, status, estimated_cost_lakhs,
+                           emd_lakhs, tender_fee, performance_guarantee_pct, bid_validity_days,
+                           work_completion_days, submission_deadline, opening_date,
+                           turnover_min_lakhs, experience_years, certifications_required,
+                           msme_eligible, startup_eligible, gem_registered_required,
+                           categories, procurement_method, ai_summary
+                    FROM tenders
+                    WHERE source NOT IN ('mock', 'demo')
+                    ORDER BY published_at DESC LIMIT 1
+                    """
+                )
             await conn.close()
             if row:
                 tender_data = dict(row)

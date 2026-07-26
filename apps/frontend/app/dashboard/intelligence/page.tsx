@@ -56,7 +56,6 @@ export default function IntelligenceDashboardPage() {
     try {
       const res = await api.post("/copilot/orchestrate", {
         query: q,
-        tender_id: "e864a9ca-dd09-476b-95f1-04ecfdb3e868"
       });
       if (res.data) {
         setCopilotResponse(res.data);

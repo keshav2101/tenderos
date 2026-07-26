@@ -185,20 +185,22 @@ async def orchestrate_agents(req: OrchestrationRequest):
         mem["current_company_id"] = req.company_id
     mem["previous_questions"].append(req.query)
 
-    # If tender_id is provided or found in memory, run RAG grounding pipeline
-    target_tender_id = req.tender_id or mem.get("current_tender_id")
-    rag_response = None
-    if target_tender_id:
-        context = await _fetch_tender_context(target_tender_id)
-        mem["current_buyer"] = context.get("ministry")
-        rag_response = await rag.answer(
-            tender_id=target_tender_id,
-            tender_title=context["title"],
-            ministry=context["ministry"],
-            question=req.query,
-        )
-        if rag_response and rag_response.get("sources"):
-            mem["retrieved_documents"].extend(rag_response.get("sources"))
+    # If tender_id is provided or general query, run RAG grounding pipeline
+    target_tender_id = req.tender_id or mem.get("current_tender_id") or "global"
+    context = (
+        await _fetch_tender_context(target_tender_id)
+        if target_tender_id != "global"
+        else {"title": "All India Tenders Database", "ministry": "Government of India"}
+    )
+    mem["current_buyer"] = context.get("ministry")
+    rag_response = await rag.answer(
+        tender_id=target_tender_id,
+        tender_title=context["title"],
+        ministry=context["ministry"],
+        question=req.query,
+    )
+    if rag_response and rag_response.get("sources"):
+        mem["retrieved_documents"].extend(rag_response.get("sources"))
 
     return {
         "query": req.query,
