@@ -20,6 +20,7 @@ interface Tender {
   title: string;
   ministry: string | null;
   department: string | null;
+  organisation?: string | null;
   state: string | null;
   estimated_cost_lakhs: number | null;
   emd_lakhs: number | null;
@@ -368,7 +369,11 @@ function DashboardContent() {
         _t: Date.now(),
       };
       if (filterMsme) params.msme_eligible = true;
-      if (search) params.q = search;
+      if (filterStartup) params.startup_eligible = true;
+      if (search.trim()) params.q = search.trim();
+      if (filterSector && filterSector !== "All Sectors") {
+        params.category = filterSector;
+      }
 
       const { data } = await tendersApi.list(params);
       const items = data.tenders || data.items || [];
@@ -413,7 +418,7 @@ function DashboardContent() {
     } finally {
       setLoading(false);
     }
-  }, [page, filterMsme, search, user?.id]);
+  }, [page, pageSize, filterMsme, filterStartup, filterSector, search, user?.id]);
 
   useEffect(() => {
     fetchTenders();
@@ -422,12 +427,26 @@ function DashboardContent() {
   }, [fetchTenders]);
 
   const filtered = tenders.filter((t) => {
-    const matchSearch = !search ||
-      t.title.toLowerCase().includes(search.toLowerCase()) ||
-      (t.ministry || "").toLowerCase().includes(search.toLowerCase());
-    const matchRec = filterRec === "all" || t.recommendation === filterRec;
-    const matchSector = filterSector === "All Sectors" || (t.sector || "General") === filterSector;
-    return matchSearch && matchRec && matchSector;
+    const qLower = search.trim().toLowerCase();
+    const matchSearch =
+      !qLower ||
+      t.title.toLowerCase().includes(qLower) ||
+      (t.ministry || "").toLowerCase().includes(qLower) ||
+      (t.department || "").toLowerCase().includes(qLower) ||
+      (t.organisation || "").toLowerCase().includes(qLower) ||
+      (t.categories || []).some((c) => c.toLowerCase().includes(qLower));
+
+    const matchRec = filterRec === "all" || (t.recommendation || "BID") === filterRec;
+    const matchMsme = !filterMsme || t.msme_eligible;
+    const matchStartup = !filterStartup || t.startup_eligible;
+
+    const matchSector =
+      filterSector === "All Sectors" ||
+      (t.sector && t.sector.toLowerCase().includes(filterSector.toLowerCase())) ||
+      (t.categories && t.categories.some((c) => c.toLowerCase().includes(filterSector.toLowerCase()))) ||
+      (t.title && t.title.toLowerCase().includes(filterSector.split(" ")[0].toLowerCase()));
+
+    return matchSearch && matchRec && matchMsme && matchStartup && matchSector;
   });
 
   function handleWatchlist(id: string) {
