@@ -111,6 +111,12 @@ export const tendersApi = {
   listWatchlist: () => api.get("/tenders/watchlist"),
 };
 
+export const connectorsApi = {
+  runAll: () => api.post("/connectors/run-all"),
+  sync: (sourceId: string) => api.post(`/connectors/${sourceId}/sync`),
+  list: () => api.get("/connectors"),
+};
+
 export const searchApi = {
   search: (params: Record<string, unknown>) => api.get("/search", { params }),
   advanced: (body: Record<string, unknown>) => api.post("/search/advanced", body),

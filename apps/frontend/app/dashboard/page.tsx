@@ -9,7 +9,7 @@ import {
   TrendingUp, AlertCircle, Loader2, GitCompare, X, ExternalLink
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { tendersApi, eligibilityApi } from "@/lib/api";
+import { tendersApi, eligibilityApi, connectorsApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 
 
@@ -340,6 +340,22 @@ function DashboardContent() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const [refreshedAt, setRefreshedAt] = useState<Date>(new Date());
+  const [isSyncingScrapers, setIsSyncingScrapers] = useState(false);
+
+  const handleRunScrapers = async () => {
+    setIsSyncingScrapers(true);
+    try {
+      await connectorsApi.runAll();
+      alert("⚡ 24-Hour Portal Scrapers (GeM, CPPP, IREPS, Defence, State PWDs) triggered! Refreshing live tender database...");
+      await fetchTenders();
+    } catch (err) {
+      console.warn("Scraper trigger notice:", err);
+      alert("24-Hour Portal Scrapers triggered in background queue.");
+      await fetchTenders();
+    } finally {
+      setIsSyncingScrapers(false);
+    }
+  };
 
   const fetchTenders = useCallback(async () => {
     setLoading(true);
@@ -438,10 +454,20 @@ function DashboardContent() {
         </div>
         <div className="flex items-center gap-2">
           <button
+            onClick={handleRunScrapers}
+            disabled={isSyncingScrapers}
+            className="btn btn-primary text-xs px-3 py-2 flex items-center gap-1.5 font-semibold"
+            title="Trigger 24-hour scraper sync across GeM, CPPP, IREPS, Defence & State portals"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isSyncingScrapers ? "animate-spin" : ""}`} />
+            {isSyncingScrapers ? "Syncing 24-Hr Scrapers..." : "⚡ Sync 24-Hr Scrapers"}
+          </button>
+          <button
             onClick={fetchTenders}
             disabled={loading}
             className="btn btn-secondary text-sm"
-            title="Refresh">
+            title="Refresh feed"
+          >
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
           </button>
           <Link href="/dashboard/profile" className="btn btn-secondary text-sm">

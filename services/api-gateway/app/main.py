@@ -31,6 +31,7 @@ from app.routers import (
     billing,
     chat,
     company,
+    connectors,
     copilot,
     eligibility,
     governance,
@@ -184,3 +185,4 @@ app.include_router(graph.router, prefix=f"{API_V1}/graph", tags=["Knowledge Grap
 app.include_router(intelligence.router, prefix=f"{API_V1}/intelligence", tags=["Market Intelligence"])
 app.include_router(governance.router, prefix=f"{API_V1}/governance", tags=["AI Governance"])
 app.include_router(quality.router, prefix=f"{API_V1}/quality", tags=["Data Quality"])
+app.include_router(connectors.router, prefix=f"{API_V1}/connectors", tags=["Portal Connectors"])
