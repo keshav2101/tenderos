@@ -48,14 +48,7 @@ async def generate_proposal(tender_id: str, user_id: str = "default_user"):
         "certifications": ["SOC 2 Type II", "ISO 9001"],
     }
 
-    tender_spec = {
-        "tender_id": tender_id,
-        "title": "AI Cloud Platform Deployment - Ministry of Finance",
-        "min_experience_required": 5,
-        "required_certifications": ["ISO 27001"],
-        "min_turnover_lakhs": 250.0,
-        "risk_penalty_clause": "Clause 8.2: 1% per week delay penalty",
-    }
+    tender_spec = None
 
     # Fetch company profile from digital-twin-service (graceful fallback)
     async with httpx.AsyncClient(timeout=5.0) as client:
@@ -76,7 +69,7 @@ async def generate_proposal(tender_id: str, user_id: str = "default_user"):
         except Exception as he:
             logger.warning("Using default company profile fallback", error=str(he))
 
-    # Fetch tender details from tender-service (graceful fallback)
+    # Fetch tender details from tender-service or PostgreSQL
     async with httpx.AsyncClient(timeout=5.0) as client:
         try:
             resp = await client.get(f"{settings.TENDER_SERVICE_URL}/tenders/{tender_id}")
@@ -92,13 +85,80 @@ async def generate_proposal(tender_id: str, user_id: str = "default_user"):
                     or data.get("department")
                     or data.get("ministry")
                     or "Government Department",
+                    "estimated_cost_lakhs": t_cost,
                     "min_experience_required": t_exp,
                     "required_certifications": data.get("certifications_required") or ["ISO 9001:2015"],
                     "min_turnover_lakhs": t_turnover,
-                    "risk_penalty_clause": f"Clause 8.2 Liquidated Damages: 0.5% per week up to a maximum cap of 10% (₹{t_cost * 0.10:,.2f} Lakhs) of contract value",
+                    "emd_lakhs": float(data.get("emd_lakhs") or (t_cost * 0.02)),
+                    "msme_eligible": bool(data.get("msme_eligible", True)),
+                    "risk_penalty_clause": f"Clause 8.2 Liquidated Damages: 0.5% per week up to a maximum cap of 10% (₹{t_cost * 0.10:,.2f} Lakhs)",
                 }
         except Exception as he:
-            logger.warning("Using default tender spec fallback", error=str(he))
+            logger.warning("Tender service HTTP call failed, checking PostgreSQL lookup", error=str(he))
+
+    if not tender_spec:
+        try:
+            import asyncpg
+            from uuid import UUID
+            pg_host = os.getenv("POSTGRES_HOST", "postgres")
+            pg_port = os.getenv("POSTGRES_PORT", "5432")
+            pg_db = os.getenv("POSTGRES_DB", "tenderos")
+            pg_user = os.getenv("POSTGRES_USER", "tenderos")
+            pg_pwd = os.getenv("POSTGRES_PASSWORD", "")
+            conn = await asyncpg.connect(
+                host=pg_host, port=int(pg_port), database=pg_db, user=pg_user, password=pg_pwd
+            )
+            row = None
+            try:
+                row = await conn.fetchrow(
+                    """SELECT id, title, ministry, department, organisation, estimated_cost_lakhs,
+                              turnover_min_lakhs, experience_years, certifications_required, emd_lakhs, msme_eligible
+                       FROM tenders WHERE id = $1""",
+                    UUID(tender_id),
+                )
+            except Exception:
+                row = await conn.fetchrow(
+                    """SELECT id, title, ministry, department, organisation, estimated_cost_lakhs,
+                              turnover_min_lakhs, experience_years, certifications_required, emd_lakhs, msme_eligible
+                       FROM tenders WHERE id::text = $1 OR source_tender_id = $1 LIMIT 1""",
+                    str(tender_id),
+                )
+            await conn.close()
+
+            if row:
+                t_cost = float(row["estimated_cost_lakhs"] or 250.0)
+                t_turnover = float(row["turnover_min_lakhs"] or (t_cost * 2.5))
+                t_exp = int(row["experience_years"] or 5)
+                t_org = row["organisation"] or row["department"] or row["ministry"] or "Government Dept"
+                tender_spec = {
+                    "tender_id": str(row["id"]),
+                    "title": row["title"] or "Government Procurement Project",
+                    "organisation": t_org,
+                    "estimated_cost_lakhs": t_cost,
+                    "min_experience_required": t_exp,
+                    "required_certifications": row["certifications_required"] or ["ISO 9001:2015"],
+                    "min_turnover_lakhs": t_turnover,
+                    "emd_lakhs": float(row["emd_lakhs"] or (t_cost * 0.02)),
+                    "msme_eligible": bool(row["msme_eligible"]),
+                    "risk_penalty_clause": f"Clause 8.2 Liquidated Damages: 0.5% per week up to a maximum cap of 10% (₹{t_cost * 0.10:,.2f} Lakhs)",
+                }
+        except Exception as pg_err:
+            logger.warning("PostgreSQL tender lookup failed in proposal service", error=str(pg_err))
+
+    if not tender_spec:
+        tender_spec = {
+            "tender_id": tender_id,
+            "title": f"Tender Notice ({tender_id[:8]})",
+            "organisation": "Government Procurement Agency",
+            "estimated_cost_lakhs": 250.0,
+            "min_experience_required": 5,
+            "required_certifications": ["ISO 9001:2015"],
+            "min_turnover_lakhs": 625.0,
+            "emd_lakhs": 5.0,
+            "msme_eligible": True,
+            "risk_penalty_clause": "Clause 8.2: 0.5% per week delay penalty",
+        }
+
 
     # 2. Run multi-agent proposal assembly
     compliance_agent = ComplianceAgent(GEMINI_API_KEY)
