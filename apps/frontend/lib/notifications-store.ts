@@ -13,7 +13,49 @@ export interface AppNotification {
   urgency?: "HIGH" | "MEDIUM" | "NORMAL";
 }
 
+export interface NotificationRules {
+  enableActionRequired: boolean;
+  enableCorrigendums: boolean;
+  enableEmdWaivers: boolean;
+  enableFinancialOpenings: boolean;
+  minMatchScore: number;
+  minContractCostLakhs: number;
+  emailDigest: boolean;
+  whatsappAlerts: boolean;
+}
+
+export const DEFAULT_NOTIFICATION_RULES: NotificationRules = {
+  enableActionRequired: true,
+  enableCorrigendums: true,
+  enableEmdWaivers: true,
+  enableFinancialOpenings: true,
+  minMatchScore: 70,
+  minContractCostLakhs: 0,
+  emailDigest: true,
+  whatsappAlerts: false,
+};
+
 const READ_NOTIFS_STORAGE_KEY = "tenderos_read_notifications_v1";
+const RULES_STORAGE_KEY = "tenderos_notification_rules_v1";
+
+export function getNotificationRules(): NotificationRules {
+  if (typeof window === "undefined") return DEFAULT_NOTIFICATION_RULES;
+  try {
+    const raw = localStorage.getItem(RULES_STORAGE_KEY);
+    if (!raw) return DEFAULT_NOTIFICATION_RULES;
+    return { ...DEFAULT_NOTIFICATION_RULES, ...JSON.parse(raw) };
+  } catch {
+    return DEFAULT_NOTIFICATION_RULES;
+  }
+}
+
+export function saveNotificationRules(rules: NotificationRules) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(RULES_STORAGE_KEY, JSON.stringify(rules));
+    window.dispatchEvent(new Event("tenderos-notifications-updated"));
+  } catch {}
+}
 
 export function getReadNotificationIds(): Set<string> {
   if (typeof window === "undefined") return new Set();
@@ -48,7 +90,8 @@ export function markAllNotificationsRead(ids: string[]) {
 
 export async function fetchRealtimeNotifications(): Promise<AppNotification[]> {
   const readIds = getReadNotificationIds();
-  const notifications: AppNotification[] = [];
+  const rules = getNotificationRules();
+  const rawNotifications: AppNotification[] = [];
 
   try {
     // 1. Fetch Watchlist Tenders for real-time alerts
@@ -59,12 +102,20 @@ export async function fetchRealtimeNotifications(): Promise<AppNotification[]> {
       const tenderId = t.id || `tender-${idx}`;
       const title = t.title || "Target Procurement Tender";
       const emdLakhs = t.emd_lakhs || Math.round((t.estimated_cost_lakhs || 250) * 0.02);
-      const costCr = t.estimated_cost_lakhs ? (t.estimated_cost_lakhs / 100).toFixed(2) : "2.50";
+      const costLakhs = t.estimated_cost_lakhs || 250;
+      const matchScore = t.match_score || 85;
+
+      // Skip tender if below user's minimum contract cost or match score rules
+      if (costLakhs < rules.minContractCostLakhs || matchScore < rules.minMatchScore) {
+        return;
+      }
+
+      const costCr = (costLakhs / 100).toFixed(2);
 
       // Alert 1: PBG / Security Deposit Due Action Required
-      if (idx === 0) {
+      if (idx === 0 && rules.enableActionRequired) {
         const id = `notif-pbg-${tenderId}`;
-        notifications.push({
+        rawNotifications.push({
           id,
           title: `🚨 Action Required: PBG Security Deposit Due in 5 Days`,
           message: `Performance Security Deposit of ₹${(Number(costCr) * 3).toFixed(2)} Lakhs (3% of estimated cost) or Bank Guarantee declaration must be uploaded for "${title}".`,
@@ -79,9 +130,9 @@ export async function fetchRealtimeNotifications(): Promise<AppNotification[]> {
       }
 
       // Alert 2: Corrigendum Alert
-      if (idx === 1 || t.source === "IREPS" || t.source === "CPPP") {
+      if ((idx === 1 || t.source === "IREPS" || t.source === "CPPP") && rules.enableCorrigendums) {
         const id = `notif-corr-${tenderId}`;
-        notifications.push({
+        rawNotifications.push({
           id,
           title: `📢 Corrigendum 02 Issued: Technical Criteria Updated`,
           message: `Issuing authority ${t.department || t.ministry || "Government Authority"} released Corrigendum 02 extending bid submission deadline for "${title}".`,
@@ -96,9 +147,9 @@ export async function fetchRealtimeNotifications(): Promise<AppNotification[]> {
       }
 
       // Alert 3: EMD Exemption Verified
-      if (t.msme_eligible !== false) {
+      if (t.msme_eligible !== false && rules.enableEmdWaivers) {
         const id = `notif-emd-${tenderId}`;
-        notifications.push({
+        rawNotifications.push({
           id,
           title: `✅ 100% EMD Waiver Verified via Udyam MSME`,
           message: `Earnest Money Deposit waiver of ₹${emdLakhs} Lakhs successfully auto-applied under GFR 2017 Rule 170 for "${title}".`,
@@ -111,25 +162,44 @@ export async function fetchRealtimeNotifications(): Promise<AppNotification[]> {
           urgency: "NORMAL",
         });
       }
+
+      // Alert 4: Financial Opening Scheduled
+      if (idx === 2 && rules.enableFinancialOpenings) {
+        const id = `notif-fin-${tenderId}`;
+        rawNotifications.push({
+          id,
+          title: `🏆 Financial L1 Price Evaluation Scheduled Tomorrow`,
+          message: `Price bid opening for "${title}" is scheduled for 11:00 AM on GeM Portal.`,
+          type: "FINANCIAL_OPENING",
+          read: readIds.has(id),
+          created_at: new Date(Date.now() - 3600000 * 18).toISOString(),
+          tender_id: tenderId,
+          action_label: "View Opening Details",
+          action_url: `/dashboard/tenders/${tenderId}`,
+          urgency: "NORMAL",
+        });
+      }
     });
 
-    // 2. Add System CA Certificate Compliance Alert
-    const caNotifId = "notif-system-ca-cert";
-    notifications.push({
-      id: caNotifId,
-      title: "⚠️ Action Required: Missing CA UDIN Turnover Certificate",
-      message: "Your profile requires an updated Chartered Accountant UDIN certified annual turnover statement to satisfy Rule 144(xi) qualification for tenders above ₹2.5 Cr.",
-      type: "ACTION_REQUIRED",
-      read: readIds.has(caNotifId),
-      created_at: new Date(Date.now() - 3600000 * 4).toISOString(),
-      action_label: "Upload CA Certificate",
-      action_url: "/dashboard/profile",
-      urgency: "HIGH",
-    });
+    // 2. Add System CA Certificate Compliance Alert if Action Required is enabled
+    if (rules.enableActionRequired) {
+      const caNotifId = "notif-system-ca-cert";
+      rawNotifications.push({
+        id: caNotifId,
+        title: "⚠️ Action Required: Missing CA UDIN Turnover Certificate",
+        message: "Your profile requires an updated Chartered Accountant UDIN certified annual turnover statement to satisfy Rule 144(xi) qualification for tenders above ₹2.5 Cr.",
+        type: "ACTION_REQUIRED",
+        read: readIds.has(caNotifId),
+        created_at: new Date(Date.now() - 3600000 * 4).toISOString(),
+        action_label: "Upload CA Certificate",
+        action_url: "/dashboard/profile",
+        urgency: "HIGH",
+      });
+    }
 
     // Sort by created_at descending
-    notifications.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    return notifications;
+    rawNotifications.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return rawNotifications;
   } catch (err) {
     console.warn("Using fallback real-time notifications", err);
     return [];
