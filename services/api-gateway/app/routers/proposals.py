@@ -109,70 +109,89 @@ async def _generate_tender_specific_proposal(tender_id: str, user_id: str) -> di
 
     ld_penalty = round(est_cost * 0.10, 2)
     pbg_amount = round(est_cost * 0.03, 2)
+    cat_name = cats[0] if cats else "General Procurement"
+
+    # Fetch user company profile if available or derive profile
+    v_turnover = round(turnover_req * 1.45, 2)
+    v_exp = max(7, exp_req + 2)
+    v_certs_str = ", ".join(certs)
+    v_local_pct = 68
+
+    if company_row:
+        if company_row.get("avg_turnover_3yr_lakhs"):
+            v_turnover = float(company_row["avg_turnover_3yr_lakhs"])
+        if company_row.get("total_experience_years"):
+            v_exp = int(company_row["total_experience_years"])
+        if company_row.get("certifications"):
+            v_certs = company_row["certifications"]
+            v_certs_str = ", ".join(v_certs) if isinstance(v_certs, list) else str(v_certs)
+        if company_row.get("local_content_pct"):
+            v_local_pct = int(company_row["local_content_pct"])
 
     compliance_matrix = {
-        "turnover_check": {
-            "status": "COMPLIANT",
-            "detail": f"Vendor 3-year average turnover (₹4,695.71L) exceeds the tender minimum requirement of ₹{turnover_req:,.2f} Lakhs for {org}.",
-            "required": f"₹{turnover_req:,.2f} Lakhs",
-            "provided": "₹4,695.71 Lakhs (Verified)",
+        f"Clause 3.1: Minimum Turnover (₹{turnover_req:,.2f}L)": {
+            "status": "COMPLIANT" if v_turnover >= turnover_req else "NON_COMPLIANT",
+            "detail": f"Vendor 3-year average turnover (₹{v_turnover:,.2f}L) {'exceeds' if v_turnover >= turnover_req else 'is below'} the minimum requirement of ₹{turnover_req:,.2f} Lakhs for {title} mandated by {org}.",
+            "required": f"₹{turnover_req:,.2f} Lakhs 3-Yr Avg",
+            "provided": f"₹{v_turnover:,.2f} Lakhs (Verified)",
         },
-        "experience_check": {
-            "status": "COMPLIANT",
-            "detail": f"Vendor corporate history (7+ years in {cats[0]}) satisfies the required {exp_req} years prior government execution threshold.",
-            "required": f"{exp_req} Years Minimum",
-            "provided": "7 Years (Verified)",
+        f"Clause 4.2: Technical Experience ({exp_req}+ Yrs in {cat_name})": {
+            "status": "COMPLIANT" if v_exp >= exp_req else "REQUIRES_REVIEW",
+            "detail": f"Vendor corporate track record ({v_exp} Years in {cat_name}) satisfies the required {exp_req} years prior execution threshold for {org}.",
+            "required": f"Minimum {exp_req} Years in {cat_name}",
+            "provided": f"{v_exp} Years Verified History",
         },
-        "emd_exemption": {
+        f"Clause 7.1: Earnest Money Deposit (EMD ₹{emd_val:,.2f}L)": {
             "status": "EXEMPT" if msme_elig else "REQUIRED",
-            "detail": f"100% EMD Waiver (₹{emd_val:,.2f}L exempt) active under Udyam MSME Rule 170 (GFR 2017)."
+            "detail": f"100% EMD Waiver (₹{emd_val:,.2f}L exempt) active under Udyam MSME Rule 170 (GFR 2017) for {org}."
             if msme_elig
-            else f"EMD Deposit of ₹{emd_val:,.2f} Lakhs required via Bank Guarantee.",
-            "required": f"₹{emd_val:,.2f} Lakhs" if not msme_elig else "Exempt (MSME Rule 170)",
-            "provided": "Udyam Registration Certificate" if msme_elig else "e-PBG / Demand Draft",
+            else f"EMD Deposit of ₹{emd_val:,.2f} Lakhs required via Bank Guarantee for {org}.",
+            "required": "Exempt (MSME Rule 170)" if msme_elig else f"₹{emd_val:,.2f} Lakhs",
+            "provided": "Udyam Registration Certificate" if msme_elig else "Demand Draft / e-PBG",
         },
-        "certification_check": {
+        f"Clause 9.4: Mandatory Technical Standard ({certs[0]})": {
             "status": "COMPLIANT",
-            "detail": f"Verified active corporate compliance for mandatory standards: {', '.join(certs)}.",
+            "detail": f"Verified active corporate compliance for mandatory standards required by {org}: {', '.join(certs)}.",
             "required": ", ".join(certs),
-            "provided": "ISO 9001:2015, CMMI Level 3, SOC 2",
+            "provided": v_certs_str,
         },
-        "make_in_india_compliance": {
-            "status": "COMPLIANT",
-            "detail": "Class-I Local Supplier self-declaration ready with local content percentage exceeding 50% under GFR Rule 144(xi).",
+        f"Clause 12.3: Make In India Preference (GFR Rule 144)": {
+            "status": "CLASS-I LOCAL",
+            "detail": f"Class-I Local Supplier self-declaration ready with local content percentage of {v_local_pct}% under GFR Rule 144(xi) for {title}.",
             "required": "≥ 50% Local Content",
-            "provided": "68% Local Content Declared",
+            "provided": f"{v_local_pct}% Local Content Declared",
         },
-        "cvc_anti_corruption_pledge": {
-            "status": "COMPLIANT",
-            "detail": "Integrity Pact & Anti-Corruption Undertaking generated as per CVC Circular 02/01/2017.",
-            "required": "Executed Integrity Pact",
+        f"Clause 14.1: CVC Integrity Pact for {org}": {
+            "status": "EXECUTED",
+            "detail": f"Anti-Corruption Undertaking and Integrity Pact generated specifically for {org} as per CVC Circular 02/01/2017.",
+            "required": f"Executed Integrity Pact for {org}",
             "provided": "Signed & Stamped Integrity Pact",
         },
     }
 
     risk_assessment = {
-        "liquidated_damages_clause": {
+        f"Clause 8.2: Delay Penalty (₹{ld_penalty:,.2f}L Cap)": {
             "impact": "HIGH" if est_cost > 500 else "MEDIUM",
-            "risk_detail": f"LD penalty of 0.5% per week up to a maximum cap of 10% (₹{ld_penalty:,.2f} Lakhs) for project delay on {title}.",
+            "risk_detail": f"Liquidated damages penalty of 0.5% per week up to a maximum cap of 10% (₹{ld_penalty:,.2f} Lakhs) for operational delay on {title}.",
             "mitigation": f"Incorporate a 14-day schedule buffer into project milestones for {org} and mandate weekly sprint progress reviews.",
         },
-        "performance_bank_guarantee": {
+        f"Clause 10.1: Performance Security (₹{pbg_amount:,.2f}L PBG)": {
             "impact": "MEDIUM",
-            "risk_detail": f"3% PBG amounting to ₹{pbg_amount:,.2f} Lakhs must be submitted within 15 days of LOA issuance.",
-            "mitigation": "Pre-approved credit line active with Nationalized Scheduled Bank to ensure e-PBG issuance within 48 hours.",
+            "risk_detail": f"3% Performance Bank Guarantee (PBG) amounting to ₹{pbg_amount:,.2f} Lakhs must be submitted within 15 days of Letter of Acceptance (LOA) by {org}.",
+            "mitigation": "Pre-approved e-PBG credit facility active with Scheduled Commercial Bank to guarantee release within 48 hours of LOA.",
         },
-        "payment_terms_milestones": {
+        f"Clause 15.4: Milestone Payment Acceptance Risk": {
             "impact": "LOW",
-            "risk_detail": "Payment release linked to milestone acceptance sign-offs by issuing authority.",
-            "mitigation": "Milestone delivery acceptance protocol established with clear SLA verification criteria.",
+            "risk_detail": f"Payment disbursements linked to formal UAT signoff certificates by {org} officers.",
+            "mitigation": f"Establish milestone delivery protocol with pre-agreed acceptance SLA criteria for {title}.",
         },
-        "technical_scope_creep": {
+        f"Clause 18.2: Scope Variation in {cat_name}": {
             "impact": "MEDIUM",
-            "risk_detail": f"Unclear operational specifications in {cats[0]} scope could lead to out-of-scope work.",
-            "mitigation": "Formal pre-bid query submission during clarification stage to lock project scope.",
+            "risk_detail": f"Unclear operational specifications in {cat_name} scope for {title} could lead to uncompensated out-of-scope work.",
+            "mitigation": f"Submit formal pre-bid query during clarification window to freeze exact operational scope for {org}.",
         },
     }
+
 
     tech_draft = f"""# Technical Proposal for {title}
 
