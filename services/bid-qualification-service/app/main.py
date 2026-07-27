@@ -240,11 +240,24 @@ async def check_eligibility(tender_id: str, user_id: str = "default_user"):
             },
         ]
 
+        t_org = tender_row.get("organisation") or tender_row.get("department") or tender_row.get("ministry") or "Issuing Authority"
+        t_title = tender_row.get("title", "Tender Project")
+        t_turnover = float(tender_row.get("turnover_min_lakhs") or 100.0)
+        t_exp = int(tender_row.get("experience_years") or 3)
+        t_certs = tender_row.get("certifications_required") or ["ISO 9001:2015"]
+        if isinstance(t_certs, str):
+            t_certs = [c.strip() for c in t_certs.split(",")]
+
+        missing_docs = [f"Udyam MSME Certificate for {t_org}"]
+        for c in t_certs:
+            missing_docs.append(f"Valid {c} Certificate for {t_title}")
+        missing_docs.append(f"CA Audited Turnover Statement >= ₹{t_turnover:,.2f}L")
+
         action_plan = [
-            "1. Attach valid Udyam Registration Certificate to claim 100% EMD waiver.",
-            "2. Submit audited financial statements for FY 2022-23, FY 2023-24, FY 2024-25.",
-            "3. Obtain OEM Manufacturer Authorization Form (MAF) for hardware line items.",
-            "4. Upload Class-3 Digital Signature Certificate (DSC) for GeM / CPPP portal submission.",
+            f"1. Attach valid Udyam Registration Certificate to claim 100% EMD waiver for {t_org}.",
+            f"2. Submit UDIN-verified CA audited financial statements for Turnover >= ₹{t_turnover:,.2f} Lakhs.",
+            f"3. Upload certified copy of {t_certs[0]} matching bidder legal entity for {t_title}.",
+            f"4. Upload Class-3 Digital Signature Certificate (DSC) for portal submission to {t_org}.",
         ]
 
         return {
@@ -253,14 +266,14 @@ async def check_eligibility(tender_id: str, user_id: str = "default_user"):
             "match_score": qual["match_score"],
             "compliance_checklist": checklist,
             "missing_items": {
-                "missing_documents": ["MAF Form 4B"],
+                "missing_documents": missing_docs,
                 "missing_certifications": (
-                    [] if qual.get("breakdown", {}).get("certification_score", 0) > 10 else ["ISO 27001"]
+                    [] if qual.get("breakdown", {}).get("certification_score", 0) > 10 else t_certs
                 ),
                 "missing_financial_criteria": (
                     None
-                    if company_profile.get("avg_turnover_3yr_lakhs", 0) >= tender_row.get("turnover_min_lakhs", 0)
-                    else "Turnover gap ₹10.0 Lakhs"
+                    if company_profile.get("avg_turnover_3yr_lakhs", 0) >= t_turnover
+                    else f"Turnover gap ₹{(t_turnover - company_profile.get('avg_turnover_3yr_lakhs', 0)):,.2f} Lakhs"
                 ),
                 "missing_technical_criteria": None,
                 "missing_msme_benefits": None,
@@ -268,6 +281,7 @@ async def check_eligibility(tender_id: str, user_id: str = "default_user"):
             },
             "action_plan": action_plan,
         }
+
 
 
 @app.post("/qualification/risk-analysis")

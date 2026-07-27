@@ -238,6 +238,18 @@ class BidQualificationEngine:
         checks["emd_status"] = emd_status
         checks["msme_benefit_applicable"] = tender_msme_eligible and is_msme
 
+        t_org = tender.get("organisation") or tender.get("department") or tender.get("ministry") or "Public Department"
+        t_cost = float(tender.get("estimated_cost_lakhs") or 250.0)
+        t_emd = float(tender.get("emd_lakhs") or (t_cost * 0.02))
+        t_turn = float(tender.get("turnover_min_lakhs") or (t_cost * 0.3))
+
+        if tender_msme_eligible:
+            missing_docs.append(f"Udyam MSME Certificate for EMD Waiver (₹{t_emd:,.2f}L)")
+        else:
+            missing_docs.append(f"Bank Guarantee / DD for EMD (₹{t_emd:,.2f}L)")
+
+        missing_docs.append(f"CA Audited Financial Certificate (Turnover >= ₹{t_turn:,.2f}L)")
+
         # ─── Compute final scores ─────────────────────────────────────────────
         match_score = int(sum(scores[k] * WEIGHTS[k] for k in WEIGHTS) * 100)
 
