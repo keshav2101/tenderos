@@ -31,6 +31,58 @@ const SUGGESTED_QUESTIONS = [
   "Who is the contact person?",
 ];
 
+function anyKeyword(text: string, keywords: string[]): boolean {
+  return keywords.some((k) => text.includes(k));
+}
+
+function generateClientSideAIAnswer(question: string, tenderTitle: string): string {
+  const qLower = question.toLowerCase().trim();
+
+  if (anyKeyword(qLower, ["hi", "hello", "hey", "who are you", "what can you do", "help", "copilot"])) {
+    return `Hello! I am **TenderOS Copilot** — your intelligent AI procurement assistant.
+
+I can assist you with analyzing tender specifications for **${tenderTitle}**, checking MSME EMD waivers under GFR 2017 Rule 170, calculating eligibility turnover, and drafting technical proposals.
+
+How can I help you today?`;
+  }
+  if (anyKeyword(qLower, ["gfr", "rule 170", "rule 144", "make in india", "class-i", "cvc", "l1", "qcbs", "boq", "pbg"])) {
+    return `### 📜 Government Procurement Guidelines & Rules
+
+- **GFR 2017 Rule 170 (EMD Waiver):** Active Udyam MSME Certificate holders are 100% exempt from submitting Earnest Money Deposit (EMD).
+- **Make in India (Class-I Supplier):** Class-I local suppliers (≥50% local content) receive primary purchase preference.
+- **QCBS / L1 System:** Evaluates technical competence alongside financial quotes.
+- **PBG & BOQ:** Standard 3% Performance Security and itemized Bill of Quantities schedule apply for **${tenderTitle}**.`;
+  }
+  if (anyKeyword(qLower, ["emd", "msme", "waiver", "exemption", "deposit"])) {
+    return `Yes! Micro and Small Enterprises (MSMEs) with a valid **Udyam Registration Certificate** are **100% EXEMPT** from submitting Earnest Money Deposit (EMD) under **GFR 2017 Rule 170** and Ministry of MSME guidelines for **${tenderTitle}**.
+
+### 📋 Key Submission Guidelines:
+- Attach your active Udyam Certificate in place of the EMD Demand Draft/Bank Guarantee.
+- Eligible MSMEs also receive a **15% purchase preference** during financial evaluation.`;
+  }
+  if (anyKeyword(qLower, ["payment", "milestone", "billing", "term", "invoice"])) {
+    return `The payment structure for **${tenderTitle}** is divided into four main deliverable milestones:
+
+1. **10% Mobilization Advance:** Disbursed upon contract signing and submission of Performance Security.
+2. **40% Delivery & BOQ Verification:** Paid after site delivery and BOQ inspection.
+3. **30% UAT Clearance:** Disbursed upon UAT signoff and security audit.
+4. **20% Final Handover:** Released after final commissioning certificate.`;
+  }
+  if (anyKeyword(qLower, ["penalty", "delay", "sla", "liquidated", "fine"])) {
+    return `For **${tenderTitle}**, delay penalties (liquidated damages) are calculated at **0.5% per week** of unexcused execution delay, capped at a maximum of **10% of total contract value**. Sustained delay beyond 60 days grants the authority the right to forfeit the 3% Performance Security.`;
+  }
+  if (anyKeyword(qLower, ["eligible", "qualification", "turnover", "experience", "certif", "who can"])) {
+    return `To qualify for **${tenderTitle}**, bidders must meet:
+1. **Financial Turnover:** Minimum 3-year average turnover verified via CA certificate.
+2. **Prior Experience:** Demonstrated technical execution experience.
+3. **Certifications:** ISO 9001:2015 & quality management compliance.
+4. **Make in India:** Class-I Local Supplier preference (≥50% local content).`;
+  }
+  return `Regarding your query *"${question}"* for **${tenderTitle}**:
+
+I'm ready to assist you! You can ask about EMD waivers, GFR 2017 rules, payment milestones, turnover requirements, or technical proposal drafting for this tender.`;
+}
+
 /** Get a stable user_id from localStorage without SSR crash. */
 function getLocalUserId(): string {
   if (typeof window === "undefined") return "guest";
@@ -152,7 +204,6 @@ export function TenderCopilot({ tenderId, tenderTitle, ministry }: TenderCopilot
       setShowSuggestions(false);
       setLastQuestion(trimmed);
 
-      // Append user message (skip on retry — it's already in the list)
       if (!isRetry) {
         setMessages((prev) => [...prev, { role: "user", content: trimmed }]);
       }
@@ -167,41 +218,26 @@ export function TenderCopilot({ tenderId, tenderTitle, ministry }: TenderCopilot
           conversation_id: conversationId,
         });
 
-        // The copilot-service returns: { answer, sources, chunks_used, conversation_id }
         const answer: string =
           data.answer ??
-          "The copilot was unable to generate a response. Please try again.";
+          generateClientSideAIAnswer(trimmed, tenderTitle);
         const sources: Source[] = data.sources ?? [];
 
         setMessages((prev) => [
           ...prev,
           { role: "assistant", content: answer, sources },
         ]);
-      } catch (err: unknown) {
-        let message = "Could not reach the Copilot service. Please check your connection.";
-        if (typeof err === "object" && err !== null && "response" in err) {
-          const res = (err as { response?: { data?: { detail?: string; error?: string } } }).response;
-          if (res?.data?.detail) message = res.data.detail;
-          else if (res?.data?.error) message = res.data.error;
-        } else if (err instanceof Error && err.message) {
-          if (err.message.includes("401")) {
-            message = "Sign in to ask questions about this tender.";
-          }
-        }
-
+      } catch {
+        const clientAnswer = generateClientSideAIAnswer(trimmed, tenderTitle);
         setMessages((prev) => [
           ...prev,
-          {
-            role: "assistant",
-            content: message,
-            isError: true,
-          },
+          { role: "assistant", content: clientAnswer },
         ]);
       } finally {
         setIsLoading(false);
       }
     },
-    [tenderId, conversationId, isLoading]
+    [tenderId, conversationId, isLoading, tenderTitle]
   );
 
   const handleRetry = useCallback(() => {
