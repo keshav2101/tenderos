@@ -153,6 +153,27 @@ async def generate_proposal(tender_id: str, user_id: str = "default_user"):
             },
         }
 
+        req_certs = tender_spec.get("required_certifications") or ["ISO 9001:2015"]
+        t_title = tender_spec.get("title", "Government Tender")
+        t_org = tender_spec.get("organisation", "Public Authority")
+        t_turnover = tender_spec.get("min_turnover_lakhs", 100.0)
+
+        missing_docs = [
+            {
+                "name": f"Udyam MSME Registration Certificate for {t_org}",
+                "action": "Upload active Udyam certificate to claim EMD waiver and purchase preference",
+            }
+        ]
+        for cert_item in req_certs:
+            missing_docs.append({
+                "name": f"Valid {cert_item} Certificate",
+                "action": f"Attach certified legal copy of {cert_item} matching tender requirements for {t_title}",
+            })
+        missing_docs.append({
+            "name": f"Audited Financial Turnover Certificate (>= ₹{t_turnover:,.2f}L)",
+            "action": f"Upload UDIN-verified CA turnover certificate satisfying {t_org} minimum criteria",
+        })
+
     return {
         "tender_id": tender_id,
         "user_id": user_id,
@@ -160,12 +181,7 @@ async def generate_proposal(tender_id: str, user_id: str = "default_user"):
         "compliance_check": compliance_results,
         "technical_proposal_draft": tech_results,
         "risk_assessment": risk_results,
-        "missing_documents_checklist": [
-            {
-                "name": "ISO 27001:2022 Certificate",
-                "action": "Upload certificate or apply for waiver if allowed for MSMEs",
-            }
-        ],
+        "missing_documents_checklist": missing_docs,
         "generated_by": "Autonomous Procurement Copilot Agents",
     }
 

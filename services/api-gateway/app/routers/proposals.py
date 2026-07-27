@@ -211,6 +211,39 @@ Our proposed solution is engineered specifically to address the operational and 
 - **Make in India:** Class-I Local Supplier status with 68% local content self-declaration.
 """
 
+    missing_docs = []
+    if msme_elig:
+        missing_docs.append({
+            "name": f"Udyam MSME Certificate (EMD ₹{emd_val:,.2f}L Waiver)",
+            "action": f"Attach active Udyam registration to claim 100% EMD exemption for {org}",
+        })
+    else:
+        missing_docs.append({
+            "name": f"Bank Guarantee / Demand Draft for EMD (₹{emd_val:,.2f} Lakhs)",
+            "action": f"Issue e-BG / DD from Scheduled Commercial Bank in favor of {org}",
+        })
+
+    for c in certs:
+        missing_docs.append({
+            "name": f"Valid {c} Accreditation Certificate",
+            "action": f"Upload certified copy of {c} matching legal entity for {title}",
+        })
+
+    missing_docs.append({
+        "name": f"Past Completion Certificate ({exp_req}+ Years in {cats[0]})",
+        "action": f"Provide client sign-off certificate for prior government execution in {cats[0]} valued > ₹{(est_cost * 0.3):,.2f}L",
+    })
+
+    missing_docs.append({
+        "name": f"CA Audited Financial Statements (Turnover >= ₹{turnover_req:,.2f}L)",
+        "action": f"Upload UDIN-verified CA financial certificate for last 3 FYs to satisfy {org} requirement",
+    })
+
+    missing_docs.append({
+        "name": "Class-I Local Supplier Self-Declaration Affidavit",
+        "action": f"Submit signed local content percentage declaration under GFR Rule 144(xi) for {org}",
+    })
+
     return {
         "tender_id": tender_id,
         "user_id": user_id,
@@ -218,16 +251,7 @@ Our proposed solution is engineered specifically to address the operational and 
         "compliance_check": compliance_matrix,
         "technical_proposal_draft": tech_draft,
         "risk_assessment": risk_assessment,
-        "missing_documents_checklist": [
-            {
-                "name": f"{certs[0]} Appraisal Certificate",
-                "action": "Upload valid certificate from issuing registrar before bid submission deadline",
-            },
-            {
-                "name": "Class-I Local Supplier Self-Declaration",
-                "action": "Attach signed Make in India local content percentage affidavit",
-            },
-        ],
+        "missing_documents_checklist": missing_docs,
         "generated_by": f"Autonomous Procurement Copilot Agent — Dynamic Multi-Agent Engine ({title})",
     }
 
