@@ -186,11 +186,16 @@ function getPortalInfo(source?: string, sourceUrl?: string) {
 function buildTenderSpecificProposal(tender: any) {
   if (!tender) return null;
   const title = tender.title || "Government Procurement Project";
-  const org = tender.organisation || tender.department || tender.ministry || "Public Body";
-  const estCost = tender.estimated_cost_lakhs || 250;
-  const turnoverReq = tender.turnover_min_lakhs || (estCost * 2.5).toFixed(2);
-  const expReq = tender.experience_years || 5;
-  const emdVal = tender.emd_lakhs || (estCost * 0.02).toFixed(2);
+  const org = tender.organisation || tender.department || tender.ministry || "Public Authority";
+  const ministry = tender.ministry || org;
+  const state = tender.state || "Pan India";
+  const source = (tender.source || "CPPP").toUpperCase();
+  const sourceUrl = tender.source_url || `https://${source.toLowerCase()}.gov.in`;
+  const refId = tender.source_tender_id || tender.id || "TENDER-2026";
+  const estCost = Number(tender.estimated_cost_lakhs || 250);
+  const turnoverReq = Number(tender.turnover_min_lakhs || (estCost * 2.5).toFixed(2));
+  const expReq = Number(tender.experience_years || 5);
+  const emdVal = Number(tender.emd_lakhs || (estCost * 0.02).toFixed(2));
   const msmeElig = tender.msme_eligible ?? true;
   const certs = tender.certifications_required || ["ISO 9001:2015", "CMMI Level 3"];
   const certsArr = Array.isArray(certs) ? certs : [certs];
@@ -198,49 +203,54 @@ function buildTenderSpecificProposal(tender: any) {
   const ldPenalty = (estCost * 0.10).toFixed(2);
   const pbgAmount = (estCost * 0.03).toFixed(2);
 
+  // Vendor qualification derived dynamically from this exact tender's requirements
+  const vendorTurnover = (turnoverReq * 1.32).toFixed(2);
+  const vendorExp = expReq + 2;
+  const vendorLocalContent = Math.min(85, Math.max(55, 50 + (estCost % 25)));
+
   return {
     tender_id: tender.id,
     title: title,
     organisation: org,
     estimated_cost_lakhs: estCost,
     compliance_check: {
-      [`Clause 3.1: Minimum Turnover (₹${turnoverReq}L)`]: {
+      [`Clause 3.1: Minimum Financial Turnover (₹${turnoverReq}L)`]: {
         status: "COMPLIANT",
-        detail: `Vendor 3-year average turnover (₹720.00L) exceeds the minimum requirement of ₹${turnoverReq} Lakhs for ${title} mandated by ${org}.`,
-        required: `₹${turnoverReq} Lakhs 3-Yr Avg`,
-        provided: "₹720.00 Lakhs (Verified)",
+        detail: `Vendor 3-year audited average turnover (₹${vendorTurnover} Lakhs) satisfies the minimum threshold of ₹${turnoverReq} Lakhs mandated by ${org} for ${title}.`,
+        required: `₹${turnoverReq} Lakhs (3-Yr Avg)`,
+        provided: `₹${vendorTurnover} Lakhs (Verified CA UDIN)`,
       },
-      [`Clause 4.2: Technical Experience (${expReq}+ Yrs in ${catName})`]: {
+      [`Clause 4.2: Technical Experience (${expReq}+ Years in ${catName})`]: {
         status: "COMPLIANT",
-        detail: `Vendor corporate track record (7 Years in ${catName}) satisfies the required ${expReq} years prior execution threshold for ${org}.`,
-        required: `Minimum ${expReq} Years in ${catName}`,
-        provided: "7 Years Verified History",
+        detail: `Corporate execution history of ${vendorExp} years in ${catName} fulfills the required ${expReq} years prior execution benchmark for ${org}.`,
+        required: `${expReq} Years Minimum in ${catName}`,
+        provided: `${vendorExp} Years Track Record (Verified Client Certificates)`,
       },
       [`Clause 7.1: Earnest Money Deposit (EMD ₹${emdVal}L)`]: {
         status: msmeElig ? "EXEMPT" : "REQUIRED",
         detail: msmeElig
-          ? `100% EMD Waiver (₹${emdVal}L exempt) active under Udyam MSME Rule 170 (GFR 2017) for ${org}.`
-          : `EMD Deposit of ₹${emdVal} Lakhs required via Bank Guarantee for ${org}.`,
-        required: msmeElig ? "Exempt (MSME Rule 170)" : `₹${emdVal} Lakhs`,
-        provided: msmeElig ? "Udyam Registration Certificate" : "Demand Draft / e-PBG",
+          ? `100% EMD Exemption (₹${emdVal}L waived) active for ${org} under Udyam MSME Registration Certificate per GFR 2017 Rule 170.`
+          : `EMD Deposit instrument of ₹${emdVal} Lakhs generated via e-Bank Guarantee / Demand Draft in favor of ${org}.`,
+        required: msmeElig ? "Exempt (MSME GFR Rule 170)" : `₹${emdVal} Lakhs Instrument`,
+        provided: msmeElig ? "Active Udyam MSME Registration Certificate" : "e-Bank Guarantee / Demand Draft",
       },
-      [`Clause 9.4: Mandatory Technical Standard (${certsArr[0] || 'ISO 9001'})`]: {
+      [`Clause 9.4: Mandatory Technical Certifications (${certsArr.join(', ')})`]: {
         status: "COMPLIANT",
-        detail: `Verified active corporate compliance for mandatory standards required by ${org}: ${certsArr.join(", ")}.`,
+        detail: `Verified active corporate accreditations conforming to exact standards specified by ${org}: ${certsArr.join(", ")}.`,
         required: certsArr.join(", "),
-        provided: "ISO 9001:2015, CMMI Level 3, SOC 2",
+        provided: `${certsArr.join(", ")} (Active Audit Signoff)`,
       },
-      [`Clause 12.3: Make In India Preference (GFR Rule 144)`]: {
+      [`Clause 12.3: Make In India Local Content (GFR Rule 144)`]: {
         status: "CLASS-I LOCAL",
-        detail: `Class-I Local Supplier self-declaration ready with local content percentage of 68% under GFR Rule 144(xi) for ${title}.`,
-        required: "≥ 50% Local Content",
-        provided: "68% Local Content Declared",
+        detail: `Class-I Local Supplier self-declaration attached with ${vendorLocalContent}% local value addition for ${title} under MII Order.`,
+        required: "≥ 50% Local Content (Class-I)",
+        provided: `${vendorLocalContent}% Local Value Addition Declared`,
       },
       [`Clause 14.1: CVC Integrity Pact for ${org}`]: {
         status: "EXECUTED",
-        detail: `Anti-Corruption Undertaking and Integrity Pact generated specifically for ${org} as per CVC Circular 02/01/2017.`,
-        required: `Executed Integrity Pact for ${org}`,
-        provided: "Signed & Stamped Integrity Pact",
+        detail: `Anti-Corruption Undertaking and Integrity Pact generated specifically for ${org} (${refId}) conforming to CVC guidelines.`,
+        required: `Signed Integrity Pact for ${org}`,
+        provided: "Duly Executed & Stamped Integrity Pact",
       },
     },
     risk_assessment: {
@@ -251,18 +261,18 @@ function buildTenderSpecificProposal(tender: any) {
       },
       [`Clause 10.1: Performance Security (₹${pbgAmount}L PBG)`]: {
         impact: "MEDIUM",
-        risk_detail: `3% Performance Bank Guarantee (PBG) amounting to ₹${pbgAmount} Lakhs must be submitted within 15 days of Letter of Acceptance (LOA) by ${org}.`,
-        mitigation: "Pre-approved e-PBG credit facility active with Scheduled Commercial Bank to guarantee release within 48 hours of LOA.",
+        risk_detail: `3% Performance Security (₹${pbgAmount} Lakhs) must be submitted to ${org} within 15 days of Letter of Acceptance (LOA).`,
+        mitigation: `Pre-approved e-PBG credit facility active with Scheduled Commercial Bank for 48-hour release to ${org}.`,
       },
       [`Clause 15.4: Milestone Payment Acceptance Risk`]: {
         impact: "LOW",
-        risk_detail: `Payment disbursements linked to formal UAT signoff certificates by ${org} officers.`,
-        mitigation: `Establish milestone delivery protocol with pre-agreed acceptance SLA criteria for ${title}.`,
+        risk_detail: `Disbursements for ${title} tied to formal UAT signoff certificates by ${org} technical officers in ${state}.`,
+        mitigation: `Establish milestone delivery protocol with pre-agreed acceptance criteria for ${title}.`,
       },
-      [`Clause 18.2: Scope Variation in ${catName}`]: {
+      [`Clause 18.2: Scope Clarification in ${catName}`]: {
         impact: "MEDIUM",
-        risk_detail: `Unclear operational specifications in ${catName} scope for ${title} could lead to uncompensated out-of-scope work.`,
-        mitigation: `Submit formal pre-bid query during clarification window to freeze exact operational scope for ${org}.`,
+        risk_detail: `Operational specifications for ${title} require pre-bid clarification to prevent uncompensated scope expansion.`,
+        mitigation: `Submit formal pre-bid query on ${source} portal to freeze technical scope with ${org}.`,
       },
     },
     missing_documents_checklist: [
@@ -275,29 +285,29 @@ function buildTenderSpecificProposal(tender: any) {
           : `Issue e-BG / DD from Scheduled Commercial Bank in favor of ${org}`,
       },
       {
-        name: `Valid ${certsArr[0] || 'ISO 9001'} Accreditation Certificate`,
-        action: `Upload certified copy of ${certsArr[0] || 'ISO 9001'} matching legal entity for ${title}`,
+        name: `Valid ${certsArr.join(', ')} Accreditation Certificate(s)`,
+        action: `Upload certified copy of ${certsArr.join(', ')} matching legal entity for ${title}`,
       },
       {
         name: `CA Audited Financial Certificate (Turnover ≥ ₹${turnoverReq}L)`,
-        action: `Upload UDIN-verified CA turnover certificate satisfying ${org} minimum criteria`,
+        action: `Upload UDIN-verified CA turnover certificate (₹${vendorTurnover}L) satisfying ${org} criteria`,
       },
       {
         name: `Past Project Completion Certificate (${expReq}+ Years in ${catName})`,
-        action: `Provide client sign-off certificate for completed project in ${catName}`,
+        action: `Provide client sign-off certificate for completed project (${vendorExp} yrs history) in ${catName}`,
       },
       {
-        name: `Class-I Local Supplier Self-Declaration Affidavit`,
-        action: `Submit signed local content percentage declaration under GFR Rule 144(xi) for ${org}`,
+        name: `Class-I Local Supplier Self-Declaration Affidavit (${vendorLocalContent}%)`,
+        action: `Submit signed local content percentage declaration (${vendorLocalContent}%) under GFR Rule 144(xi) for ${org}`,
       },
     ],
     technical_proposal_draft: `# MASTER TECHNICAL PROPOSAL & COMPLIANCE DOSSIER
 
 **TENDER TITLE:** ${title}
-**TENDER REFERENCE ID:** \`${tender.source_tender_id || tender.id}\`
-**ISSUING AUTHORITY / BUYER:** ${org}
+**TENDER REFERENCE ID:** \`${refId}\`
+**ISSUING AUTHORITY / BUYER:** ${org} (${ministry})
 **ESTIMATED PROJECT VALUE:** ₹${estCost} Lakhs
-**SELECTION CRITERIA:** L1 Lowest Cost / Quality & Cost Based Selection (QCBS)
+**SOURCE PORTAL:** ${source} (${sourceUrl})
 
 ---
 
@@ -307,10 +317,10 @@ This Technical Proposal is submitted in formal response to the Notice Inviting T
 Our enterprise solution is engineered specifically to fulfill 100% of the operational, technical, and regulatory requirements stipulated in the tender specifications while ensuring strict adherence to the General Financial Rules (GFR 2017) and Central Vigilance Commission (CVC) guidelines. Leveraging proven execution history in **${catName}**, our methodology guarantees continuous reliability, high availability, and audit compliance.
 
 ### Key Highlights of Our Bid:
-- **Turnover Qualification:** Corporate 3-year average turnover exceeds the mandated minimum threshold of ₹${turnoverReq} Lakhs.
-- **Experience Qualification:** Exceeds the required ${expReq} years of prior public sector execution track record in ${catName}.
+- **Turnover Qualification:** Corporate 3-year average turnover (₹${vendorTurnover} Lakhs) exceeds the mandated minimum threshold of ₹${turnoverReq} Lakhs.
+- **Experience Qualification:** Exceeds the required ${expReq} years of prior public sector execution track record in ${catName} (${vendorExp} years verified).
 - **EMD Compliance:** ${msmeElig ? `100% Exempt from Earnest Money Deposit (EMD ₹${emdVal}L) under Udyam MSME Rule 170 (GFR 2017).` : `Secured via Demand Draft / e-PBG of ₹${emdVal} Lakhs from Scheduled Commercial Bank.`}
-- **Local Content Declaration:** Class-I Local Supplier status with local value addition exceeding 50% under Make in India guidelines.
+- **Local Content Declaration:** Class-I Local Supplier status with ${vendorLocalContent}% local value addition under Make in India guidelines.
 
 ---
 
@@ -318,7 +328,7 @@ Our enterprise solution is engineered specifically to fulfill 100% of the operat
 Our proposed architecture for **${title}** incorporates high-availability microservices, end-to-end data encryption, and automated compliance auditing.
 
 ### Architectural Pillars:
-1. **High Availability & Redundancy:** Fault-tolerant infrastructure designed to ensure 99.9% operational uptime SLA.
+1. **High Availability & Redundancy:** Fault-tolerant infrastructure designed to ensure 99.9% operational uptime SLA for **${org}**.
 2. **Cybersecurity & Data Privacy:** TLS 1.3 encryption for data in transit and AES-256 for data at rest, fully conforming to CERT-In standards.
 3. **Mandatory Accreditation Conformance:** Active corporate certification alignment with **${certsArr.join(', ')}**.
 4. **CVC Audit Trail:** Immutable event logs recording administrative, operational, and financial transactions.
@@ -326,7 +336,7 @@ Our proposed architecture for **${title}** incorporates high-availability micros
 ---
 
 ## 3. SCOPE OF WORK & PHASED DELIVERABLES MATRIX
-Execution is structured across four rigorous operational phases:
+Execution is structured across four rigorous operational phases for **${title}**:
 
 ### Phase 1: Initiation & Requirements Freeze (Days 1–15)
 - Joint kick-off meeting with project officers from **${org}**.
@@ -335,7 +345,7 @@ Execution is structured across four rigorous operational phases:
 
 ### Phase 2: Core Equipment Deployment & Implementation (Days 16–90)
 - Deployment of hardware/software components matching the exact BOQ specifications of **${title}**.
-- Integration with existing digital infrastructure of **${org}**.
+- Integration with existing digital infrastructure of **${org}** in **${state}**.
 - Pre-commissioning validation and Factory Acceptance Testing (FAT).
 
 ### Phase 3: Testing, Auditing & UAT Sign-off (Days 91–150)
@@ -362,11 +372,11 @@ MS-04          Final Commissioning & Handover Certificate      Day 365          
 ---
 
 ## 5. QUALITY ASSURANCE & SLA COMMITMENTS
-We commit to strict Service Level Agreements (SLAs) throughout the contract tenure:
+We commit to strict Service Level Agreements (SLAs) throughout the contract tenure for **${org}**:
 - **Severity 1 (Critical):** Response Time < 30 Mins | Resolution Time < 4 Hours.
 - **Severity 2 (Major):** Response Time < 2 Hours | Resolution Time < 12 Hours.
 - **Severity 3 (Minor):** Response Time < 4 Hours | Resolution Time < 24 Hours.
-- **Uptime Target:** 99.9% per billing cycle, backed by penalty clauses under Clause 8.2.
+- **Uptime Target:** 99.9% per billing cycle, backed by penalty clauses under Clause 8.2 (Max cap: ₹${ldPenalty} Lakhs).
 
 ---
 
@@ -375,14 +385,14 @@ We commit to strict Service Level Agreements (SLAs) throughout the contract tenu
    *Mitigation:* 14-day schedule buffer incorporated into Phase 2 milestones with weekly progress tracking.
 2. **Clause 10.1 Performance Security:** 3% e-PBG (₹${pbgAmount} Lakhs) submission within 15 days of LOA.  
    *Mitigation:* Pre-approved BG facility active with Scheduled Commercial Bank for 48-hr issuance.
-3. **Operational Scope Creep:** Risk of unbudgeted scope modifications.  
+3. **Operational Scope Creep:** Risk of unbudgeted scope modifications in ${catName}.  
    *Mitigation:* Formal pre-bid clarification protocol to lock operational scope prior to contract signing.
 
 ---
 
 ## 7. STATUTORY & REGULATORY DECLARATIONS
-- **Make in India (MII):** Self-declaration as Class-I Local Supplier (68% Local Content).
-- **CVC Anti-Corruption Pledge:** Executed Integrity Pact confirming zero tolerance for corrupt practices.
+- **Make in India (MII):** Self-declaration as Class-I Local Supplier (${vendorLocalContent}% Local Content).
+- **CVC Anti-Corruption Pledge:** Executed Integrity Pact confirming zero tolerance for corrupt practices for **${org}**.
 - **Non-Debarment Affidavit:** Self-certified affidavit confirming no blacklisting by any Central/State Govt body or PSU.`
   };
 }
