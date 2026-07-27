@@ -41,7 +41,6 @@ class LLMClient:
         import google.generativeai as genai
 
         genai.configure(api_key=settings.GEMINI_API_KEY)
-        model = genai.GenerativeModel("gemini-2.0-flash")
 
         # Convert chat history to Gemini format
         contents = []
@@ -49,11 +48,29 @@ class LLMClient:
             role = "model" if m["role"] == "assistant" else m["role"]
             contents.append({"role": role, "parts": [m["content"]]})
 
-        response = await asyncio.wait_for(
-            asyncio.to_thread(model.generate_content, contents),
-            timeout=5.0,
-        )
-        return response.text
+        try:
+            model = genai.GenerativeModel("gemini-2.0-flash")
+            response = await asyncio.wait_for(
+                asyncio.to_thread(model.generate_content, contents),
+                timeout=25.0,
+            )
+            if response and response.text:
+                return response.text
+        except Exception as err:
+            logger.warning("Gemini 2.0 Flash call failed, trying gemini-1.5-flash fallback", error=str(err))
+
+        try:
+            model_fallback = genai.GenerativeModel("gemini-1.5-flash")
+            response = await asyncio.wait_for(
+                asyncio.to_thread(model_fallback.generate_content, contents),
+                timeout=25.0,
+            )
+            if response and response.text:
+                return response.text
+        except Exception as err:
+            logger.warning("Gemini 1.5 Flash fallback failed", error=str(err))
+
+        raise RuntimeError("Gemini API calls failed or timed out")
 
     async def _call_openai(self, messages: list) -> str:
         from openai import AsyncOpenAI
