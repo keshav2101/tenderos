@@ -47,52 +47,106 @@ function ScoreRing({ score }: { score: number }) {
   );
 }
 
-function getSectorCompetitors(category: string = "", estCost: number = 250) {
-  const catUpper = (category || "").toUpperCase();
-  if (catUpper.includes("DEFENCE") || catUpper.includes("DRONE") || catUpper.includes("ARMOR")) {
-    return [
-      { name: "Hindustan Aeronautics Ltd (HAL)", share: 34, discount: "8.5% below est.", color: "bg-indigo-500" },
-      { name: "Bharat Electronics Limited (BEL)", share: 26, discount: "10.2% below est.", color: "bg-emerald-500" },
-      { name: "L&T Defence Systems", share: 18, discount: "9.0% below est.", color: "bg-amber-500" },
-      { name: "Mazagon Dock Shipbuilders", share: 12, discount: "7.8% below est.", color: "bg-purple-500" },
-      { name: "Bharat Dynamics Limited (BDL)", share: 10, discount: "11.0% below est.", color: "bg-cyan-500" },
+function getTenderSpecificCompetitors(tender: any) {
+  if (!tender) return [];
+
+  const tenderId = String(tender.id || "tender-001");
+  const title = String(tender.title || "").toUpperCase();
+  const cats = Array.isArray(tender.categories) ? tender.categories.join(" ").toUpperCase() : String(tender.categories || "").toUpperCase();
+  const org = String(tender.organisation || tender.department || tender.ministry || "").toUpperCase();
+  const estCost = Number(tender.estimated_cost_lakhs || 250);
+
+  // Deterministic seed generation from tender.id
+  let hash = 0;
+  for (let i = 0; i < tenderId.length; i++) {
+    hash = (hash << 5) - hash + tenderId.charCodeAt(i);
+    hash |= 0;
+  }
+  const seed = Math.abs(hash);
+
+  let candidatePool: string[] = [];
+
+  if (title.includes("DRONE") || title.includes("UAV") || cats.includes("DRONE")) {
+    candidatePool = [
+      "IdeaForge Technology Ltd", "Hindustan Aeronautics (HAL)", "Bharat Electronics (BEL)",
+      "Zen Technologies Ltd", "Adani Defence & Aerospace", "Paras Defence & Space",
+      "Garuda Aerospace", "Dassault Reliance Aerospace"
+    ];
+  } else if (title.includes("DEFENCE") || title.includes("ARMOR") || cats.includes("DEFENCE") || org.includes("DEFENCE") || org.includes("DRDO") || org.includes("ARMY")) {
+    candidatePool = [
+      "Hindustan Aeronautics (HAL)", "Bharat Electronics (BEL)", "L&T Defence Systems",
+      "Mazagon Dock Shipbuilders", "Bharat Dynamics Ltd (BDL)", "BHEL Defence Division",
+      "Garden Reach Shipbuilders", "Mishra Dhatu Nigam (MIDHANI)"
+    ];
+  } else if (title.includes("HEALTH") || title.includes("MED") || title.includes("HOSPITAL") || title.includes("VENTILATOR") || cats.includes("HEALTH")) {
+    candidatePool = [
+      "Siemens Healthineers India", "GE Healthcare India", "Philips Medical Systems",
+      "Trivitron Healthcare", "Allengers Medical Systems", "Poly Medicure Ltd",
+      "Opto Circuits India", "Agappe Diagnostics"
+    ];
+  } else if (title.includes("CIVIL") || title.includes("CONSTRUCTION") || title.includes("INFRA") || title.includes("ROAD") || title.includes("BRIDGE") || cats.includes("CIVIL") || org.includes("PWD") || org.includes("NHAI")) {
+    candidatePool = [
+      "L&T Construction Infrastructure", "Dilip Buildcon Ltd", "NCC Limited (Nagarjuna)",
+      "IRCON International Ltd", "NBCC (India) Limited", "KPTL (Kalpataru Power)",
+      "GR Infraprojects Ltd", "PNC Infratech Ltd"
+    ];
+  } else if (title.includes("ENERGY") || title.includes("POWER") || title.includes("SOLAR") || title.includes("EV") || cats.includes("ENERGY") || org.includes("NTPC")) {
+    candidatePool = [
+      "NTPC Green Energy Ltd", "Tata Power Solar Systems", "Adani Green Energy Ltd",
+      "ReNew Power Ventures", "Azure Power Global", "Sterling & Wilson Renewable",
+      "Suzlon Energy Ltd", "Waaree Energies"
+    ];
+  } else if (title.includes("RAIL") || title.includes("TRAIN") || cats.includes("RAIL") || org.includes("RAIL") || org.includes("IREPS")) {
+    candidatePool = [
+      "Siemens Mobility India", "Alstom Transport India", "BHEL Rail Business Unit",
+      "Titagarh Rail Systems", "Texmaco Rail & Engineering", "RailTel Corporation",
+      "Medha Servo Drives", "Hind Rectifiers Ltd"
+    ];
+  } else {
+    candidatePool = [
+      "Tata Consultancy Services (TCS)", "L&T Technology Services", "Wipro Public Sector",
+      "Infosys Public Services", "Tech Mahindra Limited", "Telecommunications Consultants (TCIL)",
+      "HCL Technologies India", "Cognizant India Public Sector"
     ];
   }
-  if (catUpper.includes("HEALTH") || catUpper.includes("MED") || catUpper.includes("VENTILATOR")) {
-    return [
-      { name: "Siemens Healthineers India", share: 31, discount: "7.8% below est.", color: "bg-indigo-500" },
-      { name: "GE Healthcare India", share: 25, discount: "8.4% below est.", color: "bg-emerald-500" },
-      { name: "Philips Medical Systems", share: 20, discount: "9.1% below est.", color: "bg-amber-500" },
-      { name: "Trivitron Healthcare", share: 14, discount: "10.5% below est.", color: "bg-purple-500" },
-      { name: "Allengers Medical Systems", share: 10, discount: "12.0% below est.", color: "bg-cyan-500" },
-    ];
+
+  const selectedNames: string[] = [];
+  for (let i = 0; i < 5; i++) {
+    const idx = (seed + i * 7) % candidatePool.length;
+    let candidate = candidatePool[idx];
+    if (selectedNames.includes(candidate)) {
+      candidate = candidatePool[(idx + 1) % candidatePool.length];
+    }
+    selectedNames.push(candidate);
   }
-  if (catUpper.includes("CIVIL") || catUpper.includes("CONSTRUCTION") || catUpper.includes("INFRA")) {
-    return [
-      { name: "L&T Construction Infrastructure", share: 36, discount: "9.5% below est.", color: "bg-indigo-500" },
-      { name: "Dilip Buildcon Limited", share: 22, discount: "11.2% below est.", color: "bg-emerald-500" },
-      { name: "NCC Limited (Nagarjuna)", share: 17, discount: "10.0% below est.", color: "bg-amber-500" },
-      { name: "IRCON International Ltd", share: 15, discount: "8.2% below est.", color: "bg-purple-500" },
-      { name: "NBCC (India) Limited", share: 10, discount: "7.0% below est.", color: "bg-cyan-500" },
-    ];
-  }
-  if (catUpper.includes("ENERGY") || catUpper.includes("POWER") || catUpper.includes("SOLAR") || catUpper.includes("EV")) {
-    return [
-      { name: "NTPC Green Energy Ltd", share: 33, discount: "8.8% below est.", color: "bg-indigo-500" },
-      { name: "Tata Power Solar Systems", share: 27, discount: "9.4% below est.", color: "bg-emerald-500" },
-      { name: "Adani Green Energy Ltd", share: 19, discount: "11.5% below est.", color: "bg-amber-500" },
-      { name: "ReNew Power Ventures", share: 12, discount: "10.0% below est.", color: "bg-purple-500" },
-      { name: "Azure Power Global", share: 9, discount: "12.2% below est.", color: "bg-cyan-500" },
-    ];
-  }
-  return [
-    { name: "Tata Consultancy Services (TCS)", share: 30, discount: "7.5% below est.", color: "bg-indigo-500" },
-    { name: "L&T Technology Services", share: 25, discount: "9.2% below est.", color: "bg-emerald-500" },
-    { name: "Wipro Enterprise Solutions", share: 20, discount: "8.0% below est.", color: "bg-amber-500" },
-    { name: "Infosys Public Services", share: 15, discount: "8.8% below est.", color: "bg-purple-500" },
-    { name: "Tech Mahindra Limited", share: 10, discount: "10.1% below est.", color: "bg-cyan-500" },
+
+  const rawShares = [
+    30 + (seed % 9),
+    22 + ((seed * 3) % 7),
+    15 + ((seed * 5) % 6),
+    10 + ((seed * 7) % 5),
+    6 + ((seed * 11) % 4)
   ];
+  const shareSum = rawShares.reduce((a, b) => a + b, 0);
+
+  const colors = ["bg-indigo-500", "bg-emerald-500", "bg-amber-500", "bg-purple-500", "bg-cyan-500"];
+
+  return selectedNames.map((name, idx) => {
+    const share = Math.round((rawShares[idx] / shareSum) * 100);
+    const discountPct = Number((6.5 + ((seed * (idx + 1) * 3) % 55) / 10).toFixed(1));
+    const targetBidLakhs = Number((estCost * (1 - discountPct / 100)).toFixed(2));
+
+    return {
+      name,
+      share,
+      discountPct,
+      discountText: `${discountPct}% below est.`,
+      targetBidLakhs,
+      color: colors[idx % colors.length]
+    };
+  });
 }
+
 
 const PORTAL_URL_MAP: Record<string, { label: string; url: string }> = {
   gem:         { label: "GeM",          url: "https://gem.gov.in" },
@@ -746,7 +800,7 @@ export default function TenderDetailPage({ params }: { params: { id: string } })
         {activeTab === "market" && (() => {
           const categoryName = tender.categories?.[0] || tender.title || "General";
           const estCost = tender.estimated_cost_lakhs || 250;
-          const competitorsList = getSectorCompetitors(categoryName, estCost);
+          const competitorsList = getTenderSpecificCompetitors(tender);
           const matchedBuyer = buyerProfiles.find((b) =>
             (b.buyer_name || "").toLowerCase().includes((tender.organisation || tender.department || tender.ministry || "").toLowerCase()) ||
             (b.ministry_name || "").toLowerCase().includes((tender.ministry || "").toLowerCase())
@@ -842,11 +896,13 @@ export default function TenderDetailPage({ params }: { params: { id: string } })
                     <span className="text-[10px] text-muted">Sector: {categoryName}</span>
                   </div>
                   <div className="space-y-3">
-                    {competitorsList.map((comp) => (
+                    {competitorsList.map((comp: any) => (
                       <div key={comp.name} className="space-y-1">
                         <div className="flex justify-between text-xs">
                           <span className="text-primary font-semibold">{comp.name}</span>
-                          <span className="text-secondary font-mono">{comp.share}% share <span className="text-muted">({comp.discount})</span></span>
+                          <span className="text-secondary font-mono">
+                            {comp.share}% share <span className="text-muted">({comp.discountText} &rarr; Target L1: ₹{comp.targetBidLakhs.toLocaleString("en-IN")}L)</span>
+                          </span>
                         </div>
                         <div className="w-full bg-slate-800 rounded-full h-2">
                           <div className={`${comp.color} h-2 rounded-full`} style={{ width: `${comp.share}%` }} />
