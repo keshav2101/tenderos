@@ -4,8 +4,9 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Bookmark, IndianRupee, MapPin, Building2, Clock, Trash2,
-  TrendingUp, PieChart, ShieldCheck, Zap, ArrowUpRight, Filter,
-  Sparkles, CheckCircle2, AlertCircle, Loader2, BarChart2
+  TrendingUp, PieChart as PieChartIcon, ShieldCheck, Zap, ArrowUpRight, Filter,
+  Sparkles, CheckCircle2, AlertCircle, Loader2, BarChart2, Search, SlidersHorizontal,
+  FolderOpen, Calendar, Star, FileText, ChevronRight
 } from "lucide-react";
 import { tendersApi } from "@/lib/api";
 
@@ -91,6 +92,7 @@ const DEFAULT_SAMPLE_WATCHLIST: WatchlistTender[] = [
 export default function WatchlistPage() {
   const [tenders, setTenders] = useState<WatchlistTender[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
 
   async function loadWatchlist() {
@@ -131,7 +133,7 @@ export default function WatchlistPage() {
       <div className="flex h-full items-center justify-center p-12">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="w-8 h-8 text-primary animate-spin" />
-          <span className="text-xs text-muted">Loading Watchlist Portfolio Analytics...</span>
+          <span className="text-xs text-secondary font-medium">Initializing Portfolio Analytics Engine...</span>
         </div>
       </div>
     );
@@ -150,157 +152,231 @@ export default function WatchlistPage() {
   const readySubmitCount = tenders.filter((t) => t.engagement_status === "READY_TO_SUBMIT").length;
   const underReviewCount = tenders.filter((t) => t.engagement_status === "UNDER_REVIEW").length;
 
-  // Filtered List
+  // Filtered List based on search query & status tabs
   const filteredTenders = tenders.filter((t) => {
-    if (filterStatus === "ALL") return true;
-    return t.engagement_status === filterStatus;
+    const matchesStatus = filterStatus === "ALL" || t.engagement_status === filterStatus;
+    const q = searchQuery.toLowerCase().trim();
+    const matchesQuery = !q || 
+      t.title.toLowerCase().includes(q) || 
+      (t.ministry && t.ministry.toLowerCase().includes(q)) || 
+      (t.state && t.state.toLowerCase().includes(q)) ||
+      (t.category && t.category.toLowerCase().includes(q));
+    return matchesStatus && matchesQuery;
   });
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-primary flex items-center gap-2">
-            <Bookmark className="w-6 h-6 text-indigo-400" /> Watchlist & Opportunity Portfolio
+    <div className="p-6 max-w-7xl mx-auto space-y-6">
+      {/* Premium Hero Banner */}
+      <div className="card p-6 bg-gradient-to-r from-slate-950 via-indigo-950/50 to-slate-950 border border-indigo-500/20 backdrop-blur-xl shadow-2xl shadow-indigo-500/5 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden">
+        <div className="absolute -right-10 -bottom-10 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="space-y-1.5 relative z-10">
+          <div className="flex items-center gap-2">
+            <span className="badge badge-blue text-[10px] py-1 px-2.5 flex items-center gap-1 font-bold">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> LIVE PORTFOLIO ENGINE
+            </span>
+            <span className="text-xs text-muted">GFR 2017 & GeM Compliant</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-primary flex items-center gap-3">
+            <Bookmark className="w-7 h-7 text-indigo-400" /> Watchlist & Opportunity Portfolio
           </h1>
-          <p className="text-sm text-muted mt-0.5">
-            Active engagement analytics, tender capital exposure, and interest tracking.
+          <p className="text-sm text-secondary max-w-2xl">
+            Real-time pipeline analytics, capital liability exposure, and active bid engagement tracking.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="badge badge-blue text-xs py-1.5 px-3">
-            <Zap className="w-3.5 h-3.5 mr-1" /> Active Portfolio Tracking
-          </span>
+
+        <div className="flex items-center gap-3 relative z-10">
+          <Link href="/dashboard/search">
+            <button className="btn btn-primary text-xs py-2.5 px-4 rounded-xl flex items-center gap-2 shadow-lg shadow-indigo-500/20">
+              <Sparkles className="w-4 h-4" /> Explore New Tenders
+            </button>
+          </Link>
         </div>
       </div>
 
       {/* Portfolio Overview Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="card p-5 bg-gradient-to-br from-indigo-950/40 to-slate-900 border-indigo-500/20">
-          <span className="text-[10px] text-muted uppercase font-semibold block mb-1">Tracked Portfolio Value</span>
-          <div className="text-2xl font-extrabold text-indigo-400">₹{totalValueCr} Cr</div>
-          <span className="text-[10px] text-emerald-400 mt-1 block">Across {tenders.length} Active Saved Tenders</span>
-        </div>
-
-        <div className="card p-5 bg-slate-900 border-slate-800">
-          <span className="text-[10px] text-muted uppercase font-semibold block mb-1">EMD Capital Liability</span>
-          <div className="text-2xl font-extrabold text-amber-400">₹{totalEmdLakhs} L</div>
-          <span className="text-[10px] text-emerald-400 mt-1 block">₹{msmeSavedEmd}L MSME Rule 170 Waived</span>
-        </div>
-
-        <div className="card p-5 bg-slate-900 border-slate-800">
-          <span className="text-[10px] text-muted uppercase font-semibold block mb-1">Bids in Active Pipeline</span>
-          <div className="text-2xl font-extrabold text-emerald-400">{bidPreparingCount + readySubmitCount} Tenders</div>
-          <span className="text-[10px] text-muted mt-1 block">{readySubmitCount} Ready for Submission</span>
-        </div>
-
-        <div className="card p-5 bg-slate-900 border-slate-800">
-          <span className="text-[10px] text-muted uppercase font-semibold block mb-1">Avg Engagement Score</span>
-          <div className="text-2xl font-extrabold text-purple-400">{avgMatchScore}%</div>
-          <span className="text-[10px] text-purple-300 mt-1 block">High Match Preference</span>
-        </div>
-      </div>
-
-      {/* Portfolio Visual Analytics & Graph Section */}
-      <div className="grid md:grid-cols-2 gap-6">
-        {/* Active Engagement Pipeline Breakdown */}
-        <div className="card p-5 space-y-4">
-          <div className="flex items-center justify-between border-b border-subtle pb-2">
-            <div className="flex items-center gap-2">
-              <BarChart2 className="w-4 h-4 text-indigo-400" />
-              <h2 className="text-sm font-semibold text-primary">Active Engagement & Interest Funnel</h2>
-            </div>
-            <span className="text-[10px] text-muted">{tenders.length} Total Opportunities</span>
-          </div>
-
-          <div className="space-y-3">
-            <div className="space-y-1">
-              <div className="flex justify-between text-xs text-secondary">
-                <span className="font-medium flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400" /> Ready for Financial Submission
-                </span>
-                <span className="font-mono text-emerald-400 font-bold">{readySubmitCount} Tenders</span>
-              </div>
-              <div className="w-full bg-slate-800 rounded-full h-2">
-                <div className="bg-emerald-400 h-2 rounded-full transition-all" style={{ width: `${Math.max(15, (readySubmitCount / tenders.length) * 100)}%` }} />
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <div className="flex justify-between text-xs text-secondary">
-                <span className="font-medium flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-indigo-400" /> Technical Proposal in Progress
-                </span>
-                <span className="font-mono text-indigo-400 font-bold">{bidPreparingCount} Tenders</span>
-              </div>
-              <div className="w-full bg-slate-800 rounded-full h-2">
-                <div className="bg-indigo-400 h-2 rounded-full transition-all" style={{ width: `${Math.max(15, (bidPreparingCount / tenders.length) * 100)}%` }} />
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <div className="flex justify-between text-xs text-secondary">
-                <span className="font-medium flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-purple-400" /> High Strategic Interest
-                </span>
-                <span className="font-mono text-purple-400 font-bold">{highInterestCount} Tenders</span>
-              </div>
-              <div className="w-full bg-slate-800 rounded-full h-2">
-                <div className="bg-purple-400 h-2 rounded-full transition-all" style={{ width: `${Math.max(15, (highInterestCount / tenders.length) * 100)}%` }} />
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <div className="flex justify-between text-xs text-secondary">
-                <span className="font-medium flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-amber-400" /> Under Initial Scope Review
-                </span>
-                <span className="font-mono text-amber-400 font-bold">{underReviewCount} Tenders</span>
-              </div>
-              <div className="w-full bg-slate-800 rounded-full h-2">
-                <div className="bg-amber-400 h-2 rounded-full transition-all" style={{ width: `${Math.max(15, (underReviewCount / tenders.length) * 100)}%` }} />
-              </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="card p-5 bg-slate-900/80 border border-slate-800 hover:border-indigo-500/30 transition-all rounded-2xl space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] text-muted uppercase font-bold tracking-wider">Tracked Contract Volume</span>
+            <div className="p-2 bg-indigo-500/10 rounded-xl text-indigo-400">
+              <IndianRupee className="w-5 h-5" />
             </div>
           </div>
-        </div>
-
-        {/* Capital Exposure & EMD Waiver Protection */}
-        <div className="card p-5 space-y-4">
-          <div className="flex items-center justify-between border-b border-subtle pb-2">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              <h2 className="text-sm font-semibold text-primary">EMD Capital Liability vs MSME Protection</h2>
-            </div>
-            <span className="badge badge-blue text-[10px]">GFR Rule 170</span>
-          </div>
-
-          <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-xl space-y-3">
-            <div className="flex justify-between text-xs">
-              <span className="text-secondary font-medium">Total Gross EMD Requirement:</span>
-              <span className="font-bold text-amber-400">₹{totalEmdLakhs} Lakhs</span>
-            </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-secondary font-medium">Udyam MSME Exemption Savings:</span>
-              <span className="font-bold text-emerald-400">100% (₹{msmeSavedEmd} Lakhs Waived)</span>
-            </div>
-
-            <div className="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden flex">
-              <div className="bg-emerald-400 h-full" style={{ width: "100%" }} title="100% MSME EMD Exempted" />
-            </div>
-
-            <p className="text-[11px] text-muted leading-relaxed">
-              ✅ All {tenders.length} opportunities in your portfolio qualify for <strong>100% EMD Exemption</strong> under Udyam MSME Registration (GFR 2017 Rule 170). No bank guarantee liquidity freeze required.
+          <div>
+            <div className="text-2xl font-extrabold text-primary">₹{totalValueCr} Cr</div>
+            <p className="text-xs text-indigo-400 mt-0.5 font-medium flex items-center gap-1">
+              <TrendingUp className="w-3.5 h-3.5" /> Across {tenders.length} Active Saved Opportunities
             </p>
           </div>
         </div>
+
+        <div className="card p-5 bg-slate-900/80 border border-slate-800 hover:border-emerald-500/30 transition-all rounded-2xl space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] text-muted uppercase font-bold tracking-wider">EMD Capital Liability</span>
+            <div className="p-2 bg-amber-500/10 rounded-xl text-amber-400">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+          </div>
+          <div>
+            <div className="text-2xl font-extrabold text-amber-400">₹{totalEmdLakhs} Lakhs</div>
+            <p className="text-xs text-emerald-400 mt-0.5 font-semibold flex items-center gap-1">
+              <CheckCircle2 className="w-3.5 h-3.5" /> 100% MSME Rule 170 Waived (₹{msmeSavedEmd}L)
+            </p>
+          </div>
+        </div>
+
+        <div className="card p-5 bg-slate-900/80 border border-slate-800 hover:border-purple-500/30 transition-all rounded-2xl space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] text-muted uppercase font-bold tracking-wider">Bids in Active Pipeline</span>
+            <div className="p-2 bg-purple-500/10 rounded-xl text-purple-400">
+              <Zap className="w-5 h-5" />
+            </div>
+          </div>
+          <div>
+            <div className="text-2xl font-extrabold text-purple-300">{bidPreparingCount + readySubmitCount} Active Bids</div>
+            <p className="text-xs text-purple-400 mt-0.5 font-medium">
+              {readySubmitCount} Ready for Submission
+            </p>
+          </div>
+        </div>
+
+        <div className="card p-5 bg-slate-900/80 border border-slate-800 hover:border-blue-500/30 transition-all rounded-2xl space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] text-muted uppercase font-bold tracking-wider">Avg Engagement Rating</span>
+            <div className="p-2 bg-blue-500/10 rounded-xl text-blue-400">
+              <Star className="w-5 h-5" />
+            </div>
+          </div>
+          <div>
+            <div className="text-2xl font-extrabold text-blue-400">{avgMatchScore}% Match</div>
+            <p className="text-xs text-muted mt-0.5">High Strategic Qualification</p>
+          </div>
+        </div>
       </div>
 
-      {/* Engagement Filter Tabs */}
-      <div className="flex items-center justify-between border-b border-subtle pb-2">
-        <div className="flex items-center gap-2 overflow-x-auto">
+      {/* Analytics & Distribution Section */}
+      <div className="grid md:grid-cols-3 gap-6">
+        {/* Active Engagement Funnel (2 cols) */}
+        <div className="card p-5 space-y-4 md:col-span-2 bg-slate-900/80 border border-slate-800 rounded-2xl">
+          <div className="flex items-center justify-between border-b border-subtle pb-3">
+            <div className="flex items-center gap-2">
+              <BarChart2 className="w-4 h-4 text-indigo-400" />
+              <h2 className="text-sm font-semibold text-primary">Active Engagement & Proposal Funnel</h2>
+            </div>
+            <span className="text-[10px] text-muted font-mono">{tenders.length} Total Saved</span>
+          </div>
+
+          <div className="space-y-4 pt-1">
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-xs">
+                <span className="text-secondary font-medium flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50" />
+                  Ready for Financial Submission
+                </span>
+                <span className="font-mono text-emerald-400 font-bold">{readySubmitCount} Tenders</span>
+              </div>
+              <div className="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
+                <div
+                  className="bg-gradient-to-r from-emerald-500 to-teal-400 h-2.5 rounded-full transition-all duration-500"
+                  style={{ width: `${Math.max(12, (readySubmitCount / (tenders.length || 1)) * 100)}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-xs">
+                <span className="text-secondary font-medium flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-indigo-400 shadow-sm shadow-indigo-400/50" />
+                  Technical Proposal in Progress
+                </span>
+                <span className="font-mono text-indigo-400 font-bold">{bidPreparingCount} Tenders</span>
+              </div>
+              <div className="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
+                <div
+                  className="bg-gradient-to-r from-indigo-500 to-purple-500 h-2.5 rounded-full transition-all duration-500"
+                  style={{ width: `${Math.max(12, (bidPreparingCount / (tenders.length || 1)) * 100)}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-xs">
+                <span className="text-secondary font-medium flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-purple-400 shadow-sm shadow-purple-400/50" />
+                  High Strategic Interest
+                </span>
+                <span className="font-mono text-purple-400 font-bold">{highInterestCount} Tenders</span>
+              </div>
+              <div className="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
+                <div
+                  className="bg-gradient-to-r from-purple-500 to-pink-500 h-2.5 rounded-full transition-all duration-500"
+                  style={{ width: `${Math.max(12, (highInterestCount / (tenders.length || 1)) * 100)}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-xs">
+                <span className="text-secondary font-medium flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-sm shadow-amber-400/50" />
+                  Under Initial Scope Review
+                </span>
+                <span className="font-mono text-amber-400 font-bold">{underReviewCount} Tenders</span>
+              </div>
+              <div className="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
+                <div
+                  className="bg-gradient-to-r from-amber-500 to-orange-400 h-2.5 rounded-full transition-all duration-500"
+                  style={{ width: `${Math.max(12, (underReviewCount / (tenders.length || 1)) * 100)}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Sector Distribution Widget (1 col) */}
+        <div className="card p-5 space-y-4 bg-slate-900/80 border border-slate-800 rounded-2xl flex flex-col justify-between">
+          <div className="flex items-center justify-between border-b border-subtle pb-3">
+            <div className="flex items-center gap-2">
+              <PieChartIcon className="w-4 h-4 text-purple-400" />
+              <h2 className="text-sm font-semibold text-primary">Sector Distribution</h2>
+            </div>
+            <span className="text-[10px] text-muted">Portfolio Shares</span>
+          </div>
+
+          <div className="space-y-3 flex-1 flex flex-col justify-center">
+            {[
+              { label: "Defence & Aerospace", pct: 35, color: "bg-indigo-500" },
+              { label: "Railways & Signalling", pct: 28, color: "bg-purple-500" },
+              { label: "Renewable Energy", pct: 22, color: "bg-emerald-500" },
+              { label: "IT & Healthcare", pct: 15, color: "bg-blue-500" },
+            ].map((sec, i) => (
+              <div key={i} className="space-y-1">
+                <div className="flex justify-between text-xs text-secondary font-medium">
+                  <span className="flex items-center gap-1.5">
+                    <span className={`w-2 h-2 rounded-full ${sec.color}`} /> {sec.label}
+                  </span>
+                  <span>{sec.pct}%</span>
+                </div>
+                <div className="w-full bg-slate-800 rounded-full h-1.5">
+                  <div className={`${sec.color} h-1.5 rounded-full`} style={{ width: `${sec.pct}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="pt-2 border-t border-subtle flex items-center justify-between text-[11px] text-muted">
+            <span>Udyam MSME Exemption:</span>
+            <span className="text-emerald-400 font-semibold">100% GFR 170 Active</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Filter & Search Toolbar */}
+      <div className="card p-4 bg-slate-900/90 border border-slate-800 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+        {/* Stage Tabs */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
           {[
-            { id: "ALL", label: `All Tracked (${tenders.length})` },
+            { id: "ALL", label: `All Opportunities (${tenders.length})` },
             { id: "READY_TO_SUBMIT", label: `Ready to Submit (${readySubmitCount})` },
             { id: "BID_PREPARING", label: `Bid Preparing (${bidPreparingCount})` },
             { id: "HIGH_INTEREST", label: `High Interest (${highInterestCount})` },
@@ -309,51 +385,89 @@ export default function WatchlistPage() {
             <button
               key={tab.id}
               onClick={() => setFilterStatus(tab.id)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+              className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap ${
                 filterStatus === tab.id
-                  ? "bg-indigo-500 text-white shadow-md shadow-indigo-500/20"
-                  : "bg-slate-900/60 text-secondary hover:text-primary hover:bg-slate-800"
+                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
+                  : "bg-slate-800/60 text-secondary hover:text-primary hover:bg-slate-800"
               }`}
             >
               {tab.label}
             </button>
           ))}
         </div>
+
+        {/* Search input */}
+        <div className="relative min-w-[240px]">
+          <Search className="w-4 h-4 text-muted absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            placeholder="Search watchlist..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="input text-xs py-2 pl-9 pr-3 w-full bg-slate-950 border-slate-800 rounded-xl"
+          />
+        </div>
       </div>
 
-      {/* Watchlist Cards */}
+      {/* Watchlist Opportunity Cards */}
       {filteredTenders.length === 0 ? (
-        <div className="card p-12 text-center text-secondary">
-          No saved tenders found for this engagement filter.
+        <div className="card p-12 text-center text-secondary space-y-2 rounded-2xl">
+          <FolderOpen className="w-10 h-10 text-muted mx-auto" />
+          <h3 className="text-base font-bold text-primary">No Matching Opportunities Found</h3>
+          <p className="text-xs text-muted max-w-sm mx-auto">
+            Try adjusting your search query or switching engagement filters above.
+          </p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {filteredTenders.map((tender) => {
             const costCrores = tender.estimated_cost_lakhs
               ? (tender.estimated_cost_lakhs / 100).toFixed(2)
               : "2.50";
             const emdLakhs = tender.emd_lakhs || Math.round((tender.estimated_cost_lakhs || 250) * 0.02);
 
+            let statusBadgeColor = "bg-amber-500/10 text-amber-400 border-amber-500/20";
+            let statusLabel = "👁 Under Review";
+            let borderAccent = "border-l-amber-500";
+
+            if (tender.engagement_status === "READY_TO_SUBMIT") {
+              statusBadgeColor = "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
+              statusLabel = "✓ Ready to Submit";
+              borderAccent = "border-l-emerald-500";
+            } else if (tender.engagement_status === "BID_PREPARING") {
+              statusBadgeColor = "bg-indigo-500/10 text-indigo-400 border-indigo-500/20";
+              statusLabel = "⚡ Bid Preparing";
+              borderAccent = "border-l-indigo-500";
+            } else if (tender.engagement_status === "HIGH_INTEREST") {
+              statusBadgeColor = "bg-purple-500/10 text-purple-400 border-purple-500/20";
+              statusLabel = "🔥 High Interest";
+              borderAccent = "border-l-purple-500";
+            }
+
             return (
               <div
                 key={tender.id}
-                className="card p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:-translate-y-0.5 transition-all border-l-4 border-l-indigo-500"
+                className={`card p-6 bg-slate-900/70 hover:bg-slate-900/95 border border-slate-800 hover:border-indigo-500/40 transition-all duration-300 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-5 border-l-4 ${borderAccent} shadow-md`}
               >
-                <div className="flex-1 min-w-0 space-y-2">
+                <div className="flex-1 min-w-0 space-y-2.5">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="badge badge-blue text-[10px] font-bold">
-                      {tender.engagement_status === "READY_TO_SUBMIT"
-                        ? "✓ Ready to Submit"
-                        : tender.engagement_status === "BID_PREPARING"
-                        ? "⚡ Bid Preparing"
-                        : tender.engagement_status === "HIGH_INTEREST"
-                        ? "🔥 High Interest"
-                        : "👁 Under Review"}
+                    <span className={`text-[10px] font-bold py-1 px-2.5 rounded-full border ${statusBadgeColor}`}>
+                      {statusLabel}
                     </span>
-                    <span className="badge badge-green text-[10px]">
-                      {tender.match_score}% Match Score
+
+                    <span className="badge badge-green text-[10px] py-1 px-2.5 font-bold flex items-center gap-1">
+                      <Star className="w-3 h-3 fill-emerald-400" /> {tender.match_score}% AI Match
                     </span>
-                    <span className="badge badge-gray text-[9px] uppercase">{tender.source}</span>
+
+                    {tender.category && (
+                      <span className="text-[10px] text-secondary font-medium bg-slate-800/80 py-1 px-2.5 rounded-full">
+                        {tender.category}
+                      </span>
+                    )}
+
+                    <span className="badge badge-gray text-[9px] uppercase font-mono tracking-wider ml-auto md:ml-0">
+                      {tender.source}
+                    </span>
                   </div>
 
                   <Link
@@ -363,39 +477,44 @@ export default function WatchlistPage() {
                     {tender.title}
                   </Link>
 
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-secondary">
+                  <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-secondary pt-1">
                     {(tender.department || tender.ministry) && (
-                      <span className="flex items-center gap-1">
-                        <Building2 className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" />
+                      <span className="flex items-center gap-1.5 font-medium">
+                        <Building2 className="w-4 h-4 text-indigo-400 flex-shrink-0" />
                         {tender.department || tender.ministry}
                       </span>
                     )}
+
                     {tender.state && (
-                      <span className="flex items-center gap-1">
-                        <MapPin className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                      <span className="flex items-center gap-1.5 font-medium">
+                        <MapPin className="w-4 h-4 text-emerald-400 flex-shrink-0" />
                         {tender.state}
                       </span>
                     )}
-                    <span className="flex items-center gap-1 font-semibold text-primary">
+
+                    <span className="flex items-center gap-1 font-extrabold text-primary bg-indigo-950/40 px-2.5 py-0.5 rounded-lg border border-indigo-500/20">
                       <IndianRupee className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
                       ₹{costCrores} Cr
                     </span>
-                    <span className="text-muted">
-                      (EMD: ₹{emdLakhs}L · {tender.msme_eligible !== false ? "100% MSME Exempt" : "BG Deposit"})
+
+                    <span className="text-muted flex items-center gap-1">
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                      EMD: ₹{emdLakhs}L (100% MSME Rule 170 Exempt)
                     </span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 flex-shrink-0 self-end md:self-center pt-2 md:pt-0 border-t md:border-t-0 border-subtle w-full md:w-auto justify-end">
+                <div className="flex items-center gap-2.5 flex-shrink-0 self-end md:self-center pt-3 md:pt-0 border-t md:border-t-0 border-subtle w-full md:w-auto justify-end">
                   <Link href={`/dashboard/tenders/${tender.id}`}>
-                    <button className="btn btn-primary text-xs py-2 px-3.5 rounded-lg flex items-center gap-1">
-                      View Tender <ArrowUpRight className="w-3.5 h-3.5" />
+                    <button className="btn btn-primary text-xs py-2.5 px-4 rounded-xl flex items-center gap-1.5 font-semibold shadow-md shadow-indigo-500/20">
+                      <Sparkles className="w-3.5 h-3.5" /> Proposal AI <ChevronRight className="w-3.5 h-3.5" />
                     </button>
                   </Link>
+
                   <button
                     onClick={() => removeTender(tender.id)}
                     title="Remove from watchlist"
-                    className="btn-ghost p-2 rounded-lg text-muted hover:text-red-400 transition-colors"
+                    className="p-2.5 rounded-xl text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors border border-transparent hover:border-red-500/20"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
