@@ -290,7 +290,99 @@ function buildTenderSpecificProposal(tender: any) {
         action: `Submit signed local content percentage declaration under GFR Rule 144(xi) for ${org}`,
       },
     ],
-    technical_proposal_draft: `# Technical Proposal for ${title}\n\n**Tender Reference ID:** \`${tender.source_tender_id || tender.id}\`\n**Issuing Authority:** ${org}\n**Estimated Project Value:** ₹${estCost} Lakhs\n\n---\n\n## 1. Executive Summary & Solution Alignment\n${tender.ai_summary || `Comprehensive solution delivery for ${title} issued by ${org}.`}\n\nOur proposed solution is engineered specifically to address the operational and compliance requirements of **${org}**. Leveraging proven enterprise architecture in **${catName}**, our methodology delivers scalable, resilient, and secure execution.\n\n---\n\n## 2. Technical Architecture & Methodology\n- **Core Technology Stack:** Microservices architecture with automated failover and high-availability endpoints.\n- **Security & Compliance:** Full alignment with ${certsArr.join(", ")}, featuring TLS 1.3 encryption for data in transit and AES-256 for data at rest.\n- **Integration Framework:** Standardized RESTful APIs with real-time logging and CVC audit trail compliance.\n\n---\n\n## 3. Scope of Work & Deliverables\n1. **Phase 1: Kickoff & Scope Validation** — Requirement matrix freeze, architecture review, and initial setup within 14 days of LOA.\n2. **Phase 2: Core System Deployment** — Solution implementation for ${title} adhering to GFR 2017 and CPWD technical specifications.\n3. **Phase 3: Testing & Security Audit** — Vulnerability assessment, load testing, and UAT sign-off by ${org} officers.\n4. **Phase 4: Go-Live & Maintenance** — Operational handover with 24x7 SLA support.\n\n---\n\n## 4. Compliance Matrix Overview\n- **Turnover:** Requirement of ₹${turnoverReq}L fully met by vendor 3-year average turnover.\n- **Experience:** ${expReq} years threshold satisfied with track record in government procurement execution.\n- **EMD Status:** ${msmeElig ? 'Exempt under Udyam MSME Rule 170 (100% EMD Waiver)' : `Deposit of ₹${emdVal}L via Bank Guarantee`}.\n- **Make in India:** Class-I Local Supplier status with 68% local content self-declaration.`
+    technical_proposal_draft: `# MASTER TECHNICAL PROPOSAL & COMPLIANCE DOSSIER
+
+**TENDER TITLE:** ${title}
+**TENDER REFERENCE ID:** \`${tender.source_tender_id || tender.id}\`
+**ISSUING AUTHORITY / BUYER:** ${org}
+**ESTIMATED PROJECT VALUE:** ₹${estCost} Lakhs
+**SELECTION CRITERIA:** L1 Lowest Cost / Quality & Cost Based Selection (QCBS)
+
+---
+
+## 1. EXECUTIVE SUMMARY & BIDDER ALIGNMENT
+This Technical Proposal is submitted in formal response to the Notice Inviting Tender (NIT) for **${title}** issued by **${org}**.
+
+Our enterprise solution is engineered specifically to fulfill 100% of the operational, technical, and regulatory requirements stipulated in the tender specifications while ensuring strict adherence to the General Financial Rules (GFR 2017) and Central Vigilance Commission (CVC) guidelines. Leveraging proven execution history in **${catName}**, our methodology guarantees continuous reliability, high availability, and audit compliance.
+
+### Key Highlights of Our Bid:
+- **Turnover Qualification:** Corporate 3-year average turnover exceeds the mandated minimum threshold of ₹${turnoverReq} Lakhs.
+- **Experience Qualification:** Exceeds the required ${expReq} years of prior public sector execution track record in ${catName}.
+- **EMD Compliance:** ${msmeElig ? `100% Exempt from Earnest Money Deposit (EMD ₹${emdVal}L) under Udyam MSME Rule 170 (GFR 2017).` : `Secured via Demand Draft / e-PBG of ₹${emdVal} Lakhs from Scheduled Commercial Bank.`}
+- **Local Content Declaration:** Class-I Local Supplier status with local value addition exceeding 50% under Make in India guidelines.
+
+---
+
+## 2. TECHNICAL ARCHITECTURE & METHODOLOGY
+Our proposed architecture for **${title}** incorporates high-availability microservices, end-to-end data encryption, and automated compliance auditing.
+
+### Architectural Pillars:
+1. **High Availability & Redundancy:** Fault-tolerant infrastructure designed to ensure 99.9% operational uptime SLA.
+2. **Cybersecurity & Data Privacy:** TLS 1.3 encryption for data in transit and AES-256 for data at rest, fully conforming to CERT-In standards.
+3. **Mandatory Accreditation Conformance:** Active corporate certification alignment with **${certsArr.join(', ')}**.
+4. **CVC Audit Trail:** Immutable event logs recording administrative, operational, and financial transactions.
+
+---
+
+## 3. SCOPE OF WORK & PHASED DELIVERABLES MATRIX
+Execution is structured across four rigorous operational phases:
+
+### Phase 1: Initiation & Requirements Freeze (Days 1–15)
+- Joint kick-off meeting with project officers from **${org}**.
+- Baseline Site Survey, Gap Analysis, and finalization of Detailed Project Plan (DPP).
+- Delivery of System Requirement Specification (SRS) and Architecture Design Document (ADD).
+
+### Phase 2: Core Equipment Deployment & Implementation (Days 16–90)
+- Deployment of hardware/software components matching the exact BOQ specifications of **${title}**.
+- Integration with existing digital infrastructure of **${org}**.
+- Pre-commissioning validation and Factory Acceptance Testing (FAT).
+
+### Phase 3: Testing, Auditing & UAT Sign-off (Days 91–150)
+- User Acceptance Testing (UAT) conducted jointly with authorized representatives of **${org}**.
+- Vulnerability Assessment & Penetration Testing (VAPT) by CERT-In empaneled auditor.
+- User training for operational and administrative personnel.
+
+### Phase 4: Go-Live & Warranty Maintenance (Days 151–365)
+- Final operational handover and commissioning certificate issuance.
+- Comprehensive Warranty and Maintenance Support with 24x7 SLA resolution protocols.
+
+---
+
+## 4. IMPLEMENTATION SCHEDULE & PAYMENT MILESTONES
+\`\`\`
+Milestone ID   Deliverable Description                         Target Timeline    Payment %
+--------------------------------------------------------------------------------------------
+MS-01          Contract Signoff & Architecture Freeze          Day 15             10% Advance/BG
+MS-02          Equipment Delivery & BOQ Verification           Day 60             40%
+MS-03          UAT Clearance & Security Audit Approval          Day 120            30%
+MS-04          Final Commissioning & Handover Certificate      Day 365            20%
+\`\`\`
+
+---
+
+## 5. QUALITY ASSURANCE & SLA COMMITMENTS
+We commit to strict Service Level Agreements (SLAs) throughout the contract tenure:
+- **Severity 1 (Critical):** Response Time < 30 Mins | Resolution Time < 4 Hours.
+- **Severity 2 (Major):** Response Time < 2 Hours | Resolution Time < 12 Hours.
+- **Severity 3 (Minor):** Response Time < 4 Hours | Resolution Time < 24 Hours.
+- **Uptime Target:** 99.9% per billing cycle, backed by penalty clauses under Clause 8.2.
+
+---
+
+## 6. RISK ASSESSMENT & CLAUSE MITIGATION PLAN
+1. **Clause 8.2 Delay Penalties:** Liquidated damages capped at 10% (₹${ldPenalty} Lakhs).  
+   *Mitigation:* 14-day schedule buffer incorporated into Phase 2 milestones with weekly progress tracking.
+2. **Clause 10.1 Performance Security:** 3% e-PBG (₹${pbgAmount} Lakhs) submission within 15 days of LOA.  
+   *Mitigation:* Pre-approved BG facility active with Scheduled Commercial Bank for 48-hr issuance.
+3. **Operational Scope Creep:** Risk of unbudgeted scope modifications.  
+   *Mitigation:* Formal pre-bid clarification protocol to lock operational scope prior to contract signing.
+
+---
+
+## 7. STATUTORY & REGULATORY DECLARATIONS
+- **Make in India (MII):** Self-declaration as Class-I Local Supplier (68% Local Content).
+- **CVC Anti-Corruption Pledge:** Executed Integrity Pact confirming zero tolerance for corrupt practices.
+- **Non-Debarment Affidavit:** Self-certified affidavit confirming no blacklisting by any Central/State Govt body or PSU.`
   };
 }
 
@@ -971,23 +1063,30 @@ export default function TenderDetailPage({ params }: { params: { id: string } })
                   </div>
 
                   {/* Right editor draft column */}
-                  <div className="col-span-3 card p-5 flex flex-col">
+                  <div className="col-span-3 card p-5 flex flex-col h-full">
                     <div className="flex items-center justify-between border-b border-subtle pb-2 mb-3">
-                      <span className="text-xs font-bold text-primary uppercase">Technical Proposal Draft</span>
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(proposal.technical_proposal_draft || "");
-                          alert("Draft outline copied to clipboard!");
-                        }}
-                        className="text-[10px] text-indigo-400 hover:underline"
-                      >
-                        Copy Draft
-                      </button>
+                      <span className="text-xs font-bold text-primary uppercase flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-indigo-400" />
+                        Master Technical Proposal Draft
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-emerald-400 font-mono font-semibold uppercase">Full Page Length</span>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(proposal.technical_proposal_draft || "");
+                            alert("Master technical proposal draft copied to clipboard!");
+                          }}
+                          className="btn btn-secondary text-[10px] px-2.5 py-1 text-indigo-400 hover:text-white"
+                        >
+                          Copy Full Draft
+                        </button>
+                      </div>
                     </div>
-                    <pre className="text-[10px] text-secondary bg-black/30 p-3 rounded-lg overflow-auto font-mono whitespace-pre-wrap flex-1 max-h-[420px]">
+                    <pre className="text-xs text-secondary/90 bg-black/40 p-4 rounded-xl overflow-y-auto font-mono whitespace-pre-wrap flex-1 min-h-[750px] leading-relaxed border border-white/5 selection:bg-indigo-500/30">
                       {proposal.technical_proposal_draft || "Draft content not generated."}
                     </pre>
                   </div>
+
                 </div>
               </div>
             )}
