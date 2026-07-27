@@ -101,8 +101,7 @@ function MessageBubble({ message }: { message: Message }) {
           }
         >
           {/* Render markdown-lite: bold, links, citation tags, newlines */}
-          <div
-            className="whitespace-pre-wrap"
+          <div className="whitespace-pre-wrap font-sans text-xs leading-relaxed"
             dangerouslySetInnerHTML={{
               __html: message.content
                 .replace(
@@ -110,35 +109,10 @@ function MessageBubble({ message }: { message: Message }) {
                   '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-emerald-400 font-bold underline hover:text-emerald-300 transition-colors inline-flex items-center gap-0.5">$1 ↗</a>'
                 )
                 .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-                .replace(
-                  /(?<!href=")(?<!">)\[(Page [^\]]+|Section [^\]]+|Clause [^\]]+|Doc: [^\]]+)\]/g,
-                  '<em style="color:#818cf8;font-size:0.75em">[$1]</em>'
-                )
                 .replace(/\n/g, "<br/>"),
             }}
           />
         </div>
-
-        {/* Source citations */}
-        {message.sources && message.sources.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {message.sources.map((src, i) => (
-              <span
-                key={i}
-                className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-md"
-                style={{
-                  background: "var(--color-bg-card)",
-                  border: "1px solid var(--color-border)",
-                  color: "#818cf8",
-                }}
-              >
-                <FileText className="w-2.5 h-2.5" />
-                {src.page !== "?" ? `Page ${src.page}` : ""}
-                {src.section ? ` · ${src.section}` : ""}
-              </span>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );
@@ -260,8 +234,8 @@ export function TenderCopilot({ tenderId, tenderTitle, ministry }: TenderCopilot
           <Bot className="w-3.5 h-3.5" style={{ color: "#818cf8" }} />
         </div>
         <div>
-          <div className="text-xs font-semibold text-primary">Tender Copilot</div>
-          <div className="text-[10px] text-muted">RAG · Cited Answers</div>
+          <div className="text-xs font-semibold text-primary">Tender Copilot AI</div>
+          <div className="text-[10px] text-muted">Conversational AI Assistant</div>
         </div>
         <div className="ml-auto flex items-center gap-1">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
