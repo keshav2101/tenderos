@@ -529,23 +529,80 @@ function DashboardContent() {
         </div>
       </div>
 
-      {/* Quick stats - Synced with Connectors Hub */}
+      {/* Quick stats - Synced with Connectors Hub & Interactive */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         {[
-          { label: `Active Tenders (${connectorsStats.activeSourcesCount} Portals)`, value: activeTendersCount.toLocaleString("en-IN"), color: "text-indigo-400" },
-          { label: "Bid Recommended Matches", value: (filtered.filter(t => t.recommendation === "BID").length || 50).toString(), color: "text-emerald-400" },
-          { label: "Total Ingested Archive", value: connectorsStats.totalIngestedArchive.toLocaleString("en-IN"), color: "text-amber-400" },
-          { label: "Tracked Portals Operational", value: `${connectorsStats.activeSourcesCount} / ${connectorsStats.activeSourcesCount} (100%)`, color: "text-blue-400" },
+          {
+            id: "active",
+            label: `Active Tenders (${connectorsStats.activeSourcesCount} Portals)`,
+            value: activeTendersCount.toLocaleString("en-IN"),
+            color: "text-indigo-400",
+            active: filterRec === "all" && filterSector === "All Sectors" && !search,
+            onClick: () => {
+              setFilterRec("all");
+              setFilterSector("All Sectors");
+              setSearch("");
+              setFilterMsme(false);
+              setFilterStartup(false);
+              setPage(1);
+            },
+          },
+          {
+            id: "bid_recommended",
+            label: "Bid Recommended Matches",
+            value: (filtered.filter(t => t.recommendation === "BID").length || 50).toString(),
+            color: "text-emerald-400",
+            active: filterRec === "BID",
+            onClick: () => {
+              setFilterRec("BID");
+              setPage(1);
+              const el = document.getElementById("tender-feed-section");
+              if (el) el.scrollIntoView({ behavior: "smooth" });
+            },
+          },
+          {
+            id: "archive",
+            label: "Total Ingested Archive",
+            value: connectorsStats.totalIngestedArchive.toLocaleString("en-IN"),
+            color: "text-amber-400",
+            active: false,
+            onClick: () => router.push("/dashboard/search"),
+          },
+          {
+            id: "operational",
+            label: "Tracked Portals Operational",
+            value: `${connectorsStats.activeSourcesCount} / ${connectorsStats.activeSourcesCount} (100%)`,
+            color: "text-blue-400",
+            active: false,
+            onClick: () => router.push("/dashboard/connectors"),
+          },
         ].map((stat) => (
-          <div key={stat.label} className="card p-4 text-center">
-            <div className={`text-2xl font-bold ${stat.color} mb-0.5`}>{stat.value}</div>
-            <div className="text-[10px] text-muted">{stat.label}</div>
-          </div>
+          <button
+            key={stat.id}
+            onClick={stat.onClick}
+            className={`card p-4 text-center cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:border-slate-600 ${
+              stat.active
+                ? "ring-2 ring-emerald-500/80 bg-emerald-950/20 shadow-lg shadow-emerald-950/40 border-emerald-500/50"
+                : ""
+            }`}
+          >
+            <div className={`text-2xl font-bold ${stat.color} mb-0.5 flex items-center justify-center gap-1.5`}>
+              {stat.value}
+            </div>
+            <div className="text-[10px] text-muted font-medium flex items-center justify-center gap-1">
+              {stat.label}
+              {stat.active && (
+                <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
+                  ACTIVE
+                </span>
+              )}
+            </div>
+          </button>
         ))}
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-3 mb-5 flex-wrap">
+      <div id="tender-feed-section" className="flex items-center gap-3 mb-5 flex-wrap">
         <div className="relative flex-1 min-w-48 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
           <input
