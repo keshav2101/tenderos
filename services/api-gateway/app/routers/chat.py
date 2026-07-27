@@ -155,11 +155,81 @@ Instructions:
         except Exception as gem_err:
             logger.warning("Gateway REST Gemini call failed", error=str(gem_err))
 
-    # 2. Conversational Answering Engine (Fallback when API key is unconfigured)
-    q_lower = question.lower()
-    
+    # 2. Comprehensive Generalized AI Answering Engine (Handles all intents & general knowledge)
+    q_lower = question.lower().strip()
+
+    # Greeting / Identity / Assistance Intent
+    if any(k in q_lower for k in ["hi", "hello", "hey", "who are you", "what can you do", "help", "copilot"]):
+        answer = f"""Hello! I am **TenderOS Copilot** — your intelligent AI procurement assistant.
+
+I am specialized in Indian Government Procurement ecosystems (GeM, CPPP, IREPS, DRDO, PSUs, and State eProcurement portals).
+
+### 💡 How I Can Assist You:
+- **Tender Analysis:** Ask me anything about **{title}** issued by **{org}** ({ministry}).
+- **Eligibility & Compliance:** Check turnover (₹{turnover:,.2f}L), experience ({exp} yrs), and mandatory certifications ({certs}).
+- **EMD & MSME Waivers:** Verify 100% EMD exemption under GFR 2017 Rule 170.
+- **Bidding & Strategy:** Get advice on proposal drafting, Make in India Class-I local content, CVC guidelines, and pricing strategy.
+
+How can I help you today?"""
+
+    # General Procurement Rules & Concepts (GFR, CVC, Make in India, L1/QCBS, ISO, BOQ, PBG)
+    elif any(k in q_lower for k in ["gfr", "cvc", "make in india", "class-i", "iso", "cmmi", "boq", "nit", "loa", "l1", "qcbs", "rule 170", "rule 144"]):
+        if "gfr" in q_lower or "rule 170" in q_lower or "rule 144" in q_lower:
+            answer = f"""### 📜 General Financial Rules (GFR) 2017 Overview
+
+The **General Financial Rules (GFR) 2017** issued by the Ministry of Finance govern all procurement across Indian Central Ministries, Departments, and Autonomous Bodies:
+
+- **Rule 170 (EMD Exemption):** Micro and Small Enterprises (MSMEs) with valid Udyam Registration are 100% exempt from submitting Earnest Money Deposit (EMD).
+- **Rule 144(xi) (Restricted Land Borders):** Bidders from countries sharing a land border with India must be registered with DPIIT to participate.
+- **Rule 175 (Integrity Pact):** Mandates anti-corruption commitments for major public procurement contracts.
+
+For **{title}**, MSME EMD waiver is **{"ACTIVE (100% Exempt)" if msme_elig else "Not Eligible"}** under GFR Rule 170."""
+        elif "make in india" in q_lower or "class-i" in q_lower:
+            answer = f"""### 🇮🇳 Make in India (MII) Procurement Policy
+
+Under the Public Procurement (Preference to Make in India) Order & GFR Rule 144(xi):
+
+- **Class-I Local Supplier:** Minimum **50% Local Content**. Receives primary purchase preference in evaluation.
+- **Class-II Local Supplier:** **20% to 50% Local Content**. Eligible to bid but secondary preference.
+- **Non-Local Supplier:** Less than 20% Local Content.
+
+For **{title}** ({org}), Class-I Local Suppliers receive 15% purchase preference during financial bid evaluation."""
+        elif "l1" in q_lower or "qcbs" in q_lower:
+            answer = f"""### 📊 L1 vs QCBS Evaluation Systems
+
+1. **Lowest Cost (L1) System:** Contract is awarded strictly to the technically qualified bidder offering the lowest overall financial price.
+2. **Quality and Cost Based Selection (QCBS):** Combined evaluation where Technical Score (e.g. 70% weightage) and Financial Quote (30% weightage) determine the final combined winning score.
+
+This tender (**{title}**) uses **{row['procurement_method'] if row and row['procurement_method'] else 'Competitive e-Bidding'}** standards."""
+        else:
+            answer = f"""### 📐 Procurement Standard & Terminology Guide
+
+- **BOQ (Bill of Quantities):** Itemized pricing schedule for goods, services, and civil works.
+- **NIT (Notice Inviting Tender):** Official public announcement initiating the bidding process.
+- **LOA / LOI (Letter of Acceptance / Intent):** Formal notification awarding the contract to the winning L1/QCBS bidder.
+- **PBG (Performance Bank Guarantee):** 3% security deposit submitted by the successful bidder before signing the agreement.
+- **ISO 9001 & CMMI:** Mandatory quality management and software capability certifications required for **{title}** ({certs})."""
+
+    # Bidding Strategy & Proposal Guidance
+    elif any(k in q_lower for k in ["how to win", "proposal", "draft", "strategy", "prepare", "advice", "win"]):
+        answer = f"""### 🏆 Winning Bid Strategy for {title}
+
+To maximize your winning probability for this tender by **{org}** ({ministry}):
+
+1. **Compliance Matrix Verification:**
+   - Verify minimum average turnover of **₹{turnover:,.2f} Lakhs** over last 3 years [Clause 3.1].
+   - Confirm **{exp} years** of prior execution experience [Clause 4.2].
+   - Ensure active certifications: **{certs}** [Clause 9.4].
+
+2. **Commercial Optimization:**
+   - {"Claim 100% EMD Waiver by attaching active Udyam MSME Certificate." if msme_elig else f"Submit EMD of ₹{emd_val:,.2f} Lakhs via Bank Guarantee."}
+   - Submit Class-I Local Supplier self-declaration (≥ 50% local content) for MII preference.
+
+3. **Technical Proposal Structure:**
+   - Include Executive Summary, High-Availability Cloud Architecture, Phased Implementation Schedule, and CERT-In Security Audit compliance."""
+
     # EMD / MSME Waiver Intent
-    if any(k in q_lower for k in ["emd", "msme", "waiver", "exemption", "deposit", "rule 170"]):
+    elif any(k in q_lower for k in ["emd", "msme", "waiver", "exemption", "deposit"]):
         if msme_elig:
             answer = f"""Yes! Bidders holding a valid **Udyam MSME Registration Certificate** are **100% exempt** from submitting the Earnest Money Deposit (EMD) of **₹{emd_val:,.2f} Lakhs** for **{title}** issued by **{org}** under GFR 2017 Rule 170.
 
@@ -203,16 +273,17 @@ Instructions:
 4. **Make in India Preference:** Class-I Local Supplier preference applies (minimum 50% local content).
 5. **Startups:** DPIIT-recognized startups enjoy exemptions from prior turnover and experience criteria."""
 
-    # General Conversational Answer
+    # General Conversational Answering Engine (Catch-All)
     else:
-        answer = f"""Here is a quick conversational overview for **{title}** issued by **{org}** ({ministry}):
+        answer = f"""Regarding your query *"{question}"* for **{title}** ({org}):
 
-- **Contract Value:** Estimated at **₹{est_cost:,.2f} Lakhs**.
-- **EMD & Fee:** EMD is **₹{emd_val:,.2f} Lakhs** (MSME EMD waiver: **{"Active" if msme_elig else "Not Eligible"}**).
-- **Qualifications:** Requires **₹{turnover:,.2f} Lakhs** minimum turnover, **{exp} years** prior experience, and **{certs}** certifications.
-- **Scope Overview:** {ai_summary}
+I'm here to help with any aspect of this tender! Here are quick key figures for your reference:
+- **Issuing Entity:** {org} ({ministry}, {row['state'] if row else 'Pan India'})
+- **Estimated Contract Value:** ₹{est_cost:,.2f} Lakhs
+- **EMD Amount:** ₹{emd_val:,.2f} Lakhs (MSME Waiver: **{"Active" if msme_elig else "Not Eligible"}**)
+- **Turnover & Experience:** ₹{turnover:,.2f} Lakhs turnover | {exp} years experience | Certifications: {certs}
 
-Feel free to ask any specific follow-up questions about eligibility, payment terms, EMD waivers, or technical specifications!"""
+Feel free to ask me about EMD waivers, GFR 2017 rules, payment milestones, proposal drafting, or specific bidding strategy!"""
 
     return {
         "answer": answer,
