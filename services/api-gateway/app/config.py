@@ -53,7 +53,8 @@ class Settings(BaseSettings):
     RATE_LIMIT_FREE: int = 300
     RATE_LIMIT_SME: int = 1000
     RATE_LIMIT_ENTERPRISE: int = 5000
-    RATE_LIMIT_API: int = 10000
+    # Gemini AI
+    GEMINI_API_KEY: str = ""
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
