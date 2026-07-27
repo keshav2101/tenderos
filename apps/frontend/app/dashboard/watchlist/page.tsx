@@ -153,6 +153,49 @@ export default function WatchlistPage() {
   const readySubmitCount = tenders.filter((t) => t.engagement_status === "READY_TO_SUBMIT").length;
   const underReviewCount = tenders.filter((t) => t.engagement_status === "UNDER_REVIEW").length;
 
+  // Dynamically compute Sector/Category Distribution from watchlist tenders
+  const sectorCounts: Record<string, { count: number; totalVal: number }> = {};
+  let globalPortfolioValue = 0;
+
+  tenders.forEach((t) => {
+    let cat = t.category || "General Procurement";
+    if (!t.category || cat === "General Procurement") {
+      if (t.ministry?.includes("Defence") || t.title.toLowerCase().includes("drone") || t.title.toLowerCase().includes("defence")) {
+        cat = "Defense & Aerospace Equipment";
+      } else if (t.ministry?.includes("Railway") || t.title.toLowerCase().includes("train") || t.title.toLowerCase().includes("rail")) {
+        cat = "Railway Signalling & Telecom";
+      } else if (t.ministry?.includes("Energy") || t.title.toLowerCase().includes("solar")) {
+        cat = "Solar & Renewable Energy";
+      } else if (t.ministry?.includes("Health") || t.title.toLowerCase().includes("hospital") || t.title.toLowerCase().includes("cloud")) {
+        cat = "Information Technology & Software";
+      }
+    }
+    
+    const val = t.estimated_cost_lakhs || 100;
+    globalPortfolioValue += val;
+    
+    if (!sectorCounts[cat]) {
+      sectorCounts[cat] = { count: 0, totalVal: 0 };
+    }
+    sectorCounts[cat].count += 1;
+    sectorCounts[cat].totalVal += val;
+  });
+
+  const paletteColors = ["bg-indigo-500", "bg-purple-500", "bg-emerald-500", "bg-blue-500", "bg-pink-500", "bg-amber-500"];
+  
+  const dynamicSectorShares = Object.entries(sectorCounts)
+    .map(([label, data], idx) => {
+      const pct = globalPortfolioValue ? Math.round((data.totalVal / globalPortfolioValue) * 100) : Math.round(100 / (Object.keys(sectorCounts).length || 1));
+      return {
+        label,
+        count: data.count,
+        valCr: (data.totalVal / 100).toFixed(1),
+        pct: Math.max(5, pct),
+        color: paletteColors[idx % paletteColors.length]
+      };
+    })
+    .sort((a, b) => b.pct - a.pct);
+
   // Filtered List based on search query & status tabs
   const filteredTenders = tenders.filter((t) => {
     const matchesStatus = filterStatus === "ALL" || t.engagement_status === filterStatus;
@@ -345,21 +388,16 @@ export default function WatchlistPage() {
           </div>
 
           <div className="space-y-3 flex-1 flex flex-col justify-center">
-            {[
-              { label: "Defence & Aerospace", pct: 35, color: "bg-indigo-500" },
-              { label: "Railways & Signalling", pct: 28, color: "bg-purple-500" },
-              { label: "Renewable Energy", pct: 22, color: "bg-emerald-500" },
-              { label: "IT & Healthcare", pct: 15, color: "bg-blue-500" },
-            ].map((sec, i) => (
+            {dynamicSectorShares.map((sec, i) => (
               <div key={i} className="space-y-1">
                 <div className="flex justify-between text-xs text-secondary font-medium">
-                  <span className="flex items-center gap-1.5">
-                    <span className={`w-2 h-2 rounded-full ${sec.color}`} /> {sec.label}
+                  <span className="flex items-center gap-1.5 truncate max-w-[70%]">
+                    <span className={`w-2 h-2 rounded-full ${sec.color} flex-shrink-0`} /> {sec.label}
                   </span>
-                  <span>{sec.pct}%</span>
+                  <span className="font-mono text-[11px]">₹{sec.valCr} Cr ({sec.pct}%)</span>
                 </div>
                 <div className="w-full bg-slate-800 rounded-full h-1.5">
-                  <div className={`${sec.color} h-1.5 rounded-full`} style={{ width: `${sec.pct}%` }} />
+                  <div className={`${sec.color} h-1.5 rounded-full transition-all duration-500`} style={{ width: `${sec.pct}%` }} />
                 </div>
               </div>
             ))}
