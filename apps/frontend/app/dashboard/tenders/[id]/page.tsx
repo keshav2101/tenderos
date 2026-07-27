@@ -192,6 +192,35 @@ export default function TenderDetailPage({ params }: { params: { id: string } })
   const [qualification, setQualification] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isBookmarked, setIsBookmarked] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleShare = async () => {
+    const shareUrl = typeof window !== "undefined" ? window.location.href : "";
+    const shareData = {
+      title: tender?.title || "TenderOS Notice",
+      text: `Check out this tender: ${tender?.title}`,
+      url: shareUrl,
+    };
+
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share(shareData);
+        return;
+      } catch (err) {
+        // User cancelled or fallback
+      }
+    }
+
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 3000);
+      } catch {
+        alert(`Copy tender link: ${shareUrl}`);
+      }
+    }
+  };
 
   // Proposal Generator States
   const [proposal, setProposal] = useState<any>(null);
@@ -350,7 +379,7 @@ export default function TenderDetailPage({ params }: { params: { id: string } })
 
         {/* Header */}
         <div className="card p-6 mb-4">
-          <div className="flex items-start gap-4">
+          <div className="flex items-center gap-4">
             <ScoreRing score={qualification?.match_score || 90} />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
@@ -372,25 +401,37 @@ export default function TenderDetailPage({ params }: { params: { id: string } })
                 </span>
               </div>
             </div>
-            <div className="flex flex-col gap-2 flex-shrink-0">
+            <div className="flex flex-col gap-2.5 flex-shrink-0 justify-center self-center pt-2">
               <a
                 href={portalInfo.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="btn text-sm flex items-center gap-1.5 justify-center bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-4 rounded-xl shadow-lg shadow-emerald-950/40 transition-all hover:scale-105 cursor-pointer"
+                onClick={(e) => {
+                  if (portalInfo.url) {
+                    window.open(portalInfo.url, "_blank");
+                  }
+                }}
+                className="btn text-xs flex items-center gap-1.5 justify-center bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-4 rounded-xl shadow-md transition-all hover:scale-105 cursor-pointer border border-emerald-400/30"
               >
-                <ExternalLink className="w-4 h-4" />
+                <ExternalLink className="w-3.5 h-3.5" />
                 Open Official {portalInfo.label} Portal Website →
               </a>
               <div className="flex gap-2">
                 <button 
                   onClick={toggleWatchlist} 
-                  className={`btn text-xs p-2 flex-1 flex items-center justify-center gap-1 ${isBookmarked ? "btn-primary" : "btn-secondary"}`}
+                  className={`btn text-xs py-2 px-3 flex-1 flex items-center justify-center gap-1.5 font-semibold ${isBookmarked ? "btn-primary" : "btn-secondary"}`}
                 >
-                  <Bookmark className="w-4 h-4" />
+                  <Bookmark className="w-3.5 h-3.5" />
                   {isBookmarked ? "Saved" : "Save"}
                 </button>
-                <button className="btn btn-secondary text-xs p-2"><Share2 className="w-4 h-4" /></button>
+                <button 
+                  onClick={handleShare} 
+                  className="btn btn-secondary text-xs py-2 px-3 flex items-center justify-center gap-1.5 font-semibold transition-all"
+                  title="Share Tender Link"
+                >
+                  <Share2 className="w-3.5 h-3.5 text-indigo-400" />
+                  {copied ? "Copied!" : "Share"}
+                </button>
               </div>
             </div>
           </div>
