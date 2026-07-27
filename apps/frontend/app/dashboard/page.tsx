@@ -490,6 +490,8 @@ function DashboardContent() {
   }
 
 
+  const activeTendersCount = Math.max(total, connectorsStats.totalActiveTenders);
+
   return (
     <div className="p-6 max-w-5xl mx-auto">
       {/* Header */}
@@ -530,7 +532,7 @@ function DashboardContent() {
       {/* Quick stats - Synced with Connectors Hub */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         {[
-          { label: `Active Tenders (${connectorsStats.activeSourcesCount} Portals)`, value: connectorsStats.totalActiveTenders.toLocaleString("en-IN"), color: "text-indigo-400" },
+          { label: `Active Tenders (${connectorsStats.activeSourcesCount} Portals)`, value: activeTendersCount.toLocaleString("en-IN"), color: "text-indigo-400" },
           { label: "Bid Recommended Matches", value: filtered.filter(t => t.recommendation === "BID").length.toString(), color: "text-emerald-400" },
           { label: "Total Ingested Archive", value: connectorsStats.totalIngestedArchive.toLocaleString("en-IN"), color: "text-amber-400" },
           { label: "Tracked Portals Operational", value: `${connectorsStats.activeSourcesCount} / ${connectorsStats.activeSourcesCount} (100%)`, color: "text-blue-400" },
@@ -632,7 +634,7 @@ function DashboardContent() {
           {/* Pagination */}
           <div className="flex items-center justify-between mt-6 text-sm text-secondary">
             <div className="flex items-center gap-3">
-              <span>Showing {total > 0 ? (page - 1) * pageSize + 1 : 0}–{Math.min(page * pageSize, total)} of {total.toLocaleString("en-IN")} live tenders</span>
+              <span>Showing {activeTendersCount > 0 ? (page - 1) * pageSize + 1 : 0}–{Math.min(page * pageSize, activeTendersCount)} of {activeTendersCount.toLocaleString("en-IN")} live tenders</span>
               <div className="flex items-center gap-1.5 text-xs text-muted">
                 <span>Per page:</span>
                 <select
@@ -648,11 +650,11 @@ function DashboardContent() {
                 </select>
               </div>
             </div>
-            {total > pageSize && (
+            {activeTendersCount > pageSize && (
               <div className="flex gap-2">
                 <button disabled={page === 1} onClick={() => setPage((p) => p - 1)}
                   className="btn btn-secondary text-xs disabled:opacity-40">← Previous</button>
-                <button disabled={page * pageSize >= total} onClick={() => setPage((p) => p + 1)}
+                <button disabled={page * pageSize >= activeTendersCount} onClick={() => setPage((p) => p + 1)}
                   className="btn btn-secondary text-xs disabled:opacity-40">Next →</button>
               </div>
             )}
