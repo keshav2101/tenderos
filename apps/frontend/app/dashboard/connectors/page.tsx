@@ -167,11 +167,63 @@ export default function ConnectorsPage() {
     }, 2500);
   };
 
-  const filteredConnectors = connectors.filter((c) => {
-    const matchesCat = selectedCategory === "All" || c.category === selectedCategory;
-    const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase()) || c.portalUrl.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCat && matchesSearch;
-  });
+const INDIAN_STATES_AND_UTS = [
+  "Maharashtra", "Karnataka", "Uttar Pradesh", "Delhi", "Tamil Nadu", "Gujarat",
+  "West Bengal", "Telangana", "Andhra Pradesh", "Rajasthan", "Kerala", "Madhya Pradesh",
+  "Punjab", "Haryana", "Bihar", "Odisha", "Assam", "Jharkhand", "Chhattisgarh",
+  "Uttarakhand", "Himachal Pradesh", "Jammu & Kashmir", "Goa", "Puducherry",
+  "Chandigarh", "Ladakh", "Tripura", "Meghalaya", "Manipur", "Nagaland",
+  "Mizoram", "Arunachal Pradesh", "Sikkim", "Andaman", "DNH & Daman Diu", "Lakshadweep"
+];
+
+  const [selectedStateFilter, setSelectedStateFilter] = useState<string>("All");
+  const [statusFilter, setStatusFilter] = useState<string>("All");
+  const [sortBy, setSortBy] = useState<string>("active");
+
+  const filteredConnectors = connectors
+    .filter((c) => {
+      const matchesCat = selectedCategory === "All" || c.category === selectedCategory;
+      const matchesSearch =
+        c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        c.portalUrl.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        c.category.toLowerCase().includes(searchQuery.toLowerCase());
+
+      const matchesState =
+        selectedStateFilter === "All" ||
+        c.name.toLowerCase().includes(selectedStateFilter.toLowerCase()) ||
+        c.portalUrl.toLowerCase().includes(selectedStateFilter.toLowerCase());
+
+      const matchesStatus =
+        statusFilter === "All" ||
+        (statusFilter === "fallback" && c.fallbackEnabled) ||
+        (statusFilter === "high_volume" && c.activeTenders >= 100) ||
+        (statusFilter === "fast" && c.latencyMs < 350);
+
+      return matchesCat && matchesSearch && matchesState && matchesStatus;
+    })
+    .sort((a, b) => {
+      if (sortBy === "active") return b.activeTenders - a.activeTenders;
+      if (sortBy === "ingested") return b.totalIngested - a.totalIngested;
+      if (sortBy === "latency") return a.latencyMs - b.latencyMs;
+      if (sortBy === "success") return b.successRate - a.successRate;
+      if (sortBy === "name") return a.name.localeCompare(b.name);
+      return 0;
+    });
+
+  const resetAllFilters = () => {
+    setSelectedCategory("All");
+    setSearchQuery("");
+    setSelectedStateFilter("All");
+    setStatusFilter("All");
+    setSortBy("active");
+  };
+
+  const hasActiveFilters =
+    selectedCategory !== "All" ||
+    searchQuery !== "" ||
+    selectedStateFilter !== "All" ||
+    statusFilter !== "All" ||
+    sortBy !== "active";
 
   const totalActive = connectors.reduce((acc, c) => acc + c.activeTenders, 0);
   const totalIngested = connectors.reduce((acc, c) => acc + c.totalIngested, 0);
@@ -247,7 +299,7 @@ export default function ConnectorsPage() {
             <Activity className="w-4 h-4 text-emerald-400" />
           </div>
           <div className="text-2xl font-bold mt-2 text-white">{totalActive.toLocaleString("en-IN")}</div>
-          <div className="text-[11px] text-slate-400 mt-1">Across 28 Indian States & UTs</div>
+          <div className="text-[11px] text-slate-400 mt-1">Across All 36 Indian States & UTs</div>
         </div>
 
         <div className="p-5 rounded-2xl bg-slate-900/60 border border-white/10 backdrop-blur-sm">
@@ -269,34 +321,128 @@ export default function ConnectorsPage() {
         </div>
       </div>
 
-      {/* Filter and Search Bar */}
-      <div className="flex flex-col md:flex-row items-center justify-between gap-4 bg-slate-900/40 p-4 rounded-2xl border border-white/10">
-        <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto pb-2 md:pb-0">
-          <Filter className="w-4 h-4 text-slate-400 ml-1 flex-shrink-0" />
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-medium transition flex-shrink-0 ${
-                selectedCategory === cat
-                  ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20"
-                  : "bg-slate-800/80 text-slate-300 hover:bg-slate-700"
-              }`}
-            >
-              {cat} {cat !== "All" && `(${connectors.filter((c) => c.category === cat).length})`}
-            </button>
-          ))}
+      {/* GOD TIER Multi-Dimensional Filter Bar */}
+      <div className="bg-slate-900/80 p-5 rounded-2xl border border-white/10 space-y-4 shadow-xl">
+        {/* Top Row: Category Tabs & Search Bar */}
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
+          {/* Category Tabs */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0">
+            <Filter className="w-4 h-4 text-indigo-400 ml-1 flex-shrink-0" />
+            {categories.map((cat) => {
+              const count = cat === "All" ? connectors.length : connectors.filter((c) => c.category === cat).length;
+              return (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex-shrink-0 flex items-center gap-1.5 ${
+                    selectedCategory === cat
+                      ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/25 border border-indigo-400/40"
+                      : "bg-slate-800/80 text-slate-300 hover:bg-slate-700/80 border border-slate-700/50"
+                  }`}
+                >
+                  <span>{cat}</span>
+                  <span className={`px-1.5 py-0.2 rounded-md text-[10px] ${selectedCategory === cat ? "bg-white/20 text-white" : "bg-slate-700 text-slate-300"}`}>
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Search Box */}
+          <div className="relative w-full lg:w-72 flex-shrink-0">
+            <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search portal, state, domain..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 text-xs bg-slate-800 border border-slate-700 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition font-medium"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3 top-2.5 text-xs text-slate-400 hover:text-white"
+              >
+                ✕
+              </button>
+            )}
+          </div>
         </div>
 
-        <div className="relative w-full md:w-72">
-          <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search portal or domain..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 text-xs bg-slate-800/80 border border-white/10 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition"
-          />
+        {/* Bottom Row: State Dropdown, Capability Filters, Sort By & Results Count */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-3 border-t border-white/5 text-xs">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Specific State & UT Dropdown Filter */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-400 font-semibold text-[11px]">State / UT:</span>
+              <select
+                value={selectedStateFilter}
+                onChange={(e) => setSelectedStateFilter(e.target.value)}
+                className="bg-slate-800 text-white border border-slate-700 rounded-xl px-3 py-1.5 text-xs font-semibold focus:outline-none focus:border-indigo-500"
+              >
+                <option value="All">All 36 States & Union Territories</option>
+                {INDIAN_STATES_AND_UTS.map((st) => (
+                  <option key={st} value={st}>
+                    {st} Portal
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Quick Status Filter Pills */}
+            <div className="flex items-center gap-1.5">
+              {[
+                { id: "All", label: "All Status" },
+                { id: "fallback", label: "🛡️ CPPP Fallback" },
+                { id: "high_volume", label: "⚡ High Volume (>100)" },
+                { id: "fast", label: "🚀 Ultra-Fast (<350ms)" },
+              ].map((pill) => (
+                <button
+                  key={pill.id}
+                  onClick={() => setStatusFilter(pill.id)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition ${
+                    statusFilter === pill.id
+                      ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                      : "bg-slate-800/60 text-slate-400 hover:text-white border border-slate-700/40"
+                  }`}
+                >
+                  {pill.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Right Side: Sort Selector & Clear All */}
+          <div className="flex items-center gap-3 self-end md:self-auto">
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-400 font-semibold text-[11px]">Sort By:</span>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="bg-slate-800 text-white border border-slate-700 rounded-xl px-3 py-1.5 text-xs font-semibold focus:outline-none focus:border-indigo-500"
+              >
+                <option value="active">Most Active Tenders</option>
+                <option value="ingested">Highest Ingested Archive</option>
+                <option value="latency">Fastest Latency (ms)</option>
+                <option value="success">Highest Success Rate (%)</option>
+                <option value="name">Portal Name (A-Z)</option>
+              </select>
+            </div>
+
+            {hasActiveFilters && (
+              <button
+                onClick={resetAllFilters}
+                className="px-2.5 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-[11px] font-bold transition"
+              >
+                Clear Filters
+              </button>
+            )}
+
+            <div className="px-3 py-1.5 rounded-xl bg-indigo-950/80 border border-indigo-500/30 text-indigo-300 text-[11px] font-bold font-mono">
+              Showing {filteredConnectors.length} of {connectors.length}
+            </div>
+          </div>
         </div>
       </div>
 
