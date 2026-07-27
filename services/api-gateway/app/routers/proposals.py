@@ -275,35 +275,90 @@ Our proposed solution is engineered specifically to address the operational and 
     }
 
 
-@router.get("/{tender_id}/workflow", summary="Get bid workflow state")
+# In-memory workflow history store per tender
+_workflow_history_db: dict[str, list] = {}
+_workflow_state_db: dict[str, str] = {}
+
+@router.get("/{tender_id}/workflow", summary="Get bid workflow state and history")
 async def get_workflow_state(request: Request, tender_id: str = Path(...)):
+    user = getattr(request.state, "user", None) or {}
+    user_id = user.get("user_id", "guest_user")
+    
+    state = _workflow_state_db.get(tender_id, "AI_RECOMMENDATION")
+    history = _workflow_history_db.get(tender_id, [
+        {
+            "id": "init-1",
+            "from_state": "START",
+            "to_state": "AI_RECOMMENDATION",
+            "comment": "Initial AI qualification completed. Recommended for bid compilation.",
+            "user_role": "ai_copilot",
+            "user_name": "TenderOS AI Copilot",
+            "timestamp": "Initial Analysis",
+        }
+    ])
+
     try:
-        return await _proposal.get(f"/proposals/{tender_id}/workflow", request=request)
+        res = await _proposal.get(f"/proposals/{tender_id}/workflow", request=request)
+        if isinstance(res, dict) and "state" in res:
+            state = res.get("state", state)
+            if "history" in res:
+                history = res.get("history", history)
     except Exception:
-        return {"tender_id": tender_id, "state": "AI_RECOMMENDATION"}
+        pass
+
+    return {
+        "tender_id": tender_id,
+        "state": state,
+        "history": history,
+    }
 
 
-@router.post("/{tender_id}/workflow/transition", summary="Transition bid workflow state")
+@router.post("/{tender_id}/workflow/transition", summary="Transition bid workflow state with comments")
 async def transition_workflow_state(request: Request, tender_id: str = Path(...)):
     body = await request.json()
     user = getattr(request.state, "user", None) or {}
     target = body.get("target_state", "TECHNICAL_REVIEW")
-    body["user_role"] = user.get("role", "admin")
-    try:
-        res = await _proposal.post(
-            f"/proposals/{tender_id}/workflow/transition",
-            json=body,
-            request=request,
-        )
-        if isinstance(res, dict):
-            res["status"] = "success"
-            res["new_state"] = res.get("new_state") or res.get("state") or target
-        return res
-    except Exception:
-        return {
-            "status": "success",
-            "tender_id": tender_id,
-            "new_state": target,
-            "state": target,
-            "transitioned_by": user.get("role", "admin"),
-        }
+    comment = (body.get("comment") or "").strip() or f"Transitioned stage to {target.replace('_', ' ')}"
+    user_role = body.get("user_role") or user.get("role") or "admin"
+    user_name = body.get("user_name") or user.get("name") or "Procurement Lead"
+    
+    current_state = _workflow_state_db.get(tender_id, "AI_RECOMMENDATION")
+    _workflow_state_db[tender_id] = target
+
+    import datetime
+    now_str = datetime.datetime.now().strftime("%d %b %Y, %I:%M %p")
+
+    if tender_id not in _workflow_history_db:
+        _workflow_history_db[tender_id] = [
+            {
+                "id": "init-1",
+                "from_state": "START",
+                "to_state": "AI_RECOMMENDATION",
+                "comment": "Initial AI qualification completed. Recommended for bid compilation.",
+                "user_role": "ai_copilot",
+                "user_name": "TenderOS AI Copilot",
+                "timestamp": "Initial Analysis",
+            }
+        ]
+
+    new_transition = {
+        "id": f"trans-{len(_workflow_history_db[tender_id]) + 1}",
+        "from_state": current_state,
+        "to_state": target,
+        "comment": comment,
+        "user_role": user_role,
+        "user_name": user_name,
+        "timestamp": now_str,
+    }
+
+    _workflow_history_db[tender_id].insert(0, new_transition)
+
+    return {
+        "status": "success",
+        "tender_id": tender_id,
+        "new_state": target,
+        "state": target,
+        "transitioned_by": user_role,
+        "history": _workflow_history_db[tender_id],
+    }
+

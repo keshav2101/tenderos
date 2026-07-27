@@ -165,7 +165,7 @@ export const proposalsApi = {
   generate: (tenderId: string, userId: string) =>
     api.get(`/proposals/${tenderId}`, { params: { user_id: userId } }),
   getWorkflow: (tenderId: string) => api.get(`/proposals/${tenderId}/workflow`),
-  transition: (tenderId: string, body: { target_state: string; user_role: string }) =>
+  transition: (tenderId: string, body: { target_state: string; user_role?: string; comment?: string; user_name?: string }) =>
     api.post(`/proposals/${tenderId}/workflow/transition`, body),
 };
 

@@ -7,7 +7,8 @@ import {
   ArrowLeft, Building2, MapPin, IndianRupee, Clock,
   FileText, ExternalLink, CheckCircle, XCircle, AlertCircle,
   ChevronDown, ChevronUp, Download, Bookmark, Share2,
-  Target, TrendingUp, Users, Zap, Loader2, Lock
+  Target, TrendingUp, Users, Zap, Loader2, Lock,
+  GitBranch, MessageSquare, History
 } from "lucide-react";
 import { TenderCopilot } from "@/app/components/TenderCopilot";
 import { tendersApi, eligibilityApi, proposalsApi } from "@/lib/api";
@@ -431,6 +432,8 @@ export default function TenderDetailPage({ params }: { params: { id: string } })
   const [proposalLoading, setProposalLoading] = useState(false);
   const [proposalError, setProposalError] = useState<string | null>(null);
   const [bidWorkflowState, setBidWorkflowState] = useState<string>("AI_RECOMMENDATION");
+  const [workflowComment, setWorkflowComment] = useState("");
+  const [workflowHistory, setWorkflowHistory] = useState<any[]>([]);
 
   // Reset proposal state on tenderId change
   useEffect(() => {
@@ -459,6 +462,9 @@ export default function TenderDetailPage({ params }: { params: { id: string } })
       try {
         const wfRes = await proposalsApi.getWorkflow(tenderId);
         setBidWorkflowState(wfRes.data?.state || "AI_RECOMMENDATION");
+        if (wfRes.data?.history) {
+          setWorkflowHistory(wfRes.data.history);
+        }
       } catch {
         setBidWorkflowState("AI_RECOMMENDATION");
       }
@@ -477,19 +483,41 @@ export default function TenderDetailPage({ params }: { params: { id: string } })
 
   const handleTransition = async (targetState: string) => {
     if (!tenderId) return;
+    const commentText = workflowComment.trim() || `Approved transition to ${targetState.replace("_", " ")}`;
     setBidWorkflowState(targetState);
     try {
       const { data } = await proposalsApi.transition(tenderId, {
         target_state: targetState,
+        comment: commentText,
         user_role: user?.role || "admin",
+        user_name: user?.name || "Chief Procurement Officer",
       });
       if (data.new_state || data.state) {
         setBidWorkflowState(data.new_state || data.state || targetState);
       }
+      if (data.history) {
+        setWorkflowHistory(data.history);
+      } else {
+        const timeNow = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+        setWorkflowHistory(prev => [
+          {
+            id: `trans-${prev.length + 1}`,
+            from_state: bidWorkflowState,
+            to_state: targetState,
+            comment: commentText,
+            user_role: user?.role || "admin",
+            user_name: user?.name || "Chief Procurement Officer",
+            timestamp: timeNow,
+          },
+          ...prev,
+        ]);
+      }
+      setWorkflowComment("");
     } catch (err: any) {
       console.warn("Workflow state transition handled locally:", err);
     }
   };
+
 
   useEffect(() => {
     if (activeTab === "proposal" && (!proposal || proposal.tender_id !== tenderId) && !proposalLoading) {
@@ -887,18 +915,24 @@ export default function TenderDetailPage({ params }: { params: { id: string } })
               </div>
             ) : (
               <div className="space-y-4">
-                {/* ─── Workflow Stepper ─── */}
+                {/* ─── Workflow Stepper & Review Audit Pipeline ─── */}
                 <div className="card p-5 space-y-4">
                   <div className="flex items-center justify-between border-b border-subtle pb-2">
-                    <span className="text-xs font-semibold text-primary uppercase">Bid Workflow Pipeline</span>
-                    <span className="text-[10px] bg-indigo-500/20 text-indigo-400 px-2 py-0.5 rounded-full font-semibold font-mono uppercase">{bidWorkflowState.replace("_", " ")}</span>
+                    <div className="flex items-center gap-2">
+                      <GitBranch className="w-4 h-4 text-indigo-400" />
+                      <span className="text-xs font-bold text-primary uppercase tracking-wider">Bid Workflow Pipeline</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] bg-indigo-500/20 text-indigo-400 px-2.5 py-0.5 rounded-full font-semibold font-mono uppercase">{bidWorkflowState.replace("_", " ")}</span>
+                    </div>
                   </div>
 
-                  <div className="flex items-center justify-between gap-2 relative">
-                    <div className="absolute top-1/2 left-4 right-4 h-0.5 bg-slate-800 -translate-y-1/2 z-0" />
+                  {/* Stepper circles */}
+                  <div className="flex items-center justify-between gap-2 relative px-2">
+                    <div className="absolute top-1/2 left-6 right-6 h-0.5 bg-slate-800 -translate-y-1/2 z-0" />
                     {[
                       { state: "AI_RECOMMENDATION", label: "Rec" },
-                      { state: "TECHNICAL_REVIEW", label: "Tech" },
+                      { state: "TECHNICAL_REVIEW", label: "Tech Review" },
                       { state: "FINANCE_REVIEW", label: "Finance" },
                       { state: "LEGAL_REVIEW", label: "Legal" },
                       { state: "MANAGEMENT_APPROVAL", label: "Approval" },
@@ -918,71 +952,133 @@ export default function TenderDetailPage({ params }: { params: { id: string } })
 
                       return (
                         <div key={step.state} className="flex flex-col items-center z-10">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors ${
-                            isPast ? "bg-emerald-500 text-white" : isCurrent ? "bg-indigo-500 text-white ring-4 ring-indigo-500/20" : "bg-slate-800 text-muted"
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold transition-all shadow-md ${
+                            isPast ? "bg-emerald-500 text-white" : isCurrent ? "bg-indigo-500 text-white ring-4 ring-indigo-500/20 scale-110" : "bg-slate-800 text-muted"
                           }`}>
-                            {idx + 1}
+                            {isPast ? "✓" : idx + 1}
                           </div>
-                          <span className={`text-[9px] mt-1 font-semibold ${isCurrent ? "text-primary" : "text-muted"}`}>{step.label}</span>
+                          <span className={`text-[9px] mt-1 font-semibold ${isCurrent ? "text-primary font-bold" : "text-muted"}`}>{step.label}</span>
                         </div>
                       );
                     })}
                   </div>
 
+                  {/* Stage Review Comments Input Box */}
+                  <div className="p-3 rounded-xl bg-black/30 border border-white/10 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-semibold text-secondary flex items-center gap-1.5">
+                        <MessageSquare className="w-3.5 h-3.5 text-indigo-400" />
+                        Stage Transition Notes & Reviewer Comment:
+                      </label>
+                      <span className="text-[9px] text-muted font-mono">Comments are logged to audit trail</span>
+                    </div>
+                    <textarea
+                      rows={2}
+                      value={workflowComment}
+                      onChange={(e) => setWorkflowComment(e.target.value)}
+                      placeholder="Type approval notes or compliance feedback (e.g. Technical specs & BOQ verified by Chief Engineer)..."
+                      className="w-full text-xs p-2.5 rounded-lg bg-black/40 border border-white/10 text-primary placeholder:text-muted focus:outline-none focus:border-indigo-500/50 resize-none font-sans"
+                    />
+                  </div>
+
                   {/* Transitions controller */}
-                  <div className="flex justify-end gap-2 pt-2 border-t border-subtle">
-                    {bidWorkflowState === "AI_RECOMMENDATION" && (
-                      <button onClick={() => handleTransition("TECHNICAL_REVIEW")} className="btn btn-primary text-xs px-4 py-1.5">
-                        Send to Technical Review &rarr;
-                      </button>
-                    )}
-                    {bidWorkflowState === "TECHNICAL_REVIEW" && (
-                      <>
-                        <button onClick={() => handleTransition("AI_RECOMMENDATION")} className="btn btn-secondary text-xs px-3 py-1.5">
-                          &larr; Reject to Recommendation
+                  <div className="flex items-center justify-between pt-2 border-t border-subtle">
+                    <span className="text-[10px] text-muted flex items-center gap-1 font-mono">
+                      <History className="w-3.5 h-3.5 text-emerald-400" />
+                      {workflowHistory.length} Saved Audit Entries
+                    </span>
+                    <div className="flex gap-2">
+                      {bidWorkflowState === "AI_RECOMMENDATION" && (
+                        <button onClick={() => handleTransition("TECHNICAL_REVIEW")} className="btn btn-primary text-xs px-4 py-1.5 flex items-center gap-1">
+                          Send to Technical Review &rarr;
                         </button>
-                        <button onClick={() => handleTransition("FINANCE_REVIEW")} className="btn btn-primary text-xs px-4 py-1.5">
-                          Approve to Finance Review &rarr;
-                        </button>
-                      </>
-                    )}
-                    {bidWorkflowState === "FINANCE_REVIEW" && (
-                      <>
-                        <button onClick={() => handleTransition("TECHNICAL_REVIEW")} className="btn btn-secondary text-xs px-3 py-1.5">
-                          &larr; Reject to Tech Review
-                        </button>
-                        <button onClick={() => handleTransition("LEGAL_REVIEW")} className="btn btn-primary text-xs px-4 py-1.5">
-                          Approve to Legal Review &rarr;
-                        </button>
-                      </>
-                    )}
-                    {bidWorkflowState === "LEGAL_REVIEW" && (
-                      <>
-                        <button onClick={() => handleTransition("FINANCE_REVIEW")} className="btn btn-secondary text-xs px-3 py-1.5">
-                          &larr; Reject to Finance Review
-                        </button>
-                        <button onClick={() => handleTransition("MANAGEMENT_APPROVAL")} className="btn btn-primary text-xs px-4 py-1.5">
-                          Approve to Management Approval &rarr;
-                        </button>
-                      </>
-                    )}
-                    {bidWorkflowState === "MANAGEMENT_APPROVAL" && (
-                      <>
-                        <button onClick={() => handleTransition("LEGAL_REVIEW")} className="btn btn-secondary text-xs px-3 py-1.5">
-                          &larr; Reject to Legal Review
-                        </button>
-                        <button onClick={() => handleTransition("BID_SUBMISSION")} className="btn btn-green text-xs px-4 py-1.5">
-                          Approve for Portal Submission &rarr;
-                        </button>
-                      </>
-                    )}
-                    {bidWorkflowState === "BID_SUBMISSION" && (
-                      <div className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
-                        <CheckCircle className="w-3.5 h-3.5" /> Bid approved for official portal submission.
-                      </div>
-                    )}
+                      )}
+                      {bidWorkflowState === "TECHNICAL_REVIEW" && (
+                        <>
+                          <button onClick={() => handleTransition("AI_RECOMMENDATION")} className="btn btn-secondary text-xs px-3 py-1.5">
+                            &larr; Reject to Recommendation
+                          </button>
+                          <button onClick={() => handleTransition("FINANCE_REVIEW")} className="btn btn-primary text-xs px-4 py-1.5">
+                            Approve to Finance Review &rarr;
+                          </button>
+                        </>
+                      )}
+                      {bidWorkflowState === "FINANCE_REVIEW" && (
+                        <>
+                          <button onClick={() => handleTransition("TECHNICAL_REVIEW")} className="btn btn-secondary text-xs px-3 py-1.5">
+                            &larr; Reject to Tech Review
+                          </button>
+                          <button onClick={() => handleTransition("LEGAL_REVIEW")} className="btn btn-primary text-xs px-4 py-1.5">
+                            Approve to Legal Review &rarr;
+                          </button>
+                        </>
+                      )}
+                      {bidWorkflowState === "LEGAL_REVIEW" && (
+                        <>
+                          <button onClick={() => handleTransition("FINANCE_REVIEW")} className="btn btn-secondary text-xs px-3 py-1.5">
+                            &larr; Reject to Finance Review
+                          </button>
+                          <button onClick={() => handleTransition("MANAGEMENT_APPROVAL")} className="btn btn-primary text-xs px-4 py-1.5">
+                            Approve to Management Approval &rarr;
+                          </button>
+                        </>
+                      )}
+                      {bidWorkflowState === "MANAGEMENT_APPROVAL" && (
+                        <>
+                          <button onClick={() => handleTransition("LEGAL_REVIEW")} className="btn btn-secondary text-xs px-3 py-1.5">
+                            &larr; Reject to Legal Review
+                          </button>
+                          <button onClick={() => handleTransition("BID_SUBMISSION")} className="btn btn-green text-xs px-4 py-1.5">
+                            Approve for Portal Submission &rarr;
+                          </button>
+                        </>
+                      )}
+                      {bidWorkflowState === "BID_SUBMISSION" && (
+                        <div className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
+                          <CheckCircle className="w-3.5 h-3.5" /> Bid approved for official portal submission.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* ─── Saved Workflow History & Audit Trail Log ─── */}
+                  <div className="p-3.5 rounded-xl bg-white/5 border border-white/5 space-y-2.5">
+                    <div className="flex items-center justify-between border-b border-white/5 pb-1.5">
+                      <span className="text-[11px] font-bold text-primary uppercase flex items-center gap-1.5">
+                        <History className="w-3.5 h-3.5 text-emerald-400" />
+                        Saved Review Audit & Comment History
+                      </span>
+                      <span className="text-[9px] text-emerald-400 font-mono font-semibold">Real-Time Audit Trail</span>
+                    </div>
+
+                    <div className="space-y-2 max-h-[190px] overflow-y-auto pr-1">
+                      {workflowHistory.length === 0 ? (
+                        <p className="text-[10px] text-muted italic">No comments or stage transitions logged yet.</p>
+                      ) : (
+                        workflowHistory.map((item, idx) => (
+                          <div key={item.id || idx} className="p-2.5 rounded-lg bg-black/30 border border-white/5 space-y-1 text-[11px]">
+                            <div className="flex items-center justify-between text-secondary">
+                              <div className="flex items-center gap-2 font-mono text-[10px]">
+                                <span className="badge badge-gray text-[9px] uppercase">{item.from_state?.replace("_", " ")}</span>
+                                <span>→</span>
+                                <span className="badge badge-indigo text-[9px] uppercase">{item.to_state?.replace("_", " ")}</span>
+                              </div>
+                              <span className="text-muted text-[9px] font-mono">{item.timestamp}</span>
+                            </div>
+                            <p className="text-primary font-medium leading-normal pl-2 border-l-2 border-indigo-400">
+                              💬 "{item.comment || "Stage transition approved."}"
+                            </p>
+                            <div className="flex items-center gap-2 text-[9px] text-muted pt-0.5">
+                              <span>👤 {item.user_name || "Procurement Lead"}</span>
+                              <span>• Role: <code className="text-emerald-400 font-mono">{item.user_role || "admin"}</code></span>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </div>
                 </div>
+
 
                 {/* ─── Grid details ─── */}
                 <div className="grid grid-cols-5 gap-4 animate-fade-in">
