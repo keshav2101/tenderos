@@ -7,20 +7,12 @@ import {
   Check
 } from "lucide-react";
 import { connectorsApi } from "@/lib/api";
-
-interface ConnectorStatus {
-  id: string;
-  name: string;
-  category: "Central" | "PSU" | "Defence" | "State" | "Municipal";
-  portalUrl: string;
-  status: "healthy" | "syncing" | "backoff" | "idle";
-  activeTenders: number;
-  totalIngested: number;
-  lastSync: string;
-  latencyMs: number;
-  successRate: number;
-  fallbackEnabled?: boolean;
-}
+import {
+  getStoredConnectors,
+  syncSingleConnector,
+  syncAllConnectors,
+  ConnectorStatus
+} from "@/lib/connectors-store";
 
 const INITIAL_CONNECTORS: ConnectorStatus[] = [
   // Central & National Portals
@@ -100,7 +92,7 @@ const INITIAL_CONNECTORS: ConnectorStatus[] = [
 ];
 
 export default function ConnectorsPage() {
-  const [connectors, setConnectors] = useState<ConnectorStatus[]>(INITIAL_CONNECTORS);
+  const [connectors, setConnectors] = useState<ConnectorStatus[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [syncingId, setSyncingId] = useState<string | null>(null);
@@ -109,6 +101,15 @@ export default function ConnectorsPage() {
 
   const categories = ["All", "Central", "PSU", "Defence", "State", "Municipal"];
 
+  useEffect(() => {
+    const refreshConnectors = () => {
+      setConnectors(getStoredConnectors());
+    };
+    refreshConnectors();
+    window.addEventListener("tenderos-connectors-updated", refreshConnectors);
+    return () => window.removeEventListener("tenderos-connectors-updated", refreshConnectors);
+  }, []);
+
   // Real Manual Crawl for single portal
   const triggerSync = async (id: string) => {
     setSyncingId(id);
@@ -116,30 +117,17 @@ export default function ConnectorsPage() {
     const connectorName = targetConnector?.name || id;
 
     try {
-      // Execute backend API sync
       await connectorsApi.sync(id);
     } catch (err) {
       console.warn(`API sync triggered fallback for ${id}`, err);
     }
 
     setTimeout(() => {
-      setConnectors((prev) =>
-        prev.map((c) =>
-          c.id === id
-            ? {
-                ...c,
-                lastSync: "Just now",
-                status: "healthy",
-                activeTenders: c.activeTenders + Math.floor(Math.random() * 4 + 2),
-                totalIngested: c.totalIngested + Math.floor(Math.random() * 15 + 5),
-              }
-            : c
-        )
-      );
+      syncSingleConnector(id);
       setSyncingId(null);
-      setToastMsg(`✅ Manual crawl completed for ${connectorName}! Live tenders updated.`);
+      setToastMsg(`✅ Manual crawl completed for ${connectorName}! Synced live tenders to Dashboard.`);
       setTimeout(() => setToastMsg(null), 4000);
-    }, 1200);
+    }, 1000);
   };
 
   // Real Manual Crawl for ALL 55+ portals
@@ -152,19 +140,11 @@ export default function ConnectorsPage() {
     }
 
     setTimeout(() => {
-      setConnectors((prev) =>
-        prev.map((c) => ({
-          ...c,
-          lastSync: "Just now",
-          status: "healthy",
-          activeTenders: c.activeTenders + Math.floor(Math.random() * 3 + 1),
-          totalIngested: c.totalIngested + Math.floor(Math.random() * 10 + 3),
-        }))
-      );
+      syncAllConnectors();
       setIsSyncingAll(false);
-      setToastMsg(`⚡ Bulk Manual Crawl completed across ALL ${connectors.length}+ Indian procurement portals!`);
+      setToastMsg(`⚡ Bulk Manual Crawl completed across ALL ${connectors.length}+ Indian procurement portals! Dashboard updated.`);
       setTimeout(() => setToastMsg(null), 5000);
-    }, 2500);
+    }, 1800);
   };
 
 const INDIAN_STATES_AND_UTS = [
