@@ -526,7 +526,19 @@ class HybridSearchEngine:
                     for c in cats_list:
                         c_upper = c.upper()
                         if "TECH" in c_upper or "IT" in c_upper:
-                            expanded_cats.extend(["IT", "AI", "Cloud", "Cybersecurity", "GIS", "Software", "Data Analytics", "IoT", "Smart City"])
+                            expanded_cats.extend(
+                                [
+                                    "IT",
+                                    "AI",
+                                    "Cloud",
+                                    "Cybersecurity",
+                                    "GIS",
+                                    "Software",
+                                    "Data Analytics",
+                                    "IoT",
+                                    "Smart City",
+                                ]
+                            )
                         elif "INFRA" in c_upper or "CIVIL" in c_upper:
                             expanded_cats.extend(["Construction", "Infrastructure", "Civil", "Smart City"])
                         elif "DEFENCE" in c_upper or "AERO" in c_upper:

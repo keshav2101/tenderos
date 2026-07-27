@@ -110,7 +110,9 @@ async def list_tenders(
         cat_terms = [category]
         cat_upper = category.upper()
         if "TECH" in cat_upper or "IT" in cat_upper:
-            cat_terms.extend(["IT", "AI", "Cloud", "Cybersecurity", "GIS", "Software", "Data Analytics", "IoT", "Smart City"])
+            cat_terms.extend(
+                ["IT", "AI", "Cloud", "Cybersecurity", "GIS", "Software", "Data Analytics", "IoT", "Smart City"]
+            )
         elif "INFRA" in cat_upper or "CIVIL" in cat_upper:
             cat_terms.extend(["Construction", "Infrastructure", "Civil", "Smart City"])
         elif "DEFENCE" in cat_upper or "AERO" in cat_upper:

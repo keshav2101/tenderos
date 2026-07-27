@@ -82,13 +82,20 @@ async def generate_proposal(tender_id: str, user_id: str = "default_user"):
             resp = await client.get(f"{settings.TENDER_SERVICE_URL}/tenders/{tender_id}")
             if resp.status_code == 200:
                 data = resp.json()
+                t_cost = float(data.get("estimated_cost_lakhs") or 250.0)
+                t_turnover = float(data.get("turnover_min_lakhs") or (t_cost * 2.5))
+                t_exp = int(data.get("experience_years") or 5)
                 tender_spec = {
                     "tender_id": tender_id,
                     "title": data.get("title", "Government Procurement Project"),
-                    "min_experience_required": int(data.get("experience_years") or 3),
-                    "required_certifications": data.get("certifications_required") or ["ISO 9001"],
-                    "min_turnover_lakhs": float(data.get("turnover_min_lakhs") or 100.0),
-                    "risk_penalty_clause": "Clause 8.2: 1% per week delay penalty",
+                    "organisation": data.get("organisation")
+                    or data.get("department")
+                    or data.get("ministry")
+                    or "Government Department",
+                    "min_experience_required": t_exp,
+                    "required_certifications": data.get("certifications_required") or ["ISO 9001:2015"],
+                    "min_turnover_lakhs": t_turnover,
+                    "risk_penalty_clause": f"Clause 8.2 Liquidated Damages: 0.5% per week up to a maximum cap of 10% (₹{t_cost * 0.10:,.2f} Lakhs) of contract value",
                 }
         except Exception as he:
             logger.warning("Using default tender spec fallback", error=str(he))
