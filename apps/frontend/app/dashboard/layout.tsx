@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -8,6 +8,7 @@ import {
   Bell, Settings, Zap, Building2, Shield, LogOut, Radio
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+import { fetchRealtimeNotifications } from "@/lib/notifications-store";
 
 const NAV_ITEMS = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -15,7 +16,7 @@ const NAV_ITEMS = [
   { href: "/dashboard/intelligence", icon: Zap, label: "Procurement Intelligence" },
   { href: "/dashboard/analytics", icon: BarChart3, label: "Analytics" },
   { href: "/dashboard/watchlist", icon: BookmarkCheck, label: "Watchlist" },
-  { href: "/dashboard/notifications", icon: Bell, label: "Notifications", badge: "3" },
+  { href: "/dashboard/notifications", icon: Bell, label: "Notifications", isNotification: true },
 ];
 
 const SECONDARY_NAV = [
@@ -36,8 +37,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const router = useRouter();
   const { user, isLoading, isAuthenticated, logout } = useAuth();
+  const [unreadCount, setUnreadCount] = useState<number>(0);
 
   const isGuestPath = pathname === "/dashboard/search" || pathname.startsWith("/dashboard/tenders/");
+
+  // Load dynamic unread notification count
+  async function syncNotifications() {
+    try {
+      const notifs = await fetchRealtimeNotifications();
+      const count = notifs.filter((n) => !n.read).length;
+      setUnreadCount(count);
+    } catch {
+      setUnreadCount(0);
+    }
+  }
+
+  useEffect(() => {
+    syncNotifications();
+    window.addEventListener("tenderos-notifications-updated", syncNotifications);
+    return () => window.removeEventListener("tenderos-notifications-updated", syncNotifications);
+  }, []);
 
   // Auth guard — redirect unauthenticated users to /login ONLY on protected pages
   useEffect(() => {
@@ -85,7 +104,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Primary navigation */}
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          {NAV_ITEMS.map(({ href, icon: Icon, label, badge }) => {
+          {NAV_ITEMS.map(({ href, icon: Icon, label, isNotification }) => {
             const active = pathname === href || pathname.startsWith(href + "/");
             const needsAuth = href !== "/dashboard/search";
             const locked = needsAuth && !isAuthenticated;
@@ -95,10 +114,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 className={`nav-item ${active ? "active" : ""} ${locked ? "opacity-60 hover:opacity-100" : ""}`}>
                 <Icon className="w-4 h-4 flex-shrink-0" />
                 <span className="flex-1 truncate">{label} {locked && "🔒"}</span>
-                {!locked && badge && (
-                  <span className="w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold"
+                {!locked && isNotification && unreadCount > 0 && (
+                  <span className="w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold animate-pulse"
                     style={{ background: "#4c51e8", color: "white" }}>
-                    {badge}
+                    {unreadCount}
                   </span>
                 )}
               </Link>

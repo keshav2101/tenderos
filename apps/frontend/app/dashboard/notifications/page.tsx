@@ -7,82 +7,12 @@ import {
   Clock, ArrowRight, CheckCheck, Sparkles, AlertTriangle, ExternalLink, Filter
 } from "lucide-react";
 import { notificationsApi } from "@/lib/api";
-
-export interface AppNotification {
-  id: string;
-  title: string;
-  message: string;
-  type: "ACTION_REQUIRED" | "CORRIGENDUM" | "FINANCIAL_OPENING" | "EMD_WAIVER" | "SYSTEM";
-  read: boolean;
-  created_at: string;
-  tender_id?: string;
-  action_label?: string;
-  action_url?: string;
-  urgency?: "HIGH" | "MEDIUM" | "NORMAL";
-}
-
-const DEFAULT_NOTIFICATIONS: AppNotification[] = [
-  {
-    id: "notif-001",
-    title: "🚨 Action Required: PBG Performance Security Due in 5 Days",
-    message: "Performance Security Deposit of ₹135.00 Lakhs (3% of estimated cost) or Bank Guarantee declaration must be uploaded before August 1, 2026 for High-Altitude Surveillance Drone Tender (Ministry of Defence).",
-    type: "ACTION_REQUIRED",
-    read: false,
-    created_at: new Date(Date.now() - 3600000 * 2).toISOString(),
-    tender_id: "tender-001",
-    action_label: "Upload PBG Guarantee",
-    action_url: "/dashboard/tenders/tender-001",
-    urgency: "HIGH",
-  },
-  {
-    id: "notif-002",
-    title: "⚠️ Action Required: Missing CA UDIN Turnover Certificate",
-    message: "Your profile requires an updated Chartered Accountant UDIN certified annual turnover statement for ₹3,680.00 Lakhs to satisfy Rule 144(xi) qualification for AIIMS EMR Cloud Infrastructure Tender.",
-    type: "ACTION_REQUIRED",
-    read: false,
-    created_at: new Date(Date.now() - 3600000 * 5).toISOString(),
-    tender_id: "tender-004",
-    action_label: "Upload CA Certificate",
-    action_url: "/dashboard/profile",
-    urgency: "HIGH",
-  },
-  {
-    id: "notif-003",
-    title: "📢 Corrigendum 02 Issued: Technical Criteria Extension",
-    message: "Ministry of Railways (RDSO) issued Corrigendum 02 extending bid submission deadline to August 28, 2026 and updating Clause 4.2 Kavach ATP SIL-4 certification standards.",
-    type: "CORRIGENDUM",
-    read: false,
-    created_at: new Date(Date.now() - 3600000 * 12).toISOString(),
-    tender_id: "tender-002",
-    action_label: "Review Corrigendum 02",
-    action_url: "/dashboard/tenders/tender-002",
-    urgency: "MEDIUM",
-  },
-  {
-    id: "notif-004",
-    title: "🏆 Financial Bid Opening Scheduled Tomorrow",
-    message: "L1 Lowest Price Evaluation for Solar Microgrid Rural Electrification Project (MNRE / Rajasthan) is scheduled for opening at 11:00 AM on GeM Portal.",
-    type: "FINANCIAL_OPENING",
-    read: true,
-    created_at: new Date(Date.now() - 3600000 * 24).toISOString(),
-    tender_id: "tender-003",
-    action_label: "View Financial Opening",
-    action_url: "/dashboard/tenders/tender-003",
-    urgency: "NORMAL",
-  },
-  {
-    id: "notif-005",
-    title: "✅ 100% EMD Waiver Verified via Udyam MSME Registration",
-    message: "Earnest Money Deposit waiver of ₹90.00 Lakhs successfully auto-applied under GFR 2017 Rule 170. Zero cash deposit or EMD bank guarantee required.",
-    type: "EMD_WAIVER",
-    read: true,
-    created_at: new Date(Date.now() - 3600000 * 36).toISOString(),
-    tender_id: "tender-001",
-    action_label: "View EMD Certificate",
-    action_url: "/dashboard/tenders/tender-001",
-    urgency: "NORMAL",
-  },
-];
+import {
+  fetchRealtimeNotifications,
+  saveReadNotificationId,
+  markAllNotificationsRead,
+  AppNotification
+} from "@/lib/notifications-store";
 
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -91,20 +21,10 @@ export default function NotificationsPage() {
 
   async function loadNotifications() {
     try {
-      const { data } = await notificationsApi.list();
-      if (Array.isArray(data) && data.length > 0) {
-        setNotifications(data.map((n: any, idx: number) => ({
-          ...n,
-          type: n.type || (idx === 0 ? "ACTION_REQUIRED" : idx === 1 ? "CORRIGENDUM" : "SYSTEM"),
-          urgency: n.urgency || (idx < 2 ? "HIGH" : "NORMAL"),
-          action_label: n.action_label || "View Details",
-          action_url: n.action_url || "/dashboard/tenders",
-        })));
-      } else {
-        setNotifications(DEFAULT_NOTIFICATIONS);
-      }
-    } catch {
-      setNotifications(DEFAULT_NOTIFICATIONS);
+      const realtimeNotifs = await fetchRealtimeNotifications();
+      setNotifications(realtimeNotifs);
+    } catch (err) {
+      console.error("Failed to load real-time notifications", err);
     } finally {
       setLoading(false);
     }
@@ -112,18 +32,23 @@ export default function NotificationsPage() {
 
   useEffect(() => {
     loadNotifications();
+    window.addEventListener("tenderos-notifications-updated", loadNotifications);
+    return () => window.removeEventListener("tenderos-notifications-updated", loadNotifications);
   }, []);
 
   async function markAsRead(id: string) {
-    try {
-      await notificationsApi.markRead(id);
-    } catch (_) {}
+    saveReadNotificationId(id);
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n))
     );
+    try {
+      await notificationsApi.markRead(id);
+    } catch (_) {}
   }
 
-  function markAllAsRead() {
+  function handleMarkAllAsRead() {
+    const allIds = notifications.map((n) => n.id);
+    markAllNotificationsRead(allIds);
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   }
 
@@ -171,7 +96,7 @@ export default function NotificationsPage() {
 
         {unreadCount > 0 && (
           <button
-            onClick={markAllAsRead}
+            onClick={handleMarkAllAsRead}
             className="btn btn-secondary text-xs py-2 px-3.5 rounded-xl flex items-center gap-1.5 font-semibold text-indigo-400 hover:text-indigo-300 self-start md:self-auto"
           >
             <CheckCheck className="w-4 h-4" /> Mark All as Read
