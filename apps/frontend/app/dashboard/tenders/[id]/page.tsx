@@ -724,34 +724,56 @@ export default function TenderDetailPage({ params }: { params: { id: string } })
                 <div className="grid grid-cols-5 gap-4 animate-fade-in">
                   {/* Left checklist column */}
                   <div className="col-span-2 space-y-4">
-                    {/* Compliance */}
-                    <div className="card p-5">
-                      <h3 className="text-xs font-bold text-primary uppercase mb-3">Compliance Matrix</h3>
-                      <div className="space-y-2">
+                    {/* Compliance Matrix */}
+                    <div className="card p-5 space-y-3">
+                      <div className="flex items-center justify-between border-b border-subtle pb-2">
+                        <h3 className="text-xs font-bold text-primary uppercase">Compliance Matrix</h3>
+                        <span className="text-[10px] text-emerald-400 font-mono">Tender-Specific Rules</span>
+                      </div>
+                      <div className="space-y-3">
                         {proposal.compliance_check && Object.entries(proposal.compliance_check).map(([key, item]: any) => (
-                          <div key={key} className="flex items-center justify-between p-2 rounded bg-white/5">
-                            <span className="text-xs text-secondary capitalize">{key.replace("_", " ")}</span>
-                            <span className={`badge text-[9px] ${
-                              item.status === "COMPLIANT" || item.status === "EXEMPT" ? "badge-green" : "badge-red"
-                            }`}>{item.status}</span>
+                          <div key={key} className="p-2.5 rounded bg-white/5 space-y-1.5 border border-white/5">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs text-primary font-semibold capitalize">{key.replace("_", " ")}</span>
+                              <span className={`badge text-[9px] ${
+                                item.status === "COMPLIANT" || item.status === "EXEMPT" ? "badge-green" : "badge-red"
+                              }`}>{item.status}</span>
+                            </div>
+                            <p className="text-[10px] text-secondary leading-relaxed">{item.detail}</p>
+                            {(item.required || item.provided) && (
+                              <div className="flex justify-between text-[9px] font-mono pt-1 text-muted border-t border-white/5">
+                                <span>Req: <span className="text-amber-400 font-semibold">{item.required}</span></span>
+                                <span>Prov: <span className="text-emerald-400 font-semibold">{item.provided}</span></span>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
                     </div>
 
                     {/* Risk Analysis */}
-                    <div className="card p-5">
-                      <h3 className="text-xs font-bold text-primary uppercase mb-3">Risk Assessment</h3>
-                      <div className="space-y-2">
+                    <div className="card p-5 space-y-3">
+                      <div className="flex items-center justify-between border-b border-subtle pb-2">
+                        <h3 className="text-xs font-bold text-primary uppercase">Risk Assessment</h3>
+                        <span className="text-[10px] text-amber-400 font-mono">Clause Analysis</span>
+                      </div>
+                      <div className="space-y-3">
                         {proposal.risk_assessment && Object.entries(proposal.risk_assessment).map(([key, item]: any) => (
-                          <div key={key} className="p-2 rounded bg-white/5 space-y-1">
+                          <div key={key} className="p-2.5 rounded bg-white/5 space-y-1.5 border border-white/5">
                             <div className="flex justify-between text-xs text-primary font-semibold capitalize">
                               <span>{key.replace("_", " ")}</span>
-                              <span className={`text-[10px] ${
+                              <span className={`text-[10px] font-bold ${
                                 item.impact === "HIGH" ? "text-red-400" : "text-amber-400"
                               }`}>{item.impact} Risk</span>
                             </div>
-                            <p className="text-[10px] text-secondary leading-relaxed">{item.mitigation}</p>
+                            {item.risk_detail && (
+                              <p className="text-[10px] text-amber-300/90 leading-relaxed font-medium">
+                                ⚠️ {item.risk_detail}
+                              </p>
+                            )}
+                            <p className="text-[10px] text-secondary leading-relaxed">
+                              <span className="text-emerald-400 font-semibold">Mitigation:</span> {item.mitigation}
+                            </p>
                           </div>
                         ))}
                       </div>
@@ -759,13 +781,16 @@ export default function TenderDetailPage({ params }: { params: { id: string } })
 
                     {/* Missing documents */}
                     {proposal.missing_documents_checklist?.length > 0 && (
-                      <div className="card p-5" style={{ border: "1px solid rgba(245,158,11,0.2)" }}>
-                        <h3 className="text-xs font-bold text-amber-400 uppercase mb-2">Missing Documents</h3>
-                        <div className="space-y-1.5">
-                          {proposal.missing_documents_checklist.map((item: any) => (
-                            <div key={item.name} className="text-[10px] text-secondary">
-                              <span className="text-amber-400 font-semibold block">{item.name}</span>
-                              <span className="text-muted block">{item.action}</span>
+                      <div className="card p-5 space-y-3" style={{ border: "1px solid rgba(245,158,11,0.3)" }}>
+                        <div className="flex items-center justify-between border-b border-amber-500/20 pb-2">
+                          <h3 className="text-xs font-bold text-amber-400 uppercase">Missing Documents Checklist</h3>
+                          <span className="text-[9px] text-amber-400 font-bold px-1.5 py-0.5 rounded bg-amber-500/10">Action Required</span>
+                        </div>
+                        <div className="space-y-2">
+                          {proposal.missing_documents_checklist.map((item: any, idx: number) => (
+                            <div key={item.name || idx} className="p-2.5 rounded bg-amber-500/5 space-y-1 border border-amber-500/10">
+                              <span className="text-xs text-amber-300 font-semibold block">{item.name}</span>
+                              <span className="text-[10px] text-secondary block leading-relaxed">{item.action}</span>
                             </div>
                           ))}
                         </div>
