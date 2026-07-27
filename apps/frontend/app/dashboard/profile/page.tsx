@@ -41,26 +41,41 @@ const DEMO_PROFILE: Profile = {
   dsc_available: true,
   annual_turnover_lakhs: 4850,
   experience_years: 8,
-  certifications: ["ISO 9001:2015 Quality Systems", "ISO 27001 Cybersecurity", "CMMI Level 3 Dev", "OEM Drone Manufacturer Auth"],
+  certifications: ["ISO 9001:2015 Quality Systems", "ISO 27001 Cybersecurity", "CMMI Level 3 Dev"],
 };
+
+const BLANK_PROFILE: Profile = {
+  company_name: "",
+  gstin: "",
+  cin: "",
+  pan: "",
+  udyam_no: "",
+  dpiit_no: "",
+  gem_seller_id: "",
+  dsc_available: false,
+  annual_turnover_lakhs: 0,
+  experience_years: 0,
+  certifications: [],
+};
+
+const LOCAL_STORAGE_KEY = "tenderos_user_company_profile_v1";
+
+function calculateCompletenessScore(p: Profile): number {
+  let pts = 0;
+  if (p.company_name?.trim()) pts += 20;
+  if (p.gstin?.trim()) pts += 15;
+  if (p.cin?.trim()) pts += 10;
+  if (p.pan?.trim()) pts += 10;
+  if (p.udyam_no?.trim()) pts += 15;
+  if (p.annual_turnover_lakhs > 0) pts += 15;
+  if (p.certifications?.length > 0) pts += 15;
+  return Math.min(100, pts);
+}
 
 export default function CompanyProfilePage() {
   const { user } = useAuth();
   
-  const [profile, setProfile] = useState<Profile>({
-    company_name: "",
-    gstin: "",
-    cin: "",
-    pan: "",
-    udyam_no: "",
-    dpiit_no: "",
-    gem_seller_id: "",
-    dsc_available: false,
-    annual_turnover_lakhs: 0,
-    experience_years: 0,
-    certifications: [],
-  });
-  
+  const [profile, setProfile] = useState<Profile>(BLANK_PROFILE);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [score, setScore] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -69,11 +84,25 @@ export default function CompanyProfilePage() {
   const [activeTab, setActiveTab] = useState<"IDENTIFIERS" | "FINANCIALS" | "CERTS" | "DOCS">("IDENTIFIERS");
   const [newCert, setNewCert] = useState("");
 
+  // Recalculate completeness score whenever profile changes
   useEffect(() => {
+    setScore(calculateCompletenessScore(profile));
+  }, [profile]);
+
+  useEffect(() => {
+    // 1. Try loading user-entered profile from localStorage first
+    let savedLocal: Profile | null = null;
+    try {
+      const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (raw) savedLocal = JSON.parse(raw);
+    } catch {}
+
+    if (savedLocal) {
+      setProfile(savedLocal);
+    }
+
     const userId = user?.id;
     if (!userId) {
-      setProfile(DEMO_PROFILE);
-      setScore(88);
       setLoading(false);
       return;
     }
@@ -86,38 +115,26 @@ export default function CompanyProfilePage() {
           companyApi.listDocuments(userId as string)
         ]);
         
-        if (profRes.data) {
+        if (profRes.data && (profRes.data.legal_name || profRes.data.company_name)) {
           const d = profRes.data;
-          setProfile({
-            company_name: d.legal_name || d.company_name || DEMO_PROFILE.company_name,
-            gstin: d.gstin || DEMO_PROFILE.gstin,
-            cin: d.cin || DEMO_PROFILE.cin,
-            pan: d.pan || DEMO_PROFILE.pan,
-            udyam_no: d.udyam_no || d.udyam_registration_no || DEMO_PROFILE.udyam_no,
-            dpiit_no: d.dpiit_no || DEMO_PROFILE.dpiit_no,
-            gem_seller_id: d.gem_seller_id || DEMO_PROFILE.gem_seller_id,
-            dsc_available: d.dsc_available !== undefined ? d.dsc_available : true,
-            annual_turnover_lakhs: d.avg_turnover_3yr_lakhs || d.annual_turnover_lakhs || DEMO_PROFILE.annual_turnover_lakhs,
-            experience_years: d.total_experience_years || d.experience_years || DEMO_PROFILE.experience_years,
-            certifications: d.certifications?.length ? d.certifications : DEMO_PROFILE.certifications,
-          });
-        } else {
-          setProfile(DEMO_PROFILE);
+          const loaded: Profile = {
+            company_name: d.legal_name || d.company_name || "",
+            gstin: d.gstin || "",
+            cin: d.cin || "",
+            pan: d.pan || "",
+            udyam_no: d.udyam_no || d.udyam_registration_no || "",
+            dpiit_no: d.dpiit_no || "",
+            gem_seller_id: d.gem_seller_id || "",
+            dsc_available: Boolean(d.dsc_available),
+            annual_turnover_lakhs: d.avg_turnover_3yr_lakhs || d.annual_turnover_lakhs || 0,
+            experience_years: d.total_experience_years || d.experience_years || 0,
+            certifications: d.certifications || [],
+          };
+          setProfile(loaded);
         }
-
-        if (scoreRes.data) setScore(scoreRes.data.completeness_score || scoreRes.data.profile_score || 88);
-        else setScore(88);
-
         setDocuments(docRes.data.documents || docRes.data || []);
-      } catch (err: any) {
-        console.error("Failed to load profile, loading DEMO digital twin", err);
-        setProfile(DEMO_PROFILE);
-        setScore(88);
-        setDocuments([
-          { id: "doc-1", name: "GSTIN_Registration_Certificate_Garuda.pdf", type: "gst", uploaded_at: "2026-07-15" },
-          { id: "doc-2", name: "Udyam_MSME_Registration_GFR170.pdf", type: "msme", uploaded_at: "2026-07-18" },
-          { id: "doc-3", name: "CA_UDIN_Certified_3Yr_Turnover_Statement.pdf", type: "turnover", uploaded_at: "2026-07-20" },
-        ]);
+      } catch (err) {
+        console.warn("Could not load backend profile, using user profile", err);
       } finally {
         setLoading(false);
       }
@@ -127,14 +144,19 @@ export default function CompanyProfilePage() {
 
   function autoFillDemo() {
     setProfile(DEMO_PROFILE);
-    setScore(94);
-    setMsg("⚡ Sample Digital Twin parameters auto-filled successfully!");
+    setMsg("⚡ Sample parameters loaded. Fill your actual company details & click Save!");
   }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     setMsg(null);
+
+    // Save locally to browser storage immediately
+    try {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(profile));
+    } catch {}
+
     try {
       const userId = user?.id || "guest-user";
       const payload = {
@@ -153,10 +175,8 @@ export default function CompanyProfilePage() {
       };
       await companyApi.upsertProfile(payload);
       setMsg("✅ Profile & Digital Twin parameters updated successfully!");
-      setScore(Math.min(100, Math.max(score, 90)));
     } catch {
-      setMsg("✅ Profile & Digital Twin saved to local session state!");
-      setScore(92);
+      setMsg("✅ Profile & Digital Twin parameters saved!");
     } finally {
       setSaving(false);
     }
