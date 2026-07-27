@@ -530,9 +530,9 @@ function DashboardContent() {
       {/* Quick stats - Synced with Connectors Hub */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         {[
-          { label: `Active Tenders (${connectorsStats.activeSourcesCount} Portals)`, value: (connectorsStats.totalActiveTenders || total || 12850).toLocaleString("en-IN"), color: "text-indigo-400" },
+          { label: `Active Tenders (${connectorsStats.activeSourcesCount} Portals)`, value: connectorsStats.totalActiveTenders.toLocaleString("en-IN"), color: "text-indigo-400" },
           { label: "Bid Recommended Matches", value: filtered.filter(t => t.recommendation === "BID").length.toString(), color: "text-emerald-400" },
-          { label: "Total Ingested Archive", value: `${(connectorsStats.totalIngestedArchive / 1000).toFixed(1)}k Records`, color: "text-amber-400" },
+          { label: "Total Ingested Archive", value: connectorsStats.totalIngestedArchive.toLocaleString("en-IN"), color: "text-amber-400" },
           { label: "Tracked Portals Operational", value: `${connectorsStats.activeSourcesCount} / ${connectorsStats.activeSourcesCount} (100%)`, color: "text-blue-400" },
         ].map((stat) => (
           <div key={stat.label} className="card p-4 text-center">
