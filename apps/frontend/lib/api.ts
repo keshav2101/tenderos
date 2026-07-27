@@ -109,6 +109,8 @@ export const tendersApi = {
   addWatchlist: (id: string) => api.post(`/tenders/${id}/watchlist`),
   removeWatchlist: (id: string) => api.delete(`/tenders/${id}/watchlist`),
   listWatchlist: () => api.get("/tenders/watchlist"),
+  getBuyerProfiles: (limit = 20) => api.get("/tenders/intelligence/buyers", { params: { limit } }),
+  getMarketTrends: () => api.get("/tenders/intelligence/market-trends"),
 };
 
 export const connectorsApi = {
