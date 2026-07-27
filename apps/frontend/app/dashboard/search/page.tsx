@@ -78,12 +78,35 @@ const STATES_LIST = [
 ];
 
 const MINISTRIES_LIST = [
-  "Ministry of Defence", "Ministry of Railways", "Ministry of Road Transport and Highways", 
-  "Ministry of Power", "Ministry of Electronics and IT", "Ministry of Health and Family Welfare", 
-  "Ministry of Finance", "Ministry of Education", "Ministry of Housing and Urban Affairs", 
-  "Ministry of Jal Shakti", "Ministry of Petroleum and Natural Gas", "Ministry of Home Affairs", 
-  "Ministry of Agriculture and Farmers Welfare", "Ministry of Civil Aviation", "Ministry of Communications",
-  "Ministry of New and Renewable Energy", "Ministry of Ports, Shipping and Waterways"
+  "Ministry of Defence",
+  "Ministry of Railways",
+  "Ministry of Road Transport and Highways",
+  "Ministry of Electronics and Information Technology (MeitY)",
+  "Ministry of Health and Family Welfare",
+  "Ministry of Education",
+  "Ministry of Power",
+  "Ministry of New and Renewable Energy",
+  "Ministry of Petroleum and Natural Gas",
+  "Ministry of Jal Shakti",
+  "Ministry of Housing and Urban Affairs",
+  "Ministry of Home Affairs",
+  "Ministry of Finance",
+  "Ministry of Agriculture and Farmers Welfare",
+  "Ministry of Commerce and Industry",
+  "Ministry of Communications",
+  "Ministry of Steel",
+  "Ministry of Mines",
+  "Ministry of Coal",
+  "Ministry of Heavy Industries",
+  "Ministry of Chemicals and Fertilizers",
+  "Ministry of Civil Aviation",
+  "Ministry of Ports, Shipping and Waterways",
+  "Ministry of Micro, Small and Medium Enterprises (MSME)",
+  "Ministry of Rural Development",
+  "Ministry of Science and Technology",
+  "Ministry of Environment, Forest and Climate Change",
+  "Department of Space (ISRO)",
+  "Department of Atomic Energy (DAE)"
 ];
 
 function SearchContent() {
