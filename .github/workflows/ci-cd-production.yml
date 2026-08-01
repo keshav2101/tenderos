@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with: { python-version: '3.11' }
       - run: pip install ruff "black==23.11.0"
       - run: ruff check services/ scripts/ --output-format=github
@@ -31,7 +31,7 @@ jobs:
     needs: lint
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with: { python-version: '3.11' }
       - run: pip install pytest pytest-asyncio pytest-cov asyncpg fastapi httpx pydantic pydantic-settings structlog jose
       - run: pytest tests/ -v --tb=short --cov=services --cov-report=xml
@@ -48,7 +48,7 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with: { python-version: '3.11' }
       - name: Run Bandit (Python SAST)
         run: |
