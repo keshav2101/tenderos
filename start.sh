@@ -43,16 +43,10 @@ CORE_SERVICES=(
     "auth-service:8001"
     "tender-service:8002"
     "connector-service:8003"
-    "scheduler-service:8004"
     "search-service:8010"
     "copilot-service:8011"
-    "digital-twin-service:8012"
     "proposal-service:8017"
-    "notification-service:8018"
     "admin-service:8019"
-    "market-intelligence-service:8014"
-    "prediction-service:8015"
-    "competitor-service:8016"
 )
 
 # Start core services in the background with staggered 2s delays
