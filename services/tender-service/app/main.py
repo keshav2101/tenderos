@@ -103,7 +103,8 @@ async def get_pool() -> asyncpg.Pool | None:
                 password=settings.POSTGRES_PASSWORD,
                 min_size=1,
                 max_size=5,
-                timeout=2.0,
+                timeout=0.5,
+                command_timeout=1.0,
             )
         except Exception as e:
             logger.warning("PostgreSQL connection failed", error=str(e))
@@ -152,8 +153,6 @@ async def list_tenders(
     source: str | None = None,
     sort_by: str = "published",
 ):
-    pool = await get_pool()
-
     # Build dynamic WHERE clause — unconditionally exclude mock/demo sources
     conditions = ["t.source NOT IN ('mock', 'demo')", "t.source NOT ILIKE 'mock%'"]
     params = []

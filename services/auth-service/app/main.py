@@ -63,7 +63,8 @@ async def get_db() -> asyncpg.Pool | None:
                 password=settings.POSTGRES_PASSWORD,
                 min_size=1,
                 max_size=5,
-                timeout=1.0,
+                timeout=0.5,
+                command_timeout=1.0,
             )
         except Exception as err:
             logger.warning("PostgreSQL not available, using in-memory auth fallback", error=str(err))
