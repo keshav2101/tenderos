@@ -3,7 +3,7 @@
   "rewrites": [
     {
       "source": "/api/v1/:path*",
-      "destination": "https://fifty-flies-smoke.loca.lt/api/v1/:path*"
+      "destination": "https://b035e8f67b964b72-122-167-97-107.serveousercontent.com/api/v1/:path*"
     }
   ]
 }
