@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://b035e8f67b964b72-122-167-97-107.serveousercontent.com";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://3dd8989914a84e1a-122-167-97-107.serveousercontent.com";
 
 const nextConfig: NextConfig = {
   output: "standalone",

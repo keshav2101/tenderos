@@ -5,7 +5,7 @@
  */
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 
-const DEFAULT_API_HOST = "https://b035e8f67b964b72-122-167-97-107.serveousercontent.com";
+const DEFAULT_API_HOST = "https://3dd8989914a84e1a-122-167-97-107.serveousercontent.com";
 const API_HOST = process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_HOST;
 const BASE_URL = `${API_HOST.replace(/\/$/, "")}/api/v1`;
 
