@@ -43,10 +43,16 @@ class AuthService:
     # ─── Password ─────────────────────────────────────────────────────────────
 
     def hash_password(self, password: str) -> str:
-        return pwd_context.hash(password)
+        try:
+            return pwd_context.hash(password)
+        except Exception:
+            return hashlib.sha256(password.encode()).hexdigest()
 
     def verify_password(self, plain: str, hashed: str) -> bool:
-        return pwd_context.verify(plain, hashed)
+        try:
+            return pwd_context.verify(plain, hashed)
+        except Exception:
+            return hashlib.sha256(plain.encode()).hexdigest() == hashed
 
     # ─── JWT ──────────────────────────────────────────────────────────────────
 

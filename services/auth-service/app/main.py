@@ -11,7 +11,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 
-from app.auth_service import AuthService
+from app.auth_service import AuthService, pwd_context
 from app.config import settings
 
 logger = structlog.get_logger()
@@ -33,7 +33,7 @@ IN_MEMORY_USERS: dict[str, dict] = {
     "admin@tenderos.in": {
         "id": "11111111-1111-1111-1111-111111111111",
         "email": "admin@tenderos.in",
-        "password_hash": pwd_context.hash("AdminPassword123!"),
+        "password_hash": auth_svc.hash_password("AdminPassword123!"),
         "name": "System Administrator",
         "role": "admin",
         "plan": "enterprise",
@@ -42,7 +42,7 @@ IN_MEMORY_USERS: dict[str, dict] = {
     "demo@tenderos.in": {
         "id": "33333333-3333-3333-3333-333333333333",
         "email": "demo@tenderos.in",
-        "password_hash": pwd_context.hash("DemoPassword123!"),
+        "password_hash": auth_svc.hash_password("DemoPassword123!"),
         "name": "Demo User",
         "role": "viewer",
         "plan": "free",

@@ -22,7 +22,7 @@ export REDIS_PASSWORD=""
 export QDRANT_HOST="disabled"
 export OPENSEARCH_HOST="disabled"
 
-# Export service URLs to localhost (127.0.0.1) since all run in the same container on Railway
+# Export service URLs to localhost (127.0.0.1) since all run in the same container on Render / Production Server
 export AUTH_SERVICE_URL="http://127.0.0.1:8001"
 export TENDER_SERVICE_URL="http://127.0.0.1:8002"
 export CONNECTOR_SERVICE_URL="http://127.0.0.1:8003"
@@ -50,7 +50,7 @@ CORE_SERVICES=(
 )
 
 # Start core services in the background with staggered 2s delays
-# to prevent OOM spike on memory-constrained Railway instances
+# to prevent OOM spike on memory-constrained production instances
 mkdir -p /app/logs
 for svc_info in "${CORE_SERVICES[@]}"; do
     svc="${svc_info%%:*}"
@@ -66,7 +66,7 @@ done
 sleep 5
 
 # Start API Gateway in the foreground to keep container alive.
-# PORT is injected by Railway — default 8000 for local use.
+# PORT is injected by Render / Cloud Host — default 8000 for local use.
 TARGET_PORT="${PORT:-8000}"
 echo "Starting api-gateway on port $TARGET_PORT..."
 cd /app/services/api-gateway

@@ -42,8 +42,8 @@ async def get_pool() -> asyncpg.Pool:
 
 @app.on_event("startup")
 async def startup_event():
-    pool = await get_pool()
     try:
+        pool = await get_pool()
         async with pool.acquire() as conn:
             await conn.execute("DELETE FROM tenders WHERE source IN ('mock', 'demo') OR source ILIKE 'mock%'")
             logger.info("Purged mock tenders from database")

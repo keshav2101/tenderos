@@ -48,8 +48,8 @@ async def get_pool() -> asyncpg.Pool:
 
 @app.on_event("startup")
 async def startup_event():
-    pool = await get_pool()
     try:
+        pool = await get_pool()
         async with pool.acquire() as conn:
             await conn.execute("ALTER TABLE tenders ADD COLUMN IF NOT EXISTS lineage JSONB;")
         logger.info("Connector service started and database pool initialized with lineage column")

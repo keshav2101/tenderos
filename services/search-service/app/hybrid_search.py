@@ -10,7 +10,10 @@ import time
 from typing import Any
 
 import structlog
-from opensearchpy import AsyncOpenSearch
+try:
+    from opensearchpy import AsyncOpenSearch
+except ImportError:
+    from opensearchpy import OpenSearch as AsyncOpenSearch
 from qdrant_client import AsyncQdrantClient
 
 from app.config import settings

@@ -7,7 +7,7 @@
 **India's First AI-Native Government Procurement Operating System & Multi-Agent Intelligence Engine**
 
 [![Production Web App](https://img.shields.io/badge/Production%20Web%20App-tenderos--neon.vercel.app-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://tenderos-neon.vercel.app)
-[![API Gateway](https://img.shields.io/badge/Railway%20API-backend--production-0B0D0E?style=for-the-badge&logo=railway&logoColor=white)](https://backend-production-4aa8.up.railway.app)
+[![API Gateway](https://img.shields.io/badge/24%2F7%20Render%20API-active%20server-46E3B7?style=for-the-badge&logo=render&logoColor=white)](https://render.com)
 [![CI/CD Pipeline](https://img.shields.io/badge/CI%2FCD-GitHub_Actions-2088FF?style=for-the-badge&logo=github-actions&logoColor=white)](https://github.com/keshav2101/tenderos/actions)
 
 [![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://python.org)
