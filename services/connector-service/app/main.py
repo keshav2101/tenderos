@@ -31,18 +31,23 @@ app.add_middleware(
 _pool: asyncpg.Pool | None = None
 
 
-async def get_pool() -> asyncpg.Pool:
+async def get_pool() -> asyncpg.Pool | None:
     global _pool
     if _pool is None:
-        _pool = await asyncpg.create_pool(
-            host=settings.POSTGRES_HOST,
-            port=settings.POSTGRES_PORT,
-            database=settings.POSTGRES_DB,
-            user=settings.POSTGRES_USER,
-            password=settings.POSTGRES_PASSWORD,
-            min_size=2,
-            max_size=10,
-        )
+        try:
+            _pool = await asyncpg.create_pool(
+                host=settings.POSTGRES_HOST,
+                port=settings.POSTGRES_PORT,
+                database=settings.POSTGRES_DB,
+                user=settings.POSTGRES_USER,
+                password=settings.POSTGRES_PASSWORD,
+                min_size=1,
+                max_size=5,
+                timeout=2.0,
+            )
+        except Exception as e:
+            logger.warning("PostgreSQL connection failed in connector-service", error=str(e))
+            return None
     return _pool
 
 
