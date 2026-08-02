@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://tenderos-backend.onrender.com";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://tenderos.onrender.com";
 
 const nextConfig: NextConfig = {
   output: "standalone",
