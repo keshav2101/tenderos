@@ -43,11 +43,10 @@ export default function RegisterPage() {
       await register(email, password, name);
       router.replace("/dashboard");
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { detail?: string } } };
-      setError(
-        e?.response?.data?.detail ||
-          "Registration failed. Please try again."
-      );
+      const e = err as { response?: { data?: { detail?: string | Array<{ msg: string }> } } };
+      const detail = e?.response?.data?.detail;
+      const msg = typeof detail === "string" ? detail : Array.isArray(detail) ? detail[0]?.msg : undefined;
+      setError(msg || "Registration failed. Please try again.");
     } finally {
       setSubmitting(false);
     }

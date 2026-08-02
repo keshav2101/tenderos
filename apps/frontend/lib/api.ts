@@ -5,13 +5,18 @@
  */
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 
-const API_HOST = process.env.NEXT_PUBLIC_API_URL || "https://fifty-flies-smoke.loca.lt";
-const BASE_URL = API_HOST.startsWith("http") ? `${API_HOST.replace(/\/$/, "")}/api/v1` : "/api/v1";
+const API_HOST = process.env.NEXT_PUBLIC_API_URL;
+const BASE_URL = API_HOST
+  ? `${API_HOST.replace(/\/$/, "")}/api/v1`
+  : "/api/v1";
 
 export const api = axios.create({
   baseURL: BASE_URL,
   timeout: 30000,
-  headers: { "Content-Type": "application/json" },
+  headers: {
+    "Content-Type": "application/json",
+    "Bypass-Tunnel-Reminder": "true",
+  },
 });
 
 // ─── Request Interceptor: attach JWT ─────────────────────────────────────────

@@ -30,11 +30,10 @@ export default function LoginPage() {
       await login(email, password);
       router.replace("/dashboard");
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { detail?: string } } };
-      setError(
-        e?.response?.data?.detail ||
-          "Login failed. Please check your credentials."
-      );
+      const e = err as { response?: { data?: { detail?: string | Array<{ msg: string }> } } };
+      const detail = e?.response?.data?.detail;
+      const msg = typeof detail === "string" ? detail : Array.isArray(detail) ? detail[0]?.msg : undefined;
+      setError(msg || "Login failed. Please check your credentials.");
     } finally {
       setSubmitting(false);
     }

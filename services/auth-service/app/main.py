@@ -75,9 +75,9 @@ async def get_db() -> asyncpg.Pool | None:
 
 
 class RegisterRequest(BaseModel):
-    email: EmailStr
+    email: str
     password: str
-    name: str  # FIX: was full_name — matches DB column
+    name: str
     company_name: str | None = None
 
     def validated_password(self) -> str:
@@ -90,7 +90,7 @@ class RegisterRequest(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    email: str
     password: str
 
 
