@@ -41,7 +41,7 @@ async def get_market_trends(request: Request):
 async def list_tenders(
     request: Request,
     page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
+    page_size: int = Query(50, ge=1, le=10000),
     q: str | None = None,
     state: str | None = None,
     ministry: str | None = None,
