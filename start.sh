@@ -52,13 +52,14 @@ CORE_SERVICES=(
 # Start core services in the background with staggered 2s delays
 # to prevent OOM spike on memory-constrained production instances
 mkdir -p /app/logs
+export PYTHONPATH="/app:${PYTHONPATH}"
 for svc_info in "${CORE_SERVICES[@]}"; do
     svc="${svc_info%%:*}"
     port="${svc_info##*:}"
 
     echo "Starting $svc on port $port..."
     cd "/app/services/$svc"
-    uvicorn app.main:app --host 0.0.0.0 --port "$port" --workers 1 > "/app/logs/${svc}.log" 2>&1 &
+    PYTHONPATH="/app" uvicorn app.main:app --host 0.0.0.0 --port "$port" --workers 1 > "/app/logs/${svc}.log" 2>&1 &
     sleep 2
 done
 
@@ -70,4 +71,4 @@ sleep 5
 TARGET_PORT="${PORT:-8000}"
 echo "Starting api-gateway on port $TARGET_PORT..."
 cd /app/services/api-gateway
-exec uvicorn app.main:app --host 0.0.0.0 --port "$TARGET_PORT" --workers 1
+exec PYTHONPATH="/app" uvicorn app.main:app --host 0.0.0.0 --port "$TARGET_PORT" --workers 1

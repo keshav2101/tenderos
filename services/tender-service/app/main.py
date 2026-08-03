@@ -42,8 +42,24 @@ async def lifespan(app: FastAPI):
                         procurement_method TEXT DEFAULT 'Open Tender'
                     );
                 """)
-                for t in FALLBACK_TENDERS:
-                    await conn.execute("""
+
+                # Check if we already have enough rows to skip re-seeding
+                existing_count = await conn.fetchval("SELECT COUNT(*) FROM tenders")
+                if existing_count < len(FALLBACK_TENDERS):
+                    logger.info(f"Seeding {len(FALLBACK_TENDERS)} tenders into database (current: {existing_count})...")
+                    # Build batch records for executemany — single transaction, far faster than one-by-one
+                    batch = [
+                        (
+                            t["id"], t["title"], t["ministry"], t["department"], t["organisation"], t["state"],
+                            t["categories"], t["estimated_cost_lakhs"], t["emd_lakhs"],
+                            t["submission_deadline"].replace("T", " "), t["status"], t["source"],
+                            t["msme_eligible"], t["startup_eligible"], t["source_url"],
+                            t["source_tender_id"], t["ai_summary"],
+                            t["published_at"].replace("T", " "), t["procurement_method"]
+                        )
+                        for t in FALLBACK_TENDERS
+                    ]
+                    await conn.executemany("""
                         INSERT INTO tenders (
                             id, title, ministry, department, organisation, state,
                             categories, estimated_cost_lakhs, emd_lakhs, submission_deadline,
@@ -61,16 +77,11 @@ async def lifespan(app: FastAPI):
                             categories = EXCLUDED.categories,
                             estimated_cost_lakhs = EXCLUDED.estimated_cost_lakhs,
                             emd_lakhs = EXCLUDED.emd_lakhs,
-                            ai_summary = EXCLUDED.ai_summary;
-                    """,
-                    t["id"], t["title"], t["ministry"], t["department"], t["organisation"], t["state"],
-                    t["categories"], t["estimated_cost_lakhs"], t["emd_lakhs"],
-                    t["submission_deadline"].replace("T", " "), t["status"], t["source"],
-                    t["msme_eligible"], t["startup_eligible"], t["source_url"],
-                    t["source_tender_id"], t["ai_summary"], t["published_at"].replace("T", " "),
-                    t["procurement_method"]
-                    )
-                logger.info("Successfully seeded all 20 Indian procurement tenders into database")
+                            ai_summary = EXCLUDED.ai_summary
+                    """, batch)
+                    logger.info(f"Successfully seeded {len(FALLBACK_TENDERS)} Indian procurement tenders into database")
+                else:
+                    logger.info(f"Database already has {existing_count} tenders — skipping re-seed")
     except Exception as e:
         logger.warning("Could not seed tenders into database on startup", error=str(e))
 
@@ -144,8 +155,8 @@ async def list_tenders(
     source: str | None = None,
     sort_by: str = "published",
 ):
-    # Build dynamic WHERE clause — unconditionally exclude mock/demo sources
-    conditions = ["t.source NOT IN ('mock', 'demo')", "t.source NOT ILIKE 'mock%'"]
+    # Build dynamic WHERE clause
+    conditions: list[str] = ["1=1"]
     params = []
     idx = 1
 
