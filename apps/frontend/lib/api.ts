@@ -5,9 +5,11 @@
  */
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 
-const DEFAULT_API_HOST = "https://3dd8989914a84e1a-122-167-97-107.serveousercontent.com";
-const API_HOST = process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_HOST;
-const BASE_URL = `${API_HOST.replace(/\/$/, "")}/api/v1`;
+// Always use the local Next.js proxy route — works on localhost AND Vercel.
+// On Vercel, /api/proxy/* is handled by a serverless function that reads
+// BACKEND_URL (server-side env var) at runtime — no rebuild needed on tunnel restart.
+const BASE_URL = "/api/proxy";
+
 
 export const api = axios.create({
   baseURL: BASE_URL,
