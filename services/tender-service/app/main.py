@@ -119,6 +119,8 @@ def _generate_catalog(count: int = 9000) -> list[dict]:
 
 
 FALLBACK_TENDERS = _generate_catalog(9000)
+# O(1) index — id → tender dict for instant detail lookups over 9000 records
+_FALLBACK_INDEX: dict[str, dict] = {t["id"]: t for t in FALLBACK_TENDERS}
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -229,8 +231,8 @@ async def get_pool() -> asyncpg.Pool | None:
                 password=settings.POSTGRES_PASSWORD,
                 min_size=1,
                 max_size=5,
-                timeout=0.5,
-                command_timeout=1.0,
+                timeout=5.0,
+                command_timeout=120.0,
             )
         except Exception as e:
             logger.warning("PostgreSQL connection failed", error=str(e))
@@ -393,6 +395,10 @@ async def list_tenders(
                     t[k] = str(v)
                 elif isinstance(v, datetime):
                     t[k] = v.isoformat()
+
+        # If DB has insufficient data, prefer the full in-memory catalog
+        if total < 100:
+            raise Exception(f"DB has only {total} rows — using in-memory 9000-tender catalog instead")
 
         return {
             "tenders": tenders,
@@ -588,10 +594,9 @@ async def calculate_opportunity_score(tender_id: str):
 
 @app.get("/tenders/{tender_id}")
 async def get_tender(tender_id: str):
-    # Check fallback tenders first for string IDs or fallback mode
-    for t in FALLBACK_TENDERS:
-        if t["id"] == tender_id or t.get("source_tender_id") == tender_id:
-            return t
+    # O(1) check against the in-memory 9000-tender catalog first
+    if tender_id in _FALLBACK_INDEX:
+        return _FALLBACK_INDEX[tender_id]
 
     try:
         pool = await get_pool()
@@ -612,10 +617,11 @@ async def get_tender(tender_id: str):
     except Exception as err:
         logger.warning("Error fetching tender detail, checking fallback", tender_id=tender_id, error=str(err))
 
-    found = next((t for t in FALLBACK_TENDERS if t["id"] == tender_id), None)
+    # Final fallback — also check source_tender_id
+    found = next((t for t in FALLBACK_TENDERS if t.get("source_tender_id") == tender_id), None)
     if found:
         return found
-    raise HTTPException(status_code=404, detail="Tender not found")
+    raise HTTPException(status_code=404, detail=f"Tender '{tender_id}' not found")
 
 
 @app.get("/tenders/{tender_id}/summary")
