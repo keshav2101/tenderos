@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+import random
 from uuid import UUID
 
 import asyncpg
@@ -8,11 +9,117 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from shared.catalog_generator import generate_catalog_tenders
 
 logger = structlog.get_logger()
 
-FALLBACK_TENDERS = generate_catalog_tenders(9000)
+# ─── Inline 9,000-Tender Indian Procurement Catalog Generator ─────────────────
+# Self-contained so no cross-service PYTHONPATH dependency is needed.
+
+_CAT_TITLES = {
+    "AI": ["Enterprise AI Chatbot & RAG Engine", "AI-based Fraud Detection System", "ML Smart City Platform", "AI Edge Analytics for Surveillance"],
+    "Cybersecurity": ["24/7 Managed CSOC Setup", "SIEM/SOAR Deployment", "Cyber Forensics Lab & STQC Audit", "Network Firewall Upgrade"],
+    "Healthcare": ["Hospital Information Management System", "Telemedicine Platform", "EHR System Implementation", "Digital Health Portal"],
+    "IT": ["Cloud Data Center Migration", "ERP Implementation", "Network Infrastructure & Wi-Fi Expansion", "Hardware Server Refresh"],
+    "Drone": ["Autonomous VTOL Surveillance Drone Fleet", "Drone-based Land Records Survey", "Agricultural Spraying Drone Fleet", "Traffic Patrol Drones"],
+    "Construction": ["6-Lane Elevated Expressway Corridor", "Government Complex Building", "Bridge Widening & Asphalt Paving", "Smart City Civil Infra"],
+    "Renewable Energy": ["Supply & Installation of 500kW Solar PV Systems", "100MW BESS Integration", "Rooftop Solar for Govt Buildings", "Green Hydrogen Unit"],
+    "Cloud": ["Cloud Infrastructure Managed Services", "Disaster Recovery DRaaS Setup", "Multi-Cloud Security Assessment", "DevOps Pipeline Platform"],
+    "IoT": ["Smart Track Inspection IoT Sensors", "Smart LED Streetlighting & ICCC", "Water Quality Monitoring Network", "SCADA Gas Pipeline Telemetry"],
+    "Data Analytics": ["Big Data Analytics Platform", "Predictive Maintenance Engine", "Open Data Portal Development", "Citizen Grievance Analytics"],
+    "Medical Equipment": ["3T Digital MRI Scanner Procurement", "Robotic Surgical Systems", "ICU Ventilators & Patient Monitors", "Dialysis Machines Batch"],
+    "Smart City": ["Integrated Command and Control Centre", "Smart Traffic Management System", "Automated Waste Processing Plant", "Digital Signage"],
+    "GIS": ["GIS Land Record Mapping", "Urban Planning Spatial Database", "Satellite Imagery Analytics", "Property Tax GIS Integration"],
+    "Education": ["GPU Supercomputer Cluster", "Smart Classrooms & LMS Setup", "Online Examination Platform", "Digital Library Portal"],
+    "Defence": ["Precision Avionics & Titanium Assemblies", "Radar Signal Processing & SDR Radios", "Tactical Body Armor & Night Vision", "Border Security Grid"],
+    "Railways": ["Smart Railway Track Inspection System", "Metro AFC Gate QR/NCMC Upgrade", "Locomotive Safety System (Kavach)", "Signal & Telecom Upgrade"],
+    "Power": ["Ultra-Supercritical Boiler Tubes Supply", "Substation Automation SCADA", "Smart Metering Infrastructure", "Transmission Tower Line"],
+    "Oil & Gas": ["Offshore Rig & Subsea Pipeline Inspection", "Cross-Country Gas Pipeline SCADA", "Refinery Process Automation", "LNG Terminal Maintenance"],
+}
+_CATEGORIES = list(_CAT_TITLES.keys())
+_MINISTRIES = [
+    "Ministry of Electronics and Information Technology",
+    "Ministry of Health and Family Welfare",
+    "Ministry of Defence",
+    "Ministry of Railways",
+    "Ministry of Housing and Urban Affairs",
+    "Ministry of Agriculture and Farmers Welfare",
+    "Ministry of Education",
+    "Ministry of Power",
+    "Ministry of Finance",
+    "Ministry of Home Affairs",
+    "Ministry of Petroleum and Natural Gas",
+    "Ministry of New and Renewable Energy",
+    "Ministry of Road Transport and Highways",
+    "Public Works Department",
+]
+_ORGANISATIONS = [
+    "Government e-Marketplace (GeM)", "National Informatics Centre (NIC)",
+    "DRDO", "Hindustan Aeronautics Limited (HAL)", "Bharat Electronics Limited (BEL)",
+    "ONGC", "Bharat Heavy Electricals Limited (BHEL)", "NTPC Limited",
+    "Indian Oil Corporation (IOCL)", "AIIMS New Delhi", "IIT Bombay",
+    "Delhi Metro Rail Corporation (DMRC)", "Brihanmumbai Municipal Corporation (BMC)",
+    "BBMP Bengaluru", "GAIL (India) Limited", "Hindustan Petroleum (HPCL)",
+    "Maharashtra PWD", "Uttar Pradesh PWD", "Karnataka PWD", "Tamil Nadu PWD",
+    "Indian Railways", "C-DAC", "STQC", "NeGD",
+]
+_STATES = [
+    "Delhi", "Maharashtra", "Karnataka", "Tamil Nadu", "Gujarat",
+    "Uttar Pradesh", "West Bengal", "Rajasthan", "Andhra Pradesh", "Telangana",
+    "Kerala", "Haryana", "Punjab", "Bihar", "Madhya Pradesh", "Odisha",
+    "Assam", "Jharkhand", "Chhattisgarh", "Uttarakhand",
+]
+_SOURCES = ["GeM", "CPPP", "IREPS", "Defence", "HAL", "BEL", "ONGC", "BHEL", "NTPC", "IOCL", "State PWD", "Municipal Corporation"]
+_PROC = ["Open Tender", "QCBS", "L1"]
+
+
+def _generate_catalog(count: int = 9000) -> list[dict]:
+    rnd = random.Random(2026)
+    base = datetime(2026, 8, 1, 10, 0, 0)
+    result = []
+    for i in range(1, count + 1):
+        cat = rnd.choice(_CATEGORIES)
+        title = rnd.choice(_CAT_TITLES[cat])
+        if i > 20:
+            title += f" — Phase {(i % 5) + 1}"
+        minst = rnd.choice(_MINISTRIES)
+        org = rnd.choice(_ORGANISATIONS)
+        st = rnd.choice(_STATES)
+        src = rnd.choice(_SOURCES)
+        cost = round(rnd.choices(
+            [rnd.uniform(10.0, 100.0), rnd.uniform(100.0, 1000.0), rnd.uniform(1000.0, 15000.0)],
+            weights=[0.4, 0.4, 0.2]
+        )[0], 2)
+        msme = rnd.random() < 0.60
+        startup = rnd.random() < 0.35
+        published = base - timedelta(days=rnd.randint(1, 90))
+        deadline = published + timedelta(days=rnd.randint(14, 90))
+        tid = f"tos-2026-{i:05d}"
+        result.append({
+            "id": tid,
+            "title": title,
+            "ministry": minst,
+            "department": f"{minst} Division {(i % 12) + 1}",
+            "organisation": org,
+            "state": st,
+            "categories": list(set([cat, rnd.choice(_CATEGORIES)])),
+            "estimated_cost_lakhs": cost,
+            "emd_lakhs": round(cost * 0.02, 2) if not msme else 0.0,
+            "submission_deadline": deadline.isoformat(),
+            "status": "active",
+            "source": src,
+            "msme_eligible": msme,
+            "startup_eligible": startup,
+            "source_url": f"https://eprocure.gov.in/tenders/{tid}",
+            "source_tender_id": f"TOS/2026/B/{i:05d}",
+            "ai_summary": f"Procurement of {title} by {org} under {minst} ({st}). MSME EMD exemption: {msme}. Deadline: {deadline.strftime('%d %b %Y')}.",
+            "published_at": published.isoformat(),
+            "procurement_method": rnd.choice(_PROC),
+        })
+    return result
+
+
+FALLBACK_TENDERS = _generate_catalog(9000)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:

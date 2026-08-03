@@ -71,4 +71,5 @@ sleep 5
 TARGET_PORT="${PORT:-8000}"
 echo "Starting api-gateway on port $TARGET_PORT..."
 cd /app/services/api-gateway
-exec PYTHONPATH="/app" uvicorn app.main:app --host 0.0.0.0 --port "$TARGET_PORT" --workers 1
+export PYTHONPATH="/app"
+exec uvicorn app.main:app --host 0.0.0.0 --port "$TARGET_PORT" --workers 1
