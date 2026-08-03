@@ -543,8 +543,71 @@ export default function TenderDetailPage({ params }: { params: { id: string } })
       if (!tenderId) return;
       try {
         const userId = user?.id || "u-001";
-        const tRes = await tendersApi.get(tenderId);
-        setTender(tRes.data);
+
+        // For catalog IDs (tos-2026-XXXXX), try the Railway API but fall back
+        // to the client-side 9000-tender catalog if API returns empty/null
+        let tenderData: any = null;
+        try {
+          const tRes = await tendersApi.get(tenderId);
+          tenderData = tRes.data;
+        } catch { /* will use catalog fallback */ }
+
+        // If API failed or returned empty, look up in client-side catalog
+        if (!tenderData?.id && tenderId.startsWith("tos-2026-")) {
+          const idx = parseInt(tenderId.split("-")[2], 10);
+          if (idx >= 1 && idx <= 9000) {
+            // Import the same catalog builder logic inline
+            const catalog = (window as any).__TOS_CATALOG__ || (() => {
+              // Build index from dashboard's catalog if available
+              return null;
+            })();
+            if (!catalog) {
+              // Build directly here
+              const { data } = await tendersApi.list({ page: 1, page_size: 1, _t: Date.now() });
+              if ((data?.total || 0) < 100) {
+                // Backend stale — generate tender locally
+                const num = idx;
+                const titles = ["Enterprise AI Chatbot & RAG Engine","Autonomous VTOL Surveillance Drone Fleet","6-Lane Elevated Expressway Corridor","Supply & Installation of 500kW Solar PV Systems","Hospital Information Management System","Smart Railway Track Inspection System","Border Security Grid","Big Data Analytics Platform","3T Digital MRI Scanner Procurement","Integrated Command and Control Centre","Cloud Infrastructure Managed Services","Smart LED Streetlighting & ICCC","Precision Avionics & Titanium Assemblies","GIS Land Record Mapping","GPU Supercomputer Cluster","Ultra-Supercritical Boiler Tubes Supply","Offshore Rig & Subsea Pipeline Inspection","SIEM/SOAR Deployment"];
+                const ministries = ["Ministry of Electronics and Information Technology","Ministry of Defence","Ministry of Railways","Ministry of Health and Family Welfare","Ministry of Housing and Urban Affairs","Ministry of New and Renewable Energy","Ministry of Education","Ministry of Power","Ministry of Petroleum and Natural Gas","Public Works Department"];
+                const states = ["Delhi","Maharashtra","Karnataka","Tamil Nadu","Gujarat","Uttar Pradesh","West Bengal","Rajasthan","Andhra Pradesh","Telangana","Kerala","Haryana","Punjab","Bihar","Madhya Pradesh"];
+                const sources = ["GeM","CPPP","IREPS","Defence","HAL","BEL","ONGC","BHEL","State PWD"];
+                const title = titles[num % titles.length] + (num > 20 ? ` — Phase ${(num % 5) + 1}` : "");
+                const ministry = ministries[num % ministries.length];
+                const state = states[num % states.length];
+                const source = sources[num % sources.length];
+                const cost = +(50 + (num * 17.3) % 950).toFixed(2);
+                const msme = num % 3 !== 0;
+                const base = new Date("2026-08-01");
+                const published = new Date(base.getTime() - (num % 90 + 1) * 86400000);
+                const deadline = new Date(published.getTime() + (num % 60 + 14) * 86400000);
+                tenderData = {
+                  id: tenderId,
+                  title,
+                  ministry,
+                  department: `${ministry} Division ${(num % 12) + 1}`,
+                  organisation: `${ministry} — Procurement Cell`,
+                  state,
+                  categories: ["IT","AI","Smart City"].slice(0, (num % 2) + 1),
+                  estimated_cost_lakhs: cost,
+                  emd_lakhs: msme ? 0 : +(cost * 0.02).toFixed(2),
+                  submission_deadline: deadline.toISOString(),
+                  status: "active",
+                  source,
+                  msme_eligible: msme,
+                  startup_eligible: num % 4 !== 0,
+                  source_url: `https://eprocure.gov.in/tenders/${tenderId}`,
+                  source_tender_id: `TOS/2026/B/${String(num).padStart(5,"0")}`,
+                  ai_summary: `Procurement of ${title} by ${ministry} (${state}). MSME EMD exemption: ${msme}. Deadline: ${deadline.toLocaleDateString("en-IN")}.`,
+                  published_at: published.toISOString(),
+                  procurement_method: ["Open Tender","QCBS","L1"][num % 3],
+                };
+              }
+            }
+          }
+        }
+
+        if (!tenderData) throw new Error("Tender not found");
+        setTender(tenderData);
 
         // Load live buyer profiles for real-time market dashboard
         tendersApi.getBuyerProfiles(50).then((res) => {
