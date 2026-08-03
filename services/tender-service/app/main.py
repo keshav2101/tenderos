@@ -473,11 +473,62 @@ async def get_pool() -> asyncpg.Pool | None:
 async def startup_event():
     try:
         pool = await get_pool()
-        async with pool.acquire() as conn:
-            await conn.execute("DELETE FROM tenders WHERE source IN ('mock', 'demo') OR source ILIKE 'mock%'")
-            logger.info("Purged mock tenders from database")
+        if pool:
+            async with pool.acquire() as conn:
+                await conn.execute("""
+                    CREATE TABLE IF NOT EXISTS tenders (
+                        id TEXT PRIMARY KEY,
+                        title TEXT NOT NULL,
+                        ministry TEXT,
+                        department TEXT,
+                        organisation TEXT,
+                        state TEXT,
+                        categories TEXT[],
+                        estimated_cost_lakhs DOUBLE PRECISION,
+                        emd_lakhs DOUBLE PRECISION,
+                        submission_deadline TIMESTAMP WITHOUT TIME ZONE,
+                        status TEXT DEFAULT 'active',
+                        source TEXT DEFAULT 'GeM',
+                        msme_eligible BOOLEAN DEFAULT TRUE,
+                        startup_eligible BOOLEAN DEFAULT TRUE,
+                        source_url TEXT,
+                        source_tender_id TEXT,
+                        ai_summary TEXT,
+                        published_at TIMESTAMP WITHOUT TIME ZONE,
+                        procurement_method TEXT DEFAULT 'Open Tender'
+                    );
+                """)
+                for t in FALLBACK_TENDERS:
+                    await conn.execute("""
+                        INSERT INTO tenders (
+                            id, title, ministry, department, organisation, state,
+                            categories, estimated_cost_lakhs, emd_lakhs, submission_deadline,
+                            status, source, msme_eligible, startup_eligible, source_url,
+                            source_tender_id, ai_summary, published_at, procurement_method
+                        ) VALUES (
+                            $1, $2, $3, $4, $5, $6, $7, $8, $9,
+                            $10::timestamp, $11, $12, $13, $14, $15, $16, $17, $18::timestamp, $19
+                        ) ON CONFLICT (id) DO UPDATE SET
+                            title = EXCLUDED.title,
+                            ministry = EXCLUDED.ministry,
+                            department = EXCLUDED.department,
+                            organisation = EXCLUDED.organisation,
+                            state = EXCLUDED.state,
+                            categories = EXCLUDED.categories,
+                            estimated_cost_lakhs = EXCLUDED.estimated_cost_lakhs,
+                            emd_lakhs = EXCLUDED.emd_lakhs,
+                            ai_summary = EXCLUDED.ai_summary;
+                    """,
+                    t["id"], t["title"], t["ministry"], t["department"], t["organisation"], t["state"],
+                    t["categories"], t["estimated_cost_lakhs"], t["emd_lakhs"],
+                    t["submission_deadline"].replace("T", " "), t["status"], t["source"],
+                    t["msme_eligible"], t["startup_eligible"], t["source_url"],
+                    t["source_tender_id"], t["ai_summary"], t["published_at"].replace("T", " "),
+                    t["procurement_method"]
+                    )
+                logger.info("Successfully seeded all 20 Indian procurement tenders into database")
     except Exception as e:
-        logger.warning("Could not purge mock tenders on startup", error=str(e))
+        logger.warning("Could not seed tenders into database on startup", error=str(e))
 
     import asyncio
 
