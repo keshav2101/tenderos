@@ -12,7 +12,7 @@ import { NextRequest, NextResponse } from "next/server";
 const BACKEND_URL =
   process.env.BACKEND_URL ||
   process.env.NEXT_PUBLIC_API_URL ||
-  "http://localhost:8000";
+  "https://tenderos-production.up.railway.app";
 
 export async function GET(
   req: NextRequest,
