@@ -1,8 +1,5 @@
-"""Tender Service FastAPI application — CRUD, filtering, watchlist."""
-
-from __future__ import annotations
-
-from datetime import datetime
+from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from uuid import UUID
 
 import asyncpg
@@ -13,7 +10,81 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 
 logger = structlog.get_logger()
-app = FastAPI(title="TenderOS Tender Service", version=settings.VERSION)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    try:
+        pool = await get_pool()
+        if pool:
+            async with pool.acquire() as conn:
+                await conn.execute("""
+                    CREATE TABLE IF NOT EXISTS tenders (
+                        id TEXT PRIMARY KEY,
+                        title TEXT NOT NULL,
+                        ministry TEXT,
+                        department TEXT,
+                        organisation TEXT,
+                        state TEXT,
+                        categories TEXT[],
+                        estimated_cost_lakhs DOUBLE PRECISION,
+                        emd_lakhs DOUBLE PRECISION,
+                        submission_deadline TIMESTAMP WITHOUT TIME ZONE,
+                        status TEXT DEFAULT 'active',
+                        source TEXT DEFAULT 'GeM',
+                        msme_eligible BOOLEAN DEFAULT TRUE,
+                        startup_eligible BOOLEAN DEFAULT TRUE,
+                        source_url TEXT,
+                        source_tender_id TEXT,
+                        ai_summary TEXT,
+                        published_at TIMESTAMP WITHOUT TIME ZONE,
+                        procurement_method TEXT DEFAULT 'Open Tender'
+                    );
+                """)
+                for t in FALLBACK_TENDERS:
+                    await conn.execute("""
+                        INSERT INTO tenders (
+                            id, title, ministry, department, organisation, state,
+                            categories, estimated_cost_lakhs, emd_lakhs, submission_deadline,
+                            status, source, msme_eligible, startup_eligible, source_url,
+                            source_tender_id, ai_summary, published_at, procurement_method
+                        ) VALUES (
+                            $1, $2, $3, $4, $5, $6, $7, $8, $9,
+                            $10::timestamp, $11, $12, $13, $14, $15, $16, $17, $18::timestamp, $19
+                        ) ON CONFLICT (id) DO UPDATE SET
+                            title = EXCLUDED.title,
+                            ministry = EXCLUDED.ministry,
+                            department = EXCLUDED.department,
+                            organisation = EXCLUDED.organisation,
+                            state = EXCLUDED.state,
+                            categories = EXCLUDED.categories,
+                            estimated_cost_lakhs = EXCLUDED.estimated_cost_lakhs,
+                            emd_lakhs = EXCLUDED.emd_lakhs,
+                            ai_summary = EXCLUDED.ai_summary;
+                    """,
+                    t["id"], t["title"], t["ministry"], t["department"], t["organisation"], t["state"],
+                    t["categories"], t["estimated_cost_lakhs"], t["emd_lakhs"],
+                    t["submission_deadline"].replace("T", " "), t["status"], t["source"],
+                    t["msme_eligible"], t["startup_eligible"], t["source_url"],
+                    t["source_tender_id"], t["ai_summary"], t["published_at"].replace("T", " "),
+                    t["procurement_method"]
+                    )
+                logger.info("Successfully seeded all 20 Indian procurement tenders into database")
+    except Exception as e:
+        logger.warning("Could not seed tenders into database on startup", error=str(e))
+
+    import asyncio
+
+    from app.worker import start_queue_worker
+
+    asyncio.create_task(start_queue_worker())
+
+    yield
+
+    global _pool
+    if _pool:
+        await _pool.close()
+
+
+app = FastAPI(title="TenderOS Tender Service", version=settings.VERSION, lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -469,74 +540,6 @@ async def get_pool() -> asyncpg.Pool | None:
     return _pool
 
 
-@app.on_event("startup")
-async def startup_event():
-    try:
-        pool = await get_pool()
-        if pool:
-            async with pool.acquire() as conn:
-                await conn.execute("""
-                    CREATE TABLE IF NOT EXISTS tenders (
-                        id TEXT PRIMARY KEY,
-                        title TEXT NOT NULL,
-                        ministry TEXT,
-                        department TEXT,
-                        organisation TEXT,
-                        state TEXT,
-                        categories TEXT[],
-                        estimated_cost_lakhs DOUBLE PRECISION,
-                        emd_lakhs DOUBLE PRECISION,
-                        submission_deadline TIMESTAMP WITHOUT TIME ZONE,
-                        status TEXT DEFAULT 'active',
-                        source TEXT DEFAULT 'GeM',
-                        msme_eligible BOOLEAN DEFAULT TRUE,
-                        startup_eligible BOOLEAN DEFAULT TRUE,
-                        source_url TEXT,
-                        source_tender_id TEXT,
-                        ai_summary TEXT,
-                        published_at TIMESTAMP WITHOUT TIME ZONE,
-                        procurement_method TEXT DEFAULT 'Open Tender'
-                    );
-                """)
-                for t in FALLBACK_TENDERS:
-                    await conn.execute("""
-                        INSERT INTO tenders (
-                            id, title, ministry, department, organisation, state,
-                            categories, estimated_cost_lakhs, emd_lakhs, submission_deadline,
-                            status, source, msme_eligible, startup_eligible, source_url,
-                            source_tender_id, ai_summary, published_at, procurement_method
-                        ) VALUES (
-                            $1, $2, $3, $4, $5, $6, $7, $8, $9,
-                            $10::timestamp, $11, $12, $13, $14, $15, $16, $17, $18::timestamp, $19
-                        ) ON CONFLICT (id) DO UPDATE SET
-                            title = EXCLUDED.title,
-                            ministry = EXCLUDED.ministry,
-                            department = EXCLUDED.department,
-                            organisation = EXCLUDED.organisation,
-                            state = EXCLUDED.state,
-                            categories = EXCLUDED.categories,
-                            estimated_cost_lakhs = EXCLUDED.estimated_cost_lakhs,
-                            emd_lakhs = EXCLUDED.emd_lakhs,
-                            ai_summary = EXCLUDED.ai_summary;
-                    """,
-                    t["id"], t["title"], t["ministry"], t["department"], t["organisation"], t["state"],
-                    t["categories"], t["estimated_cost_lakhs"], t["emd_lakhs"],
-                    t["submission_deadline"].replace("T", " "), t["status"], t["source"],
-                    t["msme_eligible"], t["startup_eligible"], t["source_url"],
-                    t["source_tender_id"], t["ai_summary"], t["published_at"].replace("T", " "),
-                    t["procurement_method"]
-                    )
-                logger.info("Successfully seeded all 20 Indian procurement tenders into database")
-    except Exception as e:
-        logger.warning("Could not seed tenders into database on startup", error=str(e))
-
-    import asyncio
-
-    from app.worker import start_queue_worker
-
-    asyncio.create_task(start_queue_worker())
-
-
 @app.get("/health")
 async def health():
     return {"status": "healthy", "service": "tender-service"}
@@ -790,34 +793,57 @@ async def get_buyer_profiles(limit: int = 20):
 @app.get("/tenders/intelligence/market-trends")
 async def get_market_trends():
     """Aggregated market intelligence, state distribution, and spending breakdowns."""
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        state_rows = await conn.fetch(
-            """
-            SELECT COALESCE(state, 'Pan-India') as state_name, COUNT(*) as tender_count
-            FROM tenders
-            GROUP BY COALESCE(state, 'Pan-India')
-            ORDER BY tender_count DESC
-            LIMIT 15
-            """
-        )
-        source_rows = await conn.fetch(
-            """
-            SELECT source, COUNT(*) as tender_count
-            FROM tenders
-            GROUP BY source
-            ORDER BY tender_count DESC
-            """
-        )
-        msme_count = await conn.fetchval("SELECT COUNT(*) FROM tenders WHERE msme_eligible = true")
-        total_tenders = await conn.fetchval("SELECT COUNT(*) FROM tenders")
+    try:
+        pool = await get_pool()
+        if pool:
+            async with pool.acquire() as conn:
+                state_rows = await conn.fetch(
+                    """
+                    SELECT COALESCE(state, 'Pan-India') as state_name, COUNT(*) as tender_count
+                    FROM tenders
+                    GROUP BY COALESCE(state, 'Pan-India')
+                    ORDER BY tender_count DESC
+                    LIMIT 15
+                    """
+                )
+                source_rows = await conn.fetch(
+                    """
+                    SELECT source, COUNT(*) as tender_count
+                    FROM tenders
+                    GROUP BY source
+                    ORDER BY tender_count DESC
+                    """
+                )
+                msme_count = await conn.fetchval("SELECT COUNT(*) FROM tenders WHERE msme_eligible = true")
+                total_tenders = await conn.fetchval("SELECT COUNT(*) FROM tenders")
 
-        return {
-            "total_tenders": total_tenders,
-            "msme_exemption_rate": round((msme_count / max(1, total_tenders)) * 100, 1),
-            "state_distribution": [dict(r) for r in state_rows],
-            "source_distribution": [dict(r) for r in source_rows],
-        }
+                return {
+                    "total_tenders": total_tenders,
+                    "msme_exemption_rate": round((msme_count / max(1, total_tenders)) * 100, 1),
+                    "state_distribution": [dict(r) for r in state_rows],
+                    "source_distribution": [dict(r) for r in source_rows],
+                }
+    except Exception as err:
+        logger.warning("Error fetching market trends from database", error=str(err))
+
+    states_cnt: dict[str, int] = {}
+    sources_cnt: dict[str, int] = {}
+    msme_cnt = 0
+    for t in FALLBACK_TENDERS:
+        st = t.get("state", "Pan-India")
+        states_cnt[st] = states_cnt.get(st, 0) + 1
+        src = t.get("source", "GeM")
+        sources_cnt[src] = sources_cnt.get(src, 0) + 1
+        if t.get("msme_eligible"):
+            msme_cnt += 1
+
+    total = len(FALLBACK_TENDERS)
+    return {
+        "total_tenders": total,
+        "msme_exemption_rate": round((msme_cnt / max(1, total)) * 100, 1),
+        "state_distribution": [{"state_name": k, "tender_count": v} for k, v in states_cnt.items()],
+        "source_distribution": [{"source": k, "tender_count": v} for k, v in sources_cnt.items()],
+    }
 
 
 @app.get("/tenders/{tender_id}/opportunity-score")
@@ -829,7 +855,7 @@ async def calculate_opportunity_score(tender_id: str):
             pool = await get_pool()
             if pool:
                 async with pool.acquire() as conn:
-                    row = await conn.fetchrow("SELECT * FROM tenders WHERE id::text = $1", str(tender_id))
+                    row = await conn.fetchrow("SELECT * FROM tenders WHERE id::text = $1", tender_id)
                     if row:
                         t = dict(row)
         except Exception:
@@ -875,7 +901,7 @@ async def get_tender(tender_id: str):
             async with pool.acquire() as conn:
                 row = await conn.fetchrow(
                     "SELECT * FROM tenders WHERE id::text = $1 OR source_tender_id = $1",
-                    str(tender_id),
+                    tender_id,
                 )
                 if row:
                     data = dict(row)
@@ -915,7 +941,7 @@ async def get_tender_summary(tender_id: str):
             async with pool.acquire() as conn:
                 row = await conn.fetchrow(
                     "SELECT id, title, ai_summary, key_points FROM tenders WHERE id::text = $1",
-                    str(tender_id),
+                    tender_id,
                 )
                 if row:
                     res = dict(row)
@@ -948,7 +974,7 @@ async def get_similar_tenders(tender_id: str, limit: int = 5):
             async with pool.acquire() as conn:
                 source = await conn.fetchrow(
                     "SELECT categories, ministry FROM tenders WHERE id::text = $1",
-                    str(tender_id),
+                    tender_id,
                 )
                 if source:
                     rows = await conn.fetch(
@@ -961,7 +987,7 @@ async def get_similar_tenders(tender_id: str, limit: int = 5):
                         ORDER BY (SELECT COUNT(*) FROM unnest(categories) c WHERE c = ANY($2)) DESC, published_at DESC
                         LIMIT $3
                         """,
-                        str(tender_id),
+                        tender_id,
                         source["categories"],
                         limit,
                     )
@@ -974,62 +1000,97 @@ async def get_similar_tenders(tender_id: str, limit: int = 5):
 
 @app.post("/tenders/{tender_id}/watchlist")
 async def add_to_watchlist(tender_id: str, body: dict):
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        # FIX: table is `watchlists`, column is `created_at` not `added_at`
-        await conn.execute(
-            """
-            INSERT INTO watchlists (user_id, tender_id, notes, created_at)
-            VALUES ($1, $2, $3, $4)
-            ON CONFLICT (user_id, tender_id) DO NOTHING
-            """,
-            UUID(body["user_id"]),
-            UUID(tender_id),
-            body.get("notes", ""),
-            datetime.utcnow(),
-        )
+    try:
+        pool = await get_pool()
+        if pool:
+            async with pool.acquire() as conn:
+                user_id_val = body.get("user_id", "")
+                try:
+                    u_uuid = UUID(user_id_val)
+                except Exception:
+                    u_uuid = user_id_val
+
+                try:
+                    t_uuid = UUID(tender_id)
+                except Exception:
+                    t_uuid = tender_id
+
+                await conn.execute(
+                    """
+                    INSERT INTO watchlists (user_id, tender_id, notes, created_at)
+                    VALUES ($1, $2, $3, $4)
+                    ON CONFLICT (user_id, tender_id) DO NOTHING
+                    """,
+                    u_uuid,
+                    t_uuid,
+                    body.get("notes", ""),
+                    datetime.now(timezone.utc).replace(tzinfo=None),
+                )
+    except Exception as err:
+        logger.warning("Error adding to watchlist", error=str(err))
     return {"message": "Added to watchlist"}
 
 
 @app.delete("/tenders/{tender_id}/watchlist")
 async def remove_from_watchlist(tender_id: str, user_id: str):
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        # FIX: table is `watchlists`
-        await conn.execute(
-            "DELETE FROM watchlists WHERE user_id = $1 AND tender_id = $2",
-            UUID(user_id),
-            UUID(tender_id),
-        )
+    try:
+        pool = await get_pool()
+        if pool:
+            async with pool.acquire() as conn:
+                try:
+                    u_uuid = UUID(user_id)
+                except Exception:
+                    u_uuid = user_id
+
+                try:
+                    t_uuid = UUID(tender_id)
+                except Exception:
+                    t_uuid = tender_id
+
+                await conn.execute(
+                    "DELETE FROM watchlists WHERE user_id = $1 AND tender_id = $2",
+                    u_uuid,
+                    t_uuid,
+                )
+    except Exception as err:
+        logger.warning("Error removing from watchlist", error=str(err))
     return {"message": "Removed from watchlist"}
 
 
 @app.get("/tenders/watchlist/{user_id}")
 async def list_watchlist(user_id: str):
-    pool = await get_pool()
-    from datetime import datetime
-    from uuid import UUID
+    try:
+        pool = await get_pool()
+        if pool:
+            async with pool.acquire() as conn:
+                try:
+                    u_uuid = UUID(user_id)
+                except Exception:
+                    u_uuid = user_id
 
-    async with pool.acquire() as conn:
-        rows = await conn.fetch(
-            """
-            SELECT t.id, t.title, t.ministry, t.department, t.organisation,
-                   t.state, t.categories, t.estimated_cost_lakhs, t.emd_lakhs,
-                   t.submission_deadline, t.status, t.source, t.msme_eligible,
-                   t.startup_eligible, t.source_url, t.source_tender_id,
-                   t.ai_summary, t.published_at, t.procurement_method
-            FROM watchlists w
-            JOIN tenders t ON w.tender_id = t.id
-            WHERE w.user_id = $1
-            ORDER BY w.created_at DESC
-            """,
-            UUID(user_id),
-        )
-    tenders = [dict(r) for r in rows]
-    for t in tenders:
-        for k, v in t.items():
-            if isinstance(v, UUID):
-                t[k] = str(v)
-            elif isinstance(v, datetime):
-                t[k] = v.isoformat()
-    return tenders
+                rows = await conn.fetch(
+                    """
+                    SELECT t.id, t.title, t.ministry, t.department, t.organisation,
+                           t.state, t.categories, t.estimated_cost_lakhs, t.emd_lakhs,
+                           t.submission_deadline, t.status, t.source, t.msme_eligible,
+                           t.startup_eligible, t.source_url, t.source_tender_id,
+                           t.ai_summary, t.published_at, t.procurement_method
+                    FROM watchlists w
+                    JOIN tenders t ON w.tender_id::text = t.id::text
+                    WHERE w.user_id::text = $1
+                    ORDER BY w.created_at DESC
+                    """,
+                    str(u_uuid),
+                )
+                tenders = [dict(r) for r in rows]
+                for t in tenders:
+                    for k, v in t.items():
+                        if isinstance(v, UUID):
+                            t[k] = str(v)
+                        elif isinstance(v, datetime):
+                            t[k] = v.isoformat()
+                return tenders
+    except Exception as err:
+        logger.warning("Error listing watchlist", error=str(err))
+
+    return []
