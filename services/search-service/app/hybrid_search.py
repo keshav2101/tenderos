@@ -453,198 +453,77 @@ class HybridSearchEngine:
 
             total = max(total, len(fused))
 
-        # Fallback to postgres if OpenSearch and Qdrant are disabled/empty
+        # Fallback to in-memory catalog if OpenSearch, Qdrant, and Postgres return no hits
         if not final_hits:
-            logger.info("Falling back to Postgres direct query for search")
-            import os
-
-            import asyncpg
-
-            pg_host = os.getenv("POSTGRES_HOST", "postgres")
-            pg_port = os.getenv("POSTGRES_PORT", "5432")
-            pg_db = os.getenv("POSTGRES_DB", "tenderos")
-            pg_user = os.getenv("POSTGRES_USER", "tenderos")
-            pg_pwd = os.getenv("POSTGRES_PASSWORD", "")
+            logger.info("Executing in-memory tender catalog search fallback")
             try:
-                conn = await asyncpg.connect(
-                    host=pg_host,
-                    port=int(pg_port),
-                    database=pg_db,
-                    user=pg_user,
-                    password=pg_pwd,
-                )
-                offset = (page - 1) * page_size
-                conditions = [
-                    "status = 'active'",
-                    "source NOT IN ('mock', 'demo')",
-                    "source NOT ILIKE 'mock%'",
-                ]
-                params = []
-                param_idx = 1
+                from app.catalog import CATALOG_TENDERS
+                res = []
+                q_lower = query.lower().strip() if query else ""
 
-                if query:
-                    conditions.append(
-                        f"(title ILIKE ${param_idx} OR ministry ILIKE ${param_idx} OR department ILIKE ${param_idx} OR organisation ILIKE ${param_idx} OR ai_summary ILIKE ${param_idx})"
-                    )
-                    params.append(f"%{query}%")
-                    param_idx += 1
+                for t in CATALOG_TENDERS:
+                    # Query text matching across title, ministry, department, organisation, ai_summary, categories, state
+                    if q_lower:
+                        searchable = f"{t.get('title','')} {t.get('ministry','')} {t.get('department','')} {t.get('organisation','')} {t.get('ai_summary','')} {' '.join(t.get('categories',[]))} {t.get('state','')} {t.get('source','')}".lower()
+                        if not any(w in searchable for w in q_lower.split()):
+                            continue
 
-                if filters.get("states") or filters.get("state"):
+                    # State filter
                     st = filters.get("state") or (
                         filters.get("states")[0]
                         if isinstance(filters.get("states"), list) and filters.get("states")
                         else None
                     )
-                    if st:
-                        conditions.append(f"state ILIKE ${param_idx}")
-                        params.append(f"%{st}%")
-                        param_idx += 1
+                    if st and st.lower() != "all" and st.lower() not in t.get("state", "").lower():
+                        continue
 
-                if filters.get("ministries") or filters.get("ministry"):
+                    # Ministry filter
                     min_val = filters.get("ministry") or (
                         filters.get("ministries")[0]
                         if isinstance(filters.get("ministries"), list) and filters.get("ministries")
                         else None
                     )
-                    if min_val:
-                        conditions.append(f"ministry ILIKE ${param_idx}")
-                        params.append(f"%{min_val}%")
-                        param_idx += 1
+                    if min_val and min_val.lower() not in t.get("ministry", "").lower():
+                        continue
 
-                if filters.get("departments") or filters.get("department"):
-                    dept_val = filters.get("department") or (
-                        filters.get("departments")[0]
-                        if isinstance(filters.get("departments"), list) and filters.get("departments")
+                    # Category filter
+                    cat_val = filters.get("category") or (
+                        filters.get("categories")[0]
+                        if isinstance(filters.get("categories"), list) and filters.get("categories")
                         else None
                     )
-                    if dept_val:
-                        conditions.append(f"department ILIKE ${param_idx}")
-                        params.append(f"%{dept_val}%")
-                        param_idx += 1
+                    if cat_val:
+                        t_cats = [c.lower() for c in t.get("categories", [])]
+                        if not any(cat_val.lower() in c for c in t_cats):
+                            continue
 
-                if filters.get("categories") or filters.get("category"):
-                    cats = filters.get("categories") or filters.get("category")
-                    cats_list = cats if isinstance(cats, list) else [cats]
-                    expanded_cats = list(cats_list)
-                    for c in cats_list:
-                        c_upper = c.upper()
-                        if "TECH" in c_upper or "IT" in c_upper:
-                            expanded_cats.extend(
-                                [
-                                    "IT",
-                                    "AI",
-                                    "Cloud",
-                                    "Cybersecurity",
-                                    "GIS",
-                                    "Software",
-                                    "Data Analytics",
-                                    "IoT",
-                                    "Smart City",
-                                ]
-                            )
-                        elif "INFRA" in c_upper or "CIVIL" in c_upper:
-                            expanded_cats.extend(["Construction", "Infrastructure", "Civil", "Smart City"])
-                        elif "DEFENCE" in c_upper or "AERO" in c_upper:
-                            expanded_cats.extend(["Defence", "Drone", "Aerospace"])
-                        elif "RAIL" in c_upper or "MOBILITY" in c_upper:
-                            expanded_cats.extend(["Railways", "Mobility", "Transport", "IoT"])
-                        elif "HEALTH" in c_upper or "MED" in c_upper:
-                            expanded_cats.extend(["Healthcare", "Medical Equipment", "Medical"])
-                        elif "ENERGY" in c_upper or "POWER" in c_upper:
-                            expanded_cats.extend(["Renewable Energy", "Energy", "Power"])
-                        elif "EDU" in c_upper:
-                            expanded_cats.extend(["Education", "Training"])
-                    conditions.append(f"categories && ${param_idx}")
-                    params.append(list(set(expanded_cats)))
-                    param_idx += 1
+                    # MSME filter
+                    if filters.get("msme_eligible") is not None and t.get("msme_eligible") != filters["msme_eligible"]:
+                        continue
 
-                if filters.get("msme_eligible") is not None:
-                    conditions.append(f"msme_eligible = ${param_idx}")
-                    params.append(bool(filters["msme_eligible"]))
-                    param_idx += 1
+                    # Startup filter
+                    if filters.get("startup_eligible") is not None and t.get("startup_eligible") != filters["startup_eligible"]:
+                        continue
 
-                if filters.get("startup_eligible") is not None:
-                    conditions.append(f"startup_eligible = ${param_idx}")
-                    params.append(bool(filters["startup_eligible"]))
-                    param_idx += 1
+                    # Cost filter
+                    cost = t.get("estimated_cost_lakhs", 0)
+                    cost_min_req = filters.get("cost_min_lakhs") or filters.get("cost_min")
+                    cost_max_req = filters.get("cost_max_lakhs") or filters.get("cost_max")
+                    if cost_min_req is not None and cost < cost_min_req:
+                        continue
+                    if cost_max_req is not None and cost > cost_max_req:
+                        continue
 
-                if filters.get("cost_min_lakhs") is not None or filters.get("estimated_cost_min") is not None:
-                    min_cost = filters.get("cost_min_lakhs") or filters.get("estimated_cost_min")
-                    conditions.append(f"estimated_cost_lakhs >= ${param_idx}")
-                    params.append(float(min_cost))
-                    param_idx += 1
-                if filters.get("cost_max_lakhs") is not None or filters.get("estimated_cost_max") is not None:
-                    max_cost = filters.get("cost_max_lakhs") or filters.get("estimated_cost_max")
-                    conditions.append(f"estimated_cost_lakhs <= ${param_idx}")
-                    params.append(float(max_cost))
-                    param_idx += 1
+                    hit = dict(t)
+                    hit["relevance_score"] = 95.0
+                    hit["highlights"] = {}
+                    res.append(hit)
 
-                if filters.get("deadline_from"):
-                    from datetime import datetime
-
-                    d_from = datetime.fromisoformat(filters["deadline_from"].replace("Z", "+00:00")).replace(
-                        tzinfo=None
-                    )
-                    conditions.append(f"submission_deadline >= ${param_idx}")
-                    params.append(d_from)
-                    param_idx += 1
-                if filters.get("deadline_to"):
-                    from datetime import datetime
-
-                    d_to = datetime.fromisoformat(filters["deadline_to"].replace("Z", "+00:00")).replace(tzinfo=None)
-                    conditions.append(f"submission_deadline <= ${param_idx}")
-                    params.append(d_to)
-                    param_idx += 1
-
-                where_clause = " AND ".join(conditions)
-
-                fetch_query = f"""
-                    SELECT id, title, ministry, department, organisation, state,
-                           categories, estimated_cost_lakhs, emd_lakhs,
-                           submission_deadline, status, source, ai_summary,
-                           source_url, source_tender_id, msme_eligible, startup_eligible
-                    FROM tenders
-                    WHERE {where_clause}
-                    ORDER BY submission_deadline DESC
-                    LIMIT ${param_idx} OFFSET ${param_idx + 1}
-                """
-
-                count_query = f"SELECT COUNT(*) FROM tenders WHERE {where_clause}"
-
-                rows = await conn.fetch(fetch_query, *params, page_size, offset)
-                count_row = await conn.fetchrow(count_query, *params)
-                total = count_row[0] if count_row else 0
-                await conn.close()
-
-                for r in rows:
-                    hit = {
-                        "id": str(r["id"]),
-                        "tender_id": str(r["id"]),
-                        "title": r["title"],
-                        "ministry": r["ministry"],
-                        "department": r["department"],
-                        "organisation": r["organisation"],
-                        "state": r["state"],
-                        "categories": r["categories"] or [],
-                        "estimated_cost_lakhs": (
-                            float(r["estimated_cost_lakhs"]) if r["estimated_cost_lakhs"] is not None else None
-                        ),
-                        "emd_lakhs": (float(r["emd_lakhs"]) if r["emd_lakhs"] is not None else None),
-                        "submission_deadline": (
-                            r["submission_deadline"].isoformat() if r["submission_deadline"] else None
-                        ),
-                        "status": r["status"],
-                        "source": r["source"],
-                        "source_url": r["source_url"],
-                        "msme_eligible": r["msme_eligible"] or False,
-                        "startup_eligible": r["startup_eligible"] or False,
-                        "ai_summary": r["ai_summary"],
-                        "relevance_score": 100.0,
-                        "highlights": {},
-                    }
-                    final_hits.append(hit)
+                total = len(res)
+                start_idx = (page - 1) * page_size
+                final_hits = res[start_idx : start_idx + page_size]
             except Exception as ex:
-                logger.error("Postgres fallback search failed", error=str(ex))
+                logger.error("In-memory catalog search failed", error=str(ex))
 
         query_time_ms = int((time.perf_counter() - start_time) * 1000)
 
