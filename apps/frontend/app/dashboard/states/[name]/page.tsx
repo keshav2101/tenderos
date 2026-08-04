@@ -8,7 +8,7 @@ import {
   TrendingUp, BarChart3, ShieldAlert, Award, Calendar
 } from "lucide-react";
 import { tendersApi } from "@/lib/api";
-import { searchCatalog } from "@/lib/catalog";
+import { searchCatalog, getLocalCatalog, matchStateName } from "@/lib/catalog";
 
 export default function StateDetailPage() {
   const params = useParams();
@@ -29,17 +29,11 @@ export default function StateDetailPage() {
     async function loadData() {
       try {
         setLoading(true);
-        let list: any[] = [];
 
-        try {
-          const { data } = await tendersApi.list({ state: stateName, page_size: 100 });
-          list = data.tenders || [];
-        } catch (_) {}
-
-        if (list.length === 0) {
-          const searchRes = searchCatalog({ state: stateName, page_size: 100 });
-          list = searchRes.tenders;
-        }
+        // Always use client catalog with UT-aware matchStateName — never the backend
+        // This guarantees Delhi (NCT), J&K, Andaman etc. always show correct tenders
+        const catalog = getLocalCatalog();
+        const list = catalog.filter(t => matchStateName(t.state || "", stateName));
 
         setTenders(list);
 
@@ -70,6 +64,7 @@ export default function StateDetailPage() {
     }
     loadData();
   }, [stateName]);
+
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">

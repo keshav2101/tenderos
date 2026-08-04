@@ -7,8 +7,7 @@ import {
   ArrowLeft, FileText, IndianRupee, Clock, Building2,
   TrendingUp, BarChart3, ShieldAlert, Award, Calendar
 } from "lucide-react";
-import { tendersApi } from "@/lib/api";
-import { searchCatalog } from "@/lib/catalog";
+import { getLocalCatalog } from "@/lib/catalog";
 
 export default function MinistryDetailPage() {
   const params = useParams();
@@ -29,17 +28,16 @@ export default function MinistryDetailPage() {
     async function loadData() {
       try {
         setLoading(true);
-        let list: any[] = [];
 
-        try {
-          const { data } = await tendersApi.list({ ministry: ministryName, page_size: 100 });
-          list = data.tenders || [];
-        } catch (_) {}
-
-        if (list.length === 0) {
-          const searchRes = searchCatalog({ ministry: ministryName, page_size: 100 });
-          list = searchRes.tenders;
-        }
+        // Always use client catalog with strict ministry substring match
+        // Ensures only tenders from THIS ministry are shown, not all domains
+        const catalog = getLocalCatalog();
+        const minLower = ministryName.toLowerCase();
+        const list = catalog.filter(t =>
+          (t.ministry || "").toLowerCase().includes(minLower) ||
+          (t.organisation || "").toLowerCase().includes(minLower) ||
+          (t.department || "").toLowerCase().includes(minLower)
+        );
 
         setTenders(list);
 

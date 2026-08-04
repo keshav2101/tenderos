@@ -181,10 +181,10 @@ export default function AnalyticsDashboardPage() {
       {/* Overview Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Total Active Tenders", value: overview?.total_active_tenders?.toLocaleString("en-IN") || "52,410", icon: BarChart3, color: "text-indigo-400" },
+          { label: "Total Active Tenders", value: overview?.total_active_tenders != null ? overview.total_active_tenders.toLocaleString("en-IN") : "—", icon: BarChart3, color: "text-indigo-400" },
           { label: "Union Ministries", value: `${ALL_CENTRAL_MINISTRIES.length} Active`, icon: Landmark, color: "text-emerald-400" },
           { label: "States & UTs Covered", value: `${ALL_INDIAN_STATES_AND_UTS.length} States & UTs`, icon: PieChart, color: "text-amber-400" },
-          { label: "Indexed Today", value: overview?.tenders_indexed_today || "242", icon: TrendingUp, color: "text-pink-400" },
+          { label: "Indexed Today", value: overview?.tenders_indexed_today != null ? overview.tenders_indexed_today.toLocaleString("en-IN") : "—", icon: TrendingUp, color: "text-pink-400" },
         ].map((item, i) => {
           const Icon = item.icon;
           return (
