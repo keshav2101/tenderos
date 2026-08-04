@@ -433,20 +433,66 @@ function DashboardContent() {
         params.category = filterSector;
       }
 
+      // Detect if the search term is a Union Territory or Indian State name
+      // so we route it as a state filter rather than a free-text q search
+      const UT_STATE_ALIASES: Record<string, string> = {
+        "delhi": "Delhi (NCT)", "nct": "Delhi (NCT)", "new delhi": "Delhi (NCT)",
+        "jammu": "Jammu & Kashmir", "kashmir": "Jammu & Kashmir", "j&k": "Jammu & Kashmir", "j & k": "Jammu & Kashmir",
+        "ladakh": "Ladakh", "leh": "Ladakh", "kargil": "Ladakh",
+        "puducherry": "Puducherry", "pondicherry": "Puducherry",
+        "chandigarh": "Chandigarh",
+        "andaman": "Andaman & Nicobar Islands", "nicobar": "Andaman & Nicobar Islands", "port blair": "Andaman & Nicobar Islands",
+        "lakshadweep": "Lakshadweep", "kavaratti": "Lakshadweep",
+        "daman": "Dadra & Nagar Haveli and Daman & Diu", "diu": "Dadra & Nagar Haveli and Daman & Diu", "dadra": "Dadra & Nagar Haveli and Daman & Diu", "dnh": "Dadra & Nagar Haveli and Daman & Diu",
+        "maharashtra": "Maharashtra", "karnataka": "Karnataka", "tamil nadu": "Tamil Nadu",
+        "gujarat": "Gujarat", "uttar pradesh": "Uttar Pradesh", "up": "Uttar Pradesh",
+        "west bengal": "West Bengal", "rajasthan": "Rajasthan", "andhra pradesh": "Andhra Pradesh",
+        "telangana": "Telangana", "kerala": "Kerala", "haryana": "Haryana",
+        "punjab": "Punjab", "bihar": "Bihar", "madhya pradesh": "Madhya Pradesh",
+        "odisha": "Odisha", "assam": "Assam", "jharkhand": "Jharkhand",
+        "chhattisgarh": "Chhattisgarh", "uttarakhand": "Uttarakhand", "himachal pradesh": "Himachal Pradesh",
+        "goa": "Goa", "tripura": "Tripura", "meghalaya": "Meghalaya",
+        "manipur": "Manipur", "nagaland": "Nagaland", "mizoram": "Mizoram",
+        "arunachal pradesh": "Arunachal Pradesh", "sikkim": "Sikkim",
+      };
+
+      const isUtQuery = (q: string) => {
+        const qL = q.trim().toLowerCase();
+        return qL.includes("union territory") || qL.includes("union territories") ||
+               qL.includes("union tenitort") || qL.includes("union teritpory") || qL.includes("union teritory") || qL === "ut";
+      };
+
+      const resolveStateFilter = (q: string): { stateFilter: string | undefined; textQ: string | undefined } => {
+        const qL = q.trim().toLowerCase();
+        if (isUtQuery(qL)) return { stateFilter: "union territory", textQ: undefined };
+        if (UT_STATE_ALIASES[qL]) return { stateFilter: UT_STATE_ALIASES[qL], textQ: undefined };
+        // Check multi-word aliases
+        for (const [alias, stateName] of Object.entries(UT_STATE_ALIASES)) {
+          if (qL === alias || qL.startsWith(alias + " ") || qL.endsWith(" " + alias)) {
+            return { stateFilter: stateName, textQ: undefined };
+          }
+        }
+        return { stateFilter: undefined, textQ: q };
+      };
+
       let items: Tender[] = [];
       let totalCount = 0;
+
+      const { stateFilter, textQ } = search.trim() ? resolveStateFilter(search) : { stateFilter: undefined, textQ: undefined };
 
       try {
         const { data } = await tendersApi.list(params);
         const apiItems = data.tenders || data.items || [];
         const apiTotal = data.total || apiItems.length || 0;
 
-        if (apiItems.length > 0) {
+        if (apiItems.length > 0 && !stateFilter) {
           items = apiItems;
           totalCount = apiTotal;
         } else {
+          // Use client catalog — always called when state/UT filter is active
           const searchRes = searchCatalog({
-            q: search,
+            q: textQ || undefined,
+            state: stateFilter,
             category: filterSector !== "All Sectors" ? filterSector : undefined,
             msme_eligible: filterMsme ? true : undefined,
             startup_eligible: filterStartup ? true : undefined,
@@ -458,7 +504,8 @@ function DashboardContent() {
         }
       } catch {
         const searchRes = searchCatalog({
-          q: search,
+          q: textQ || undefined,
+          state: stateFilter,
           category: filterSector !== "All Sectors" ? filterSector : undefined,
           msme_eligible: filterMsme ? true : undefined,
           startup_eligible: filterStartup ? true : undefined,
@@ -468,6 +515,7 @@ function DashboardContent() {
         items = searchRes.tenders;
         totalCount = searchRes.total;
       }
+
 
       setTenders(items);
       setTotal(totalCount);
