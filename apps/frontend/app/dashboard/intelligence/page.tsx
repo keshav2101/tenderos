@@ -30,63 +30,50 @@ export default function IntelligenceDashboardPage() {
         const liveAnalytics = getComputedMarketAnalytics();
         const catalog = getLocalCatalog();
 
-        const [buyerRes, trendRes] = await Promise.allSettled([
-          api.get("/tenders/intelligence/buyers"),
-          api.get("/tenders/intelligence/market-trends")
-        ]);
+        // Always compute dynamic buyer profiles across all 9,763 tenders
+        const buyerMap: Record<string, { total_tenders: number; total_value_lakhs: number; msme_friendly_count: number; ministry_name: string }> = {};
+        catalog.forEach(t => {
+          const name = t.organisation || t.ministry || "Union Procurement Authority";
+          if (!buyerMap[name]) {
+            buyerMap[name] = {
+              total_tenders: 0,
+              total_value_lakhs: 0,
+              msme_friendly_count: 0,
+              ministry_name: t.ministry || "Central / State Portal",
+            };
+          }
+          buyerMap[name].total_tenders++;
+          buyerMap[name].total_value_lakhs += (t.estimated_cost_lakhs || 0);
+          if (t.msme_eligible) buyerMap[name].msme_friendly_count++;
+        });
 
-        if (buyerRes.status === "fulfilled" && buyerRes.value?.data?.buyer_profiles?.length) {
-          setBuyers(buyerRes.value.data.buyer_profiles);
-        } else {
-          // Dynamic buyer profile computation across all 9,763 tenders
-          const buyerMap: Record<string, { total_tenders: number; total_value_lakhs: number; msme_friendly_count: number; ministry_name: string }> = {};
-          catalog.forEach(t => {
-            const name = t.organisation || t.ministry || "General Procurement";
-            if (!buyerMap[name]) {
-              buyerMap[name] = {
-                total_tenders: 0,
-                total_value_lakhs: 0,
-                msme_friendly_count: 0,
-                ministry_name: t.ministry || "Central / State Portal",
-              };
-            }
-            buyerMap[name].total_tenders++;
-            buyerMap[name].total_value_lakhs += (t.estimated_cost_lakhs || 0);
-            if (t.msme_eligible) buyerMap[name].msme_friendly_count++;
-          });
+        const computedProfiles = Object.entries(buyerMap)
+          .map(([buyer_name, data]) => ({
+            buyer_name,
+            ...data,
+            total_value_lakhs: +data.total_value_lakhs.toFixed(2),
+            avg_tender_val_lakhs: +(data.total_value_lakhs / Math.max(1, data.total_tenders)).toFixed(2),
+          }))
+          .sort((a, b) => b.total_tenders - a.total_tenders);
 
-          const computedProfiles = Object.entries(buyerMap)
-            .map(([buyer_name, data]) => ({
-              buyer_name,
-              ...data,
-              total_value_lakhs: +data.total_value_lakhs.toFixed(2),
-              avg_tender_val_lakhs: +(data.total_value_lakhs / Math.max(1, data.total_tenders)).toFixed(2),
-            }))
-            .sort((a, b) => b.total_tenders - a.total_tenders);
+        setBuyers(computedProfiles);
 
-          setBuyers(computedProfiles);
-        }
+        // Always compute dynamic trend data from live catalog
+        const sourceCounts: Record<string, number> = {};
+        catalog.forEach(t => {
+          const src = t.source || "GeM";
+          sourceCounts[src] = (sourceCounts[src] || 0) + 1;
+        });
+        const source_distribution = Object.entries(sourceCounts)
+          .map(([source, tender_count]) => ({ source, tender_count }))
+          .sort((a, b) => b.tender_count - a.tender_count);
 
-        if (trendRes.status === "fulfilled" && trendRes.value?.data?.total_tenders) {
-          setTrends(trendRes.value.data);
-        } else {
-          // Dynamic trend computation from live catalog
-          const sourceCounts: Record<string, number> = {};
-          catalog.forEach(t => {
-            const src = t.source || "GeM";
-            sourceCounts[src] = (sourceCounts[src] || 0) + 1;
-          });
-          const source_distribution = Object.entries(sourceCounts)
-            .map(([source, tender_count]) => ({ source, tender_count }))
-            .sort((a, b) => b.tender_count - a.tender_count);
-
-          setTrends({
-            total_tenders: catalog.length,
-            msme_exemption_rate: liveAnalytics.overview.msme_exemption_rate,
-            startup_exemption_rate: liveAnalytics.overview.startup_exemption_rate,
-            source_distribution,
-          });
-        }
+        setTrends({
+          total_tenders: catalog.length,
+          msme_exemption_rate: liveAnalytics.overview.msme_exemption_rate,
+          startup_exemption_rate: liveAnalytics.overview.startup_exemption_rate,
+          source_distribution,
+        });
       } catch (err) {
         console.error("Failed to load intelligence data", err);
       } finally {
