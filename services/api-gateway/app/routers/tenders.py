@@ -178,19 +178,8 @@ def _filter_catalog(
     sort_by: str,
 ) -> list[dict]:
     res = _CATALOG
-    if q and q.strip():
-        terms = q.lower().strip().split()
-        res = [
-            t for t in res
-            if any(
-                term in (
-                    f"{t.get('title','')} {t.get('ministry','')} {t.get('department','')} "
-                    f"{t.get('organisation','')} {t.get('ai_summary','')} "
-                    f"{' '.join(t.get('categories',[]))} {t.get('state','')} {t.get('source','')}"
-                ).lower()
-                for term in terms
-            )
-        ]
+
+    # Hard Filters
     if state and state.lower() not in ("all", ""):
         res = [t for t in res if state.lower() in t.get("state", "").lower()]
     if ministry:
@@ -198,7 +187,6 @@ def _filter_catalog(
     if department:
         res = [t for t in res if department.lower() in t.get("department", "").lower()]
     if category:
-        cat_u = category.upper()
         res = [t for t in res if any(category.lower() in c.lower() for c in t.get("categories", []))]
     if status_filter and status_filter.lower() not in ("all", ""):
         res = [t for t in res if t.get("status", "active") == status_filter]
@@ -212,15 +200,75 @@ def _filter_catalog(
         res = [t for t in res if t.get("estimated_cost_lakhs", 0) <= cost_max]
     if source:
         res = [t for t in res if t.get("source", "") == source]
-    # Sort
+
+    # Weighted Relevance Search Engine
+    if q and q.strip():
+        q_clean = q.lower().strip()
+        terms = q_clean.split()
+        scored_tenders = []
+
+        for t in res:
+            title = (t.get("title") or "").lower()
+            minst = (t.get("ministry") or "").lower()
+            dept = (t.get("department") or "").lower()
+            org = (t.get("organisation") or "").lower()
+            ai_summary = (t.get("ai_summary") or "").lower()
+            categories = " ".join(t.get("categories") or []).lower()
+            st = (t.get("state") or "").lower()
+            src = (t.get("source") or "").lower()
+
+            score = 0.0
+
+            # Exact phrase match bonus
+            if q_clean in title:
+                score += 100.0
+            elif q_clean in categories:
+                score += 60.0
+            elif q_clean in org or q_clean in minst:
+                score += 50.0
+            elif q_clean in ai_summary:
+                score += 30.0
+
+            # Tokenized term matches
+            matches = 0
+            for term in terms:
+                term_score = 0.0
+                if term in title:
+                    term_score += 25.0
+                if term in categories:
+                    term_score += 18.0
+                if term in org:
+                    term_score += 15.0
+                if term in minst or term in dept:
+                    term_score += 12.0
+                if term in ai_summary:
+                    term_score += 6.0
+                if term in st or term in src:
+                    term_score += 3.0
+
+                if term_score > 0:
+                    matches += 1
+                    score += term_score
+
+            if matches > 0:
+                coverage_ratio = matches / len(terms)
+                score *= (0.5 + 0.5 * coverage_ratio)
+                scored_tenders.append((score, t))
+
+        # Sort by relevance score descending
+        scored_tenders.sort(key=lambda x: x[0], reverse=True)
+        res = [item[1] for item in scored_tenders]
+
+    # Sort overrides
     if sort_by == "deadline":
         res = sorted(res, key=lambda t: t.get("submission_deadline", ""))
     elif sort_by == "cost_high":
         res = sorted(res, key=lambda t: t.get("estimated_cost_lakhs", 0), reverse=True)
     elif sort_by == "cost_low":
         res = sorted(res, key=lambda t: t.get("estimated_cost_lakhs", 0))
-    else:
+    elif sort_by == "published" and not q:
         res = sorted(res, key=lambda t: t.get("published_at", ""), reverse=True)
+
     return res
 
 

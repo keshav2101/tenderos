@@ -223,3 +223,148 @@ export function getComputedMarketAnalytics() {
     ],
   };
 }
+
+export interface SearchCatalogParams {
+  q?: string;
+  category?: string;
+  state?: string;
+  ministry?: string;
+  department?: string;
+  status?: string;
+  msme_eligible?: boolean;
+  startup_eligible?: boolean;
+  cost_min?: number;
+  cost_max?: number;
+  source?: string;
+  sort_by?: string;
+  page?: number;
+  page_size?: number;
+}
+
+/**
+ * Multi-Field Weighted Relevance Search Engine for 9,763 Tenders.
+ * Ranks tenders by field weight (title > category > org/ministry > summary > state)
+ * and coverage ratio.
+ */
+export function searchCatalog(params: SearchCatalogParams) {
+  let catalog = [...getLocalCatalog()];
+  const {
+    q, category, state, ministry, department, status,
+    msme_eligible, startup_eligible, cost_min, cost_max, source,
+    sort_by, page = 1, page_size = 50
+  } = params;
+
+  // 1. Mandatory hard filters
+  if (state && state.toLowerCase() !== "all") {
+    const stLower = state.toLowerCase();
+    catalog = catalog.filter(t => (t.state || "").toLowerCase().includes(stLower));
+  }
+  if (ministry) {
+    const minLower = ministry.toLowerCase();
+    catalog = catalog.filter(t => (t.ministry || "").toLowerCase().includes(minLower));
+  }
+  if (department) {
+    const depLower = department.toLowerCase();
+    catalog = catalog.filter(t => (t.department || "").toLowerCase().includes(depLower));
+  }
+  if (category && category.toLowerCase() !== "all sectors") {
+    const catLower = category.toLowerCase().split(" ")[0];
+    catalog = catalog.filter(t => (t.categories || []).some(c => c.toLowerCase().includes(catLower)));
+  }
+  if (status && status.toLowerCase() !== "all") {
+    catalog = catalog.filter(t => (t.status || "active") === status);
+  }
+  if (msme_eligible !== undefined && msme_eligible !== null) {
+    catalog = catalog.filter(t => t.msme_eligible === msme_eligible);
+  }
+  if (startup_eligible !== undefined && startup_eligible !== null) {
+    catalog = catalog.filter(t => t.startup_eligible === startup_eligible);
+  }
+  if (cost_min != null) {
+    catalog = catalog.filter(t => (t.estimated_cost_lakhs || 0) >= cost_min);
+  }
+  if (cost_max != null) {
+    catalog = catalog.filter(t => (t.estimated_cost_lakhs || 0) <= cost_max);
+  }
+  if (source) {
+    catalog = catalog.filter(t => t.source === source);
+  }
+
+  // 2. Multi-field Weighted Relevance Scoring engine
+  if (q && q.trim()) {
+    const qClean = q.trim().toLowerCase();
+    const terms = qClean.split(/\s+/);
+
+    const scored: { score: number; tender: Tender }[] = [];
+
+    catalog.forEach(t => {
+      const title = (t.title || "").toLowerCase();
+      const minst = (t.ministry || "").toLowerCase();
+      const dept = (t.department || "").toLowerCase();
+      const org = (t.organisation || "").toLowerCase();
+      const summary = (t.ai_summary || "").toLowerCase();
+      const cats = (t.categories || []).join(" ").toLowerCase();
+      const st = (t.state || "").toLowerCase();
+      const src = (t.source || "").toLowerCase();
+
+      let score = 0;
+
+      // Exact phrase match bonus
+      if (title.includes(qClean)) score += 100;
+      else if (cats.includes(qClean)) score += 60;
+      else if (org.includes(qClean) || minst.includes(qClean)) score += 50;
+      else if (summary.includes(qClean)) score += 30;
+
+      // Tokenized term scoring
+      let matchedCount = 0;
+      terms.forEach(term => {
+        let termScore = 0;
+        if (title.includes(term)) termScore += 25;
+        if (cats.includes(term)) termScore += 18;
+        if (org.includes(term)) termScore += 15;
+        if (minst.includes(term) || dept.includes(term)) termScore += 12;
+        if (summary.includes(term)) termScore += 6;
+        if (st.includes(term) || src.includes(term)) termScore += 3;
+
+        if (termScore > 0) {
+          matchedCount++;
+          score += termScore;
+        }
+      });
+
+      if (matchedCount > 0) {
+        const termCoverageRatio = matchedCount / terms.length;
+        score *= (0.5 + 0.5 * termCoverageRatio);
+        scored.push({ score, tender: { ...t, match_score: Math.min(99, Math.round(score > 80 ? 90 + (score % 8) : 65 + score / 3)) } });
+      }
+    });
+
+    // Sort by relevance score descending
+    scored.sort((a, b) => b.score - a.score);
+    catalog = scored.map(s => s.tender);
+  }
+
+  // 3. Explicit sort overrides
+  if (sort_by === "deadline") {
+    catalog.sort((a, b) => new Date(a.submission_deadline || 0).getTime() - new Date(b.submission_deadline || 0).getTime());
+  } else if (sort_by === "cost_high") {
+    catalog.sort((a, b) => (b.estimated_cost_lakhs || 0) - (a.estimated_cost_lakhs || 0));
+  } else if (sort_by === "cost_low") {
+    catalog.sort((a, b) => (a.estimated_cost_lakhs || 0) - (b.estimated_cost_lakhs || 0));
+  } else if (sort_by === "published" && !q) {
+    catalog.sort((a, b) => new Date(b.published_at || 0).getTime() - new Date(a.published_at || 0).getTime());
+  }
+
+  const total = catalog.length;
+  const offset = (page - 1) * page_size;
+  const pageItems = catalog.slice(offset, offset + page_size);
+
+  return {
+    tenders: pageItems,
+    total,
+    page,
+    page_size,
+    total_pages: Math.max(1, Math.ceil(total / page_size)),
+  };
+}
+

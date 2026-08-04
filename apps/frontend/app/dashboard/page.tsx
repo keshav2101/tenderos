@@ -16,7 +16,7 @@ import { useAuth } from "@/lib/auth-context";
 import { getConnectorsSummary, syncAllConnectors } from "@/lib/connectors-store";
 
 
-import { Tender, getLocalCatalog } from "@/lib/catalog";
+import { Tender, getLocalCatalog, searchCatalog } from "@/lib/catalog";
 
 // ─── Portal config ─────────────────────────────────────────────────────────────
 const PORTAL_CONFIG: Record<string, { label: string; color: string; bg: string; defaultUrl: string }> = {
@@ -449,29 +449,16 @@ function DashboardContent() {
           throw new Error(`Backend only has ${apiTotal} tenders — using client catalog`);
         }
       } catch {
-        // Apply filters to client-side catalog
-        let catalog = getLocalCatalog();
-
-        if (search.trim()) {
-          const terms = search.trim().toLowerCase().split(/\s+/);
-          catalog = catalog.filter(t =>
-            terms.every(term =>
-              `${t.title} ${t.ministry} ${t.department} ${t.organisation} ${t.ai_summary} ${(t.categories || []).join(" ")} ${t.state} ${t.source}`.toLowerCase().includes(term)
-            )
-          );
-        }
-        if (filterSector && filterSector !== "All Sectors") {
-          const sec = filterSector.toLowerCase();
-          catalog = catalog.filter(t =>
-            (t.categories || []).some(c => c.toLowerCase().includes(sec.split(" ")[0].toLowerCase()))
-          );
-        }
-        if (filterMsme) catalog = catalog.filter(t => t.msme_eligible);
-        if (filterStartup) catalog = catalog.filter(t => t.startup_eligible);
-
-        totalCount = catalog.length;
-        const offset = (page - 1) * pageSize;
-        items = catalog.slice(offset, offset + pageSize);
+        const searchRes = searchCatalog({
+          q: search,
+          category: filterSector !== "All Sectors" ? filterSector : undefined,
+          msme_eligible: filterMsme ? true : undefined,
+          startup_eligible: filterStartup ? true : undefined,
+          page,
+          page_size: pageSize,
+        });
+        items = searchRes.tenders;
+        totalCount = searchRes.total;
       }
 
       setTenders(items);

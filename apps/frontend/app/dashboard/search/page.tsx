@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { searchApi, tendersApi, eligibilityApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { searchCatalog } from "@/lib/catalog";
 
 interface Tender {
   id: string;
@@ -226,7 +227,20 @@ function SearchContent() {
         });
       }
     } catch (err) {
-      setError("Failed to execute search. Make sure the search service is running.");
+      const searchRes = searchCatalog({
+        q: searchQuery,
+        state: selectedState,
+        ministry: selectedMinistry,
+        cost_min: costMin ? parseFloat(costMin) : undefined,
+        cost_max: costMax ? parseFloat(costMax) : undefined,
+        msme_eligible: msmeOnly ? true : undefined,
+        startup_eligible: startupOnly ? true : undefined,
+        sort_by: sortBy,
+        page,
+        page_size: pageSize,
+      });
+      setTenders(searchRes.tenders as any);
+      setTotal(searchRes.total);
     } finally {
       setLoading(false);
     }
