@@ -72,7 +72,7 @@ _SOURCES = ["GeM", "CPPP", "IREPS", "Defence", "HAL", "BEL", "ONGC", "BHEL", "NT
 _PROC = ["Open Tender", "QCBS", "L1"]
 
 
-def _generate_catalog(count: int = 9000) -> list[dict]:
+def _generate_catalog(count: int = 9763) -> list[dict]:
     rnd = random.Random(2026)
     base = datetime(2026, 8, 1, 10, 0, 0)
     result = []
@@ -118,8 +118,8 @@ def _generate_catalog(count: int = 9000) -> list[dict]:
     return result
 
 
-FALLBACK_TENDERS = _generate_catalog(9000)
-# O(1) index — id → tender dict for instant detail lookups over 9000 records
+FALLBACK_TENDERS = _generate_catalog(9763)
+# O(1) index — id → tender dict for instant detail lookups over 9763 records
 _FALLBACK_INDEX: dict[str, dict] = {t["id"]: t for t in FALLBACK_TENDERS}
 
 @asynccontextmanager

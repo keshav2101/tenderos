@@ -131,7 +131,7 @@ function _seededRnd(seed: number) {
 }
 function _pick<T>(arr: T[], rnd: () => number): T { return arr[Math.floor(rnd() * arr.length)]; }
 
-function _buildLocalCatalog(count = 9000): Tender[] {
+function _buildLocalCatalog(count = 9763): Tender[] {
   const rnd = _seededRnd(2026);
   const base = new Date("2026-08-01T10:00:00");
   const result: Tender[] = [];
@@ -184,7 +184,7 @@ function _buildLocalCatalog(count = 9000): Tender[] {
 // Built once at module load — instant, deterministic
 let _LOCAL_CATALOG: Tender[] | null = null;
 function getLocalCatalog(): Tender[] {
-  if (!_LOCAL_CATALOG) _LOCAL_CATALOG = _buildLocalCatalog(9000);
+  if (!_LOCAL_CATALOG) _LOCAL_CATALOG = _buildLocalCatalog(9763);
   return _LOCAL_CATALOG;
 }
 

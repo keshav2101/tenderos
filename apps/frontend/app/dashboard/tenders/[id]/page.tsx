@@ -555,7 +555,7 @@ export default function TenderDetailPage({ params }: { params: { id: string } })
         // If API failed or returned empty, look up in client-side catalog
         if (!tenderData?.id && tenderId.startsWith("tos-2026-")) {
           const idx = parseInt(tenderId.split("-")[2], 10);
-          if (idx >= 1 && idx <= 9000) {
+          if (idx >= 1 && idx <= 9763) {
             // Import the same catalog builder logic inline
             const catalog = (window as any).__TOS_CATALOG__ || (() => {
               // Build index from dashboard's catalog if available

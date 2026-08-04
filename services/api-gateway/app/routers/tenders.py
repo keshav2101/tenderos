@@ -69,7 +69,7 @@ _SOURCES = ["GeM", "CPPP", "IREPS", "Defence", "HAL", "BEL", "ONGC", "BHEL", "NT
 _PROC = ["Open Tender", "QCBS", "L1"]
 
 
-def _build_catalog(count: int = 9000) -> list[dict]:
+def _build_catalog(count: int = 9763) -> list[dict]:
     rnd = random.Random(2026)
     base = datetime(2026, 8, 1, 10, 0, 0)
     result: list[dict] = []
@@ -118,7 +118,7 @@ def _build_catalog(count: int = 9000) -> list[dict]:
     return result
 
 
-_CATALOG: list[dict] = _build_catalog(9000)
+_CATALOG: list[dict] = _build_catalog(9763)
 _CATALOG_INDEX: dict[str, dict] = {t["id"]: t for t in _CATALOG}
 
 

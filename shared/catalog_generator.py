@@ -70,7 +70,7 @@ TITLES_BY_CAT = {
 
 PROC_METHODS = ["Open Tender", "QCBS", "L1"]
 
-def generate_catalog_tenders(count: int = 9000) -> list[dict]:
+def generate_catalog_tenders(count: int = 9763) -> list[dict]:
     """Generate deterministic, rich Indian procurement tender catalog."""
     rnd = random.Random(2026)
     now = datetime(2026, 8, 1, 10, 0, 0)
