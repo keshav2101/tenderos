@@ -192,9 +192,28 @@ function SearchContent() {
       };
 
       const { data } = await searchApi.search(params);
-      const results = data.hits || data.results || [];
+      let results = data.hits || data.results || [];
+      let totalCount = data.total || results.length || 0;
+
+      if (results.length === 0) {
+        const searchRes = searchCatalog({
+          q: searchQuery,
+          state: selectedState,
+          ministry: selectedMinistry,
+          cost_min: costMin ? parseFloat(costMin) : undefined,
+          cost_max: costMax ? parseFloat(costMax) : undefined,
+          msme_eligible: msmeOnly ? true : undefined,
+          startup_eligible: startupOnly ? true : undefined,
+          sort_by: sortBy,
+          page,
+          page_size: pageSize,
+        });
+        results = searchRes.tenders as any;
+        totalCount = searchRes.total;
+      }
+
       setTenders(results);
-      setTotal(data.total || results.length || 0);
+      setTotal(totalCount);
 
       // Async fetch match scores if user is authenticated
       if (user?.id) {
