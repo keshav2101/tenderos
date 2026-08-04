@@ -251,7 +251,7 @@ async def get_buyer_profiles(request: Request, limit: int = Query(20, ge=1, le=1
     # In-memory fallback
     from collections import defaultdict
     buyer_map: dict = defaultdict(lambda: {"total_tenders": 0, "total_value_lakhs": 0.0, "msme_friendly_count": 0})
-    for t in _CATALOG[:2000]:
+    for t in _CATALOG:
         key = t.get("organisation", t.get("ministry", "General"))
         buyer_map[key]["ministry_name"] = t.get("ministry", "Central / State Portal")
         buyer_map[key]["total_tenders"] += 1

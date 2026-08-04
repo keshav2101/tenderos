@@ -8,6 +8,8 @@ import {
 } from "lucide-react";
 import { analyticsApi } from "@/lib/api";
 
+import { getComputedMarketAnalytics } from "@/lib/catalog";
+
 interface MinistryStats {
   ministry: string;
   tender_count: number;
@@ -85,6 +87,8 @@ export default function AnalyticsDashboardPage() {
   useEffect(() => {
     async function loadAnalytics() {
       try {
+        const liveAnalytics = getComputedMarketAnalytics();
+
         const [overRes, minRes, catRes, predRes] = await Promise.allSettled([
           analyticsApi.overview(),
           analyticsApi.ministries(100),
@@ -95,16 +99,9 @@ export default function AnalyticsDashboardPage() {
         if (overRes.status === "fulfilled" && overRes.value?.data && overRes.value.data.total_active_tenders > 100) {
           setOverview(overRes.value.data);
         } else {
-          setOverview({
-            total_active_tenders: 9763,
-            active_ministries: ALL_CENTRAL_MINISTRIES.length,
-            active_states: ALL_INDIAN_STATES_AND_UTS.length,
-            tenders_indexed_today: 284,
-            total_market_value_cr: 28450.4,
-          });
+          setOverview(liveAnalytics.overview);
         }
         
-        // Merge API ministries with Union Ministries list
         const apiMins: MinistryStats[] =
           minRes.status === "fulfilled" && minRes.value?.data?.ministries?.length
             ? minRes.value.data.ministries
@@ -113,53 +110,26 @@ export default function AnalyticsDashboardPage() {
         if (apiMins.length > 0) {
           setMinistries(apiMins);
         } else {
-          const defaultMinistries: MinistryStats[] = [
-            { ministry: "Ministry of Defence", tender_count: 1420, total_value_cr: 8450.0 },
-            { ministry: "Ministry of Railways", tender_count: 1280, total_value_cr: 6820.5 },
-            { ministry: "Ministry of Road Transport and Highways", tender_count: 1140, total_value_cr: 5210.0 },
-            { ministry: "Ministry of Electronics and Information Technology (MeitY)", tender_count: 980, total_value_cr: 3150.0 },
-            { ministry: "Ministry of Health and Family Welfare", tender_count: 850, total_value_cr: 2480.0 },
-            { ministry: "Ministry of Power", tender_count: 760, total_value_cr: 1950.0 },
-            { ministry: "Ministry of New and Renewable Energy", tender_count: 690, total_value_cr: 1620.0 },
-            { ministry: "Ministry of Housing and Urban Affairs", tender_count: 620, total_value_cr: 1410.0 },
-            { ministry: "Ministry of Home Affairs", tender_count: 540, total_value_cr: 980.0 },
-            { ministry: "Ministry of Education", tender_count: 480, total_value_cr: 760.0 },
-            { ministry: "Public Works Department (PWD)", tender_count: 1003, total_value_cr: 2420.0 }
-          ];
-          setMinistries(defaultMinistries);
+          setMinistries(liveAnalytics.ministries);
         }
 
         if (catRes.status === "fulfilled" && catRes.value?.data?.categories?.length) {
           setCategories(catRes.value.data.categories);
         } else {
-          setCategories([
-            { category: "Information Technology, AI & Software", tender_count: 1845 },
-            { category: "Defense & Aerospace Systems", tender_count: 1420 },
-            { category: "Civil Infrastructure & Highways", tender_count: 1260 },
-            { category: "Healthcare & Medical Equipment", tender_count: 980 },
-            { category: "Solar & Renewable Energy", tender_count: 840 },
-            { category: "Railway Signalling & Telecommunication", tender_count: 790 },
-            { category: "Smart City & IoT Automation", tender_count: 650 },
-            { category: "Cybersecurity & CSOC Operations", tender_count: 580 },
-            { category: "Autonomous Drones & GIS Survey", tender_count: 490 },
-            { category: "Power Substation Automation & SCADA", tender_count: 420 },
-            { category: "Oil & Gas Pipeline Inspection", tender_count: 488 }
-          ]);
+          setCategories(liveAnalytics.categories);
         }
 
         if (predRes.status === "fulfilled" && predRes.value?.data?.predictions?.length) {
           setPredictions(predRes.value.data.predictions);
         } else {
-          setPredictions([
-            { id: "pred-1", category: "AI Video Surveillance & Drone Fleet", ministry: "Ministry of Defence", estimated_publish_month: "Sep 2026", probability: 94, estimated_value_lakhs: 8500 },
-            { id: "pred-2", category: "Kavach Automatic Train Protection (Phase-4)", ministry: "Ministry of Railways", estimated_publish_month: "Sep 2026", probability: 91, estimated_value_lakhs: 14200 },
-            { id: "pred-3", category: "Zero Trust CSOC Implementation & STQC Audit", ministry: "Ministry of Electronics and Information Technology", estimated_publish_month: "Oct 2026", probability: 87, estimated_value_lakhs: 4800 },
-            { id: "pred-4", category: "500MW Utility-Scale Solar PV & BESS Storage", ministry: "Ministry of New and Renewable Energy", estimated_publish_month: "Oct 2026", probability: 85, estimated_value_lakhs: 6200 },
-            { id: "pred-5", category: "National Smart Expressway Civil & ITS Expansion", ministry: "Ministry of Road Transport and Highways", estimated_publish_month: "Nov 2026", probability: 82, estimated_value_lakhs: 18500 },
-          ]);
+          setPredictions(liveAnalytics.predictions);
         }
       } catch (err: any) {
-        console.warn("Using resilient market intelligence fallback", err);
+        const liveAnalytics = getComputedMarketAnalytics();
+        setOverview(liveAnalytics.overview);
+        setMinistries(liveAnalytics.ministries);
+        setCategories(liveAnalytics.categories);
+        setPredictions(liveAnalytics.predictions);
       } finally {
         setLoading(false);
       }
