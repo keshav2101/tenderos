@@ -170,6 +170,42 @@ def inject_scraped_tenders(source_id: str | None = None) -> list[dict]:
 
 
 
+def _match_state_name(tender_state: str, target_state: str) -> bool:
+    if not target_state or target_state.lower() in ("all", ""):
+        return True
+    t_state = (tender_state or "").lower().strip()
+    target = target_state.lower().strip()
+
+    if not t_state:
+        return False
+    if target in t_state or t_state in target:
+        return True
+
+    aliases = {
+        "delhi": ["delhi", "delhi (nct)", "nct of delhi", "new delhi"],
+        "jammu and kashmir": ["jammu and kashmir", "jammu & kashmir", "j&k", "jammu", "kashmir"],
+        "ladakh": ["ladakh", "leh", "kargil"],
+        "puducherry": ["puducherry", "pondicherry"],
+        "chandigarh": ["chandigarh", "chd"],
+        "andaman and nicobar islands": ["andaman and nicobar islands", "andaman & nicobar", "andaman", "nicobar", "port blair"],
+        "dadra and nagar haveli and daman and diu": ["dadra and nagar haveli and daman and diu", "dadra & nagar haveli", "daman & diu", "dnh", "daman", "diu"],
+        "lakshadweep": ["lakshadweep", "kavaratti"],
+    }
+
+    is_ut_search = "union territory" in target or target == "ut" or "union territories" in target
+    ut_keywords = ["delhi", "jammu", "kashmir", "ladakh", "puducherry", "pondicherry", "chandigarh", "andaman", "nicobar", "daman", "diu", "dadra", "lakshadweep"]
+    if is_ut_search:
+        return any(kw in t_state for kw in ut_keywords)
+
+    for alias_list in aliases.values():
+        match_target = any(a in target or target in a for a in alias_list)
+        match_tender = any(a in t_state or t_state in a for a in alias_list)
+        if match_target and match_tender:
+            return True
+
+    return False
+
+
 def _filter_catalog(
     q: str | None, state: str | None, ministry: str | None,
     department: str | None, category: str | None, status_filter: str | None,
@@ -181,7 +217,7 @@ def _filter_catalog(
 
     # Hard Filters
     if state and state.lower() not in ("all", ""):
-        res = [t for t in res if state.lower() in t.get("state", "").lower()]
+        res = [t for t in res if _match_state_name(t.get("state", ""), state)]
     if ministry:
         res = [t for t in res if ministry.lower() in t.get("ministry", "").lower()]
     if department:
@@ -207,6 +243,9 @@ def _filter_catalog(
         terms = [t for t in q_clean.split() if t]
         scored_tenders = []
 
+        is_ut_query = "union territory" in q_clean or "union territories" in q_clean or q_clean == "ut"
+        ut_keywords = ["delhi", "jammu", "kashmir", "ladakh", "puducherry", "pondicherry", "chandigarh", "andaman", "nicobar", "daman", "diu", "dadra", "lakshadweep"]
+
         for t in res:
             title = (t.get("title") or "").lower()
             minst = (t.get("ministry") or "").lower()
@@ -218,8 +257,12 @@ def _filter_catalog(
             src = (t.get("source") or "").lower()
             full_text = f"{title} {categories} {org} {minst} {dept} {ai_summary} {st} {src}"
 
-            # STRICT AND MATCHING: All terms must match
-            if not all(term in full_text for term in terms):
+            # STRICT AND MATCHING: All terms must match or UT query match
+            is_ut_tender = any(kw in st for kw in ut_keywords)
+            if is_ut_query:
+                if not is_ut_tender:
+                    continue
+            elif not all(term in full_text for term in terms):
                 continue
 
             score = 0.0

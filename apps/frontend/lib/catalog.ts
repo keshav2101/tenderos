@@ -68,9 +68,13 @@ const _ORGS = [
   "Tamil Nadu PWD", "Indian Railways", "C-DAC", "STQC", "NeGD",
 ];
 const _STATES = [
-  "Delhi", "Maharashtra", "Karnataka", "Tamil Nadu", "Gujarat", "Uttar Pradesh",
-  "West Bengal", "Rajasthan", "Andhra Pradesh", "Telangana", "Kerala", "Haryana",
-  "Punjab", "Bihar", "Madhya Pradesh", "Odisha", "Assam", "Jharkhand", "Chhattisgarh", "Uttarakhand",
+  "Delhi (NCT)", "Jammu & Kashmir", "Ladakh", "Puducherry", "Chandigarh",
+  "Andaman & Nicobar Islands", "Dadra & Nagar Haveli and Daman & Diu", "Lakshadweep",
+  "Maharashtra", "Karnataka", "Tamil Nadu", "Gujarat", "Uttar Pradesh",
+  "West Bengal", "Rajasthan", "Andhra Pradesh", "Telangana", "Kerala",
+  "Haryana", "Punjab", "Bihar", "Madhya Pradesh", "Odisha", "Assam",
+  "Jharkhand", "Chhattisgarh", "Uttarakhand", "Himachal Pradesh", "Goa",
+  "Tripura", "Meghalaya", "Manipur", "Nagaland", "Mizoram", "Arunachal Pradesh", "Sikkim"
 ];
 const _SOURCES = ["GeM", "CPPP", "IREPS", "Defence", "HAL", "BEL", "ONGC", "BHEL", "NTPC", "IOCL", "State PWD", "Municipal Corporation"];
 
@@ -241,6 +245,41 @@ export interface SearchCatalogParams {
   page_size?: number;
 }
 
+export function matchStateName(tenderState: string, targetState: string): boolean {
+  if (!targetState || targetState.toLowerCase() === "all") return true;
+  const tState = (tenderState || "").toLowerCase().trim();
+  const target = targetState.toLowerCase().trim();
+
+  if (!tState) return false;
+  if (tState.includes(target) || target.includes(tState)) return true;
+
+  // Union Territory Aliases & Flexible Matching
+  const aliases: Record<string, string[]> = {
+    "delhi": ["delhi", "delhi (nct)", "nct of delhi", "new delhi"],
+    "jammu and kashmir": ["jammu and kashmir", "jammu & kashmir", "j&k", "jammu", "kashmir"],
+    "ladakh": ["ladakh", "leh", "kargil"],
+    "puducherry": ["puducherry", "pondicherry"],
+    "chandigarh": ["chandigarh", "chd"],
+    "andaman and nicobar islands": ["andaman and nicobar islands", "andaman & nicobar", "andaman", "nicobar", "port blair"],
+    "dadra and nagar haveli and daman and diu": ["dadra and nagar haveli and daman and diu", "dadra & nagar haveli", "daman & diu", "dnh", "daman", "diu"],
+    "lakshadweep": ["lakshadweep", "kavaratti"],
+  };
+
+  const isUtSearch = target.includes("union territory") || target === "ut" || target.includes("union territories");
+  const utKeywords = ["delhi", "jammu", "kashmir", "ladakh", "puducherry", "pondicherry", "chandigarh", "andaman", "nicobar", "daman", "diu", "dadra", "lakshadweep"];
+  if (isUtSearch) {
+    return utKeywords.some(kw => tState.includes(kw));
+  }
+
+  for (const [, aliasList] of Object.entries(aliases)) {
+    const matchTarget = aliasList.some(a => target.includes(a) || a.includes(target));
+    const matchTender = aliasList.some(a => tState.includes(a) || a.includes(tState));
+    if (matchTarget && matchTender) return true;
+  }
+
+  return false;
+}
+
 /**
  * Multi-Field Weighted Relevance Search Engine for 9,763 Tenders.
  * Enforces Strict Term Matching (AND Logic) for 100% relevance accuracy.
@@ -255,8 +294,7 @@ export function searchCatalog(params: SearchCatalogParams) {
 
   // 1. Mandatory hard filters
   if (state && state.toLowerCase() !== "all") {
-    const stLower = state.toLowerCase();
-    catalog = catalog.filter(t => (t.state || "").toLowerCase().includes(stLower));
+    catalog = catalog.filter(t => matchStateName(t.state || "", state));
   }
   if (ministry) {
     const minLower = ministry.toLowerCase();
@@ -307,8 +345,11 @@ export function searchCatalog(params: SearchCatalogParams) {
       const src = (t.source || "").toLowerCase();
       const fullText = `${title} ${cats} ${org} ${minst} ${dept} ${summary} ${st} ${src}`;
 
-      // STRICT AND MATCHING: EVERY term must be present in fullText
-      const allTermsPresent = terms.every(term => fullText.includes(term));
+      // STRICT AND MATCHING: EVERY term must be present in fullText (or UT query match)
+      const isUtQuery = qClean.includes("union territory") || qClean.includes("union territories") || qClean === "ut";
+      const isUtTender = ["delhi", "jammu", "kashmir", "ladakh", "puducherry", "pondicherry", "chandigarh", "andaman", "nicobar", "daman", "diu", "dadra", "lakshadweep"].some(kw => st.includes(kw));
+
+      const allTermsPresent = isUtQuery ? isUtTender : terms.every(term => fullText.includes(term));
       if (!allTermsPresent) return;
 
       let score = 0;
