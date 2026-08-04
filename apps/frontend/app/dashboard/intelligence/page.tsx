@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useState, useEffect, useRef } from "react";
 import { 
   Zap, TrendingUp, ShieldCheck, AlertTriangle, Building2, MapPin, 
