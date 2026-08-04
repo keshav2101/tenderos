@@ -313,27 +313,35 @@ export function matchStateName(tenderState: string, targetState: string): boolea
   return false;
 }
 
+const STOP_WORDS = new Set([
+  "tenders", "tender", "in", "for", "of", "the", "and", "or", "to", "with",
+  "a", "an", "all", "is", "at", "by", "from", "on", "show", "find", "list", "get", "me"
+]);
+
 function normalizeQuery(q: string): { clean: string; isUt: boolean; terms: string[] } {
   let clean = q.trim().toLowerCase();
-  
+
   // Auto-correct Union Territory typos
   clean = clean.replace(/union\s+tenitort/g, "union territory")
                .replace(/union\s+teritpory/g, "union territory")
                .replace(/union\s+teritory/g, "union territory")
                .replace(/union\s+teritry/g, "union territory");
 
-  const isUt = clean.includes("union territory") || 
-               clean.includes("union territories") || 
+  const isUt = clean.includes("union territory") ||
+               clean.includes("union territories") ||
                clean === "ut" ||
                (clean.includes("union") && (clean.includes("tenit") || clean.includes("terit")));
 
-  const terms = clean.split(/\s+/).filter(Boolean);
+  const rawTerms = clean.split(/\s+/).filter(Boolean);
+  const meaningfulTerms = rawTerms.filter(t => !STOP_WORDS.has(t));
+  const terms = meaningfulTerms.length > 0 ? meaningfulTerms : rawTerms;
+
   return { clean, isUt, terms };
 }
 
 /**
  * Multi-Field Weighted Relevance Search Engine for 9,763 Tenders.
- * Enforces Strict Term Matching (AND Logic) with UT & typo auto-correction.
+ * Intelligent stop-word removal & flexible term matching engine.
  */
 export function searchCatalog(params: SearchCatalogParams) {
   let catalog = [...getLocalCatalog()];
@@ -378,7 +386,7 @@ export function searchCatalog(params: SearchCatalogParams) {
     catalog = catalog.filter(t => t.source === source);
   }
 
-  // 2. Strict AND Term Relevance Engine with UT & Typo Auto-Correction
+  // 2. Multi-Field Relevance Engine with UT & Stop-Word Auto-Correction
   if (q && q.trim()) {
     const { clean: qClean, isUt: isUtQuery, terms } = normalizeQuery(q);
     const scored: { score: number; tender: Tender }[] = [];
@@ -398,12 +406,18 @@ export function searchCatalog(params: SearchCatalogParams) {
 
       const isUtTender = utKeywords.some(kw => st.includes(kw)) || fullText.includes("union territory");
 
-      // Matching logic: if UT query, match all UT tenders; otherwise check term coverage
+      // Matching logic: if UT query, match all UT tenders; otherwise check state/term match
       let matches = false;
       if (isUtQuery) {
         matches = isUtTender;
       } else {
-        matches = terms.every(term => fullText.includes(term));
+        const stateMatch = matchStateName(st, qClean) || terms.some(term => matchStateName(st, term));
+        if (stateMatch) {
+          matches = true;
+        } else {
+          // At least one meaningful term must match fullText
+          matches = terms.some(term => fullText.includes(term));
+        }
       }
 
       if (!matches) return;
