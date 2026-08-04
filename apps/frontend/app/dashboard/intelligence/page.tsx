@@ -137,8 +137,9 @@ export default function IntelligenceDashboardPage() {
     }
   };
 
-  const totalTendersCount = trends?.total_tenders || 9763;
-  const topBuyer = buyers[0] || { buyer_name: "Government e-Marketplace (GeM)", total_tenders: 1420, total_value_lakhs: 845000 };
+  // All values come from live catalog — no hardcoded fallbacks
+  const totalTendersCount = trends?.total_tenders ?? 0;
+  const topBuyer = buyers[0] ?? null;
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8 animate-fade-in">
@@ -156,7 +157,7 @@ export default function IntelligenceDashboardPage() {
         <div className="flex items-center gap-3">
           <span className="badge badge-green px-3 py-1 flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-            Live Ingestion Active ({totalTendersCount.toLocaleString("en-IN")} Tenders)
+            {loading ? "Loading..." : `Live Ingestion Active (${totalTendersCount.toLocaleString("en-IN")} Tenders)`}
           </span>
         </div>
       </div>
@@ -172,9 +173,17 @@ export default function IntelligenceDashboardPage() {
               <h3 className="font-semibold text-primary">Autonomous Proactive Intelligence Alert</h3>
               <span className="badge badge-blue text-[10px]">Evidence Grounded</span>
             </div>
-            <p className="text-xs text-secondary mt-1">
-              <strong>{topBuyer.buyer_name}</strong> currently leads with <strong>{topBuyer.total_tenders?.toLocaleString("en-IN")}</strong> active tenders (Total Value: <strong>₹{(topBuyer.total_value_lakhs / 100).toFixed(1)} Cr</strong>). All tenders are 100% eligible for MSME Udyam EMD exemption and Class-I Local Supplier preference.
-            </p>
+            {loading ? (
+              <p className="text-xs text-secondary mt-1 animate-pulse">Computing top buyer profiles from live catalog…</p>
+            ) : topBuyer ? (
+              <p className="text-xs text-secondary mt-1">
+                <strong>{topBuyer.buyer_name}</strong> currently leads with <strong>{topBuyer.total_tenders?.toLocaleString("en-IN")}</strong> active tenders
+                (Total Value: <strong>₹{(topBuyer.total_value_lakhs / 100).toFixed(1)} Cr</strong>).
+                All tenders are 100% eligible for MSME Udyam EMD exemption and Class-I Local Supplier preference.
+              </p>
+            ) : (
+              <p className="text-xs text-secondary mt-1">No buyer data available yet. Data populates from live catalog.</p>
+            )}
             <div className="flex items-center gap-4 mt-3">
               <span className="text-xs text-indigo-300 flex items-center gap-1">
                 <CheckCircle2 className="w-3.5 h-3.5" /> Udyam EMD Waiver Active
@@ -191,31 +200,35 @@ export default function IntelligenceDashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="card p-5">
           <div className="text-xs text-muted font-medium uppercase tracking-wider">Active Tenders</div>
-          <div className="text-2xl font-bold text-primary mt-1">{totalTendersCount.toLocaleString("en-IN")}</div>
+          <div className="text-2xl font-bold text-primary mt-1">
+            {loading ? <span className="animate-pulse text-muted">—</span> : totalTendersCount.toLocaleString("en-IN")}
+          </div>
           <div className="text-xs text-emerald-400 flex items-center gap-1 mt-2">
             <TrendingUp className="w-3.5 h-3.5" />
-            {weeklyGrowthPct >= 0 ? "+" : ""}{weeklyGrowthPct}% vs last week
+            {loading ? "Computing…" : `${weeklyGrowthPct >= 0 ? "+" : ""}${weeklyGrowthPct}% vs last week`}
           </div>
         </div>
 
         <div className="card p-5">
           <div className="text-xs text-muted font-medium uppercase tracking-wider">MSME Waiver Rate</div>
           <div className="text-2xl font-bold text-primary mt-1">
-            {trends?.msme_exemption_rate != null ? trends.msme_exemption_rate.toFixed(1) : "—"}%
+            {loading ? <span className="animate-pulse text-muted">—</span> : trends?.msme_exemption_rate != null ? `${trends.msme_exemption_rate.toFixed(1)}%` : "—"}
           </div>
-          <div className="text-xs text-secondary mt-2">EMD exemption & purchase preference</div>
+          <div className="text-xs text-secondary mt-2">EMD exemption &amp; purchase preference</div>
         </div>
 
         <div className="card p-5">
           <div className="text-xs text-muted font-medium uppercase tracking-wider">Active Buyers</div>
-          <div className="text-2xl font-bold text-primary mt-1">{buyers.length > 0 ? buyers.length.toLocaleString("en-IN") : "—"}</div>
-          <div className="text-xs text-secondary mt-2">Ministries, PSUs, & State Portals</div>
+          <div className="text-2xl font-bold text-primary mt-1">
+            {loading ? <span className="animate-pulse text-muted">—</span> : buyers.length > 0 ? buyers.length.toLocaleString("en-IN") : "—"}
+          </div>
+          <div className="text-xs text-secondary mt-2">Ministries, PSUs, &amp; State Portals</div>
         </div>
 
         <div className="card p-5">
           <div className="text-xs text-muted font-medium uppercase tracking-wider">Avg Win Probability</div>
           <div className="text-2xl font-bold text-emerald-400 mt-1">
-            {winProbAvg > 0 ? `${winProbAvg}%` : "—"}
+            {loading ? <span className="animate-pulse text-muted">—</span> : winProbAvg > 0 ? `${winProbAvg}%` : "—"}
           </div>
           <div className="text-xs text-secondary mt-2">For Udyam registered entities</div>
         </div>
@@ -301,7 +314,7 @@ export default function IntelligenceDashboardPage() {
                     )}
                   </div>
                   <span className="text-xs text-emerald-400 font-semibold">
-                    Confidence: {Math.round(((copilotResponse.rag_response?.confidence || copilotResponse.confidence_score || 0.85) * 100))}%
+                    Confidence: {Math.round(((copilotResponse.rag_response?.confidence ?? copilotResponse.confidence_score ?? null) ?? 0) * 100) || "—"}%
                   </span>
                 </div>
 
