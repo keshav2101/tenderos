@@ -280,9 +280,27 @@ export function matchStateName(tenderState: string, targetState: string): boolea
   return false;
 }
 
+function normalizeQuery(q: string): { clean: string; isUt: boolean; terms: string[] } {
+  let clean = q.trim().toLowerCase();
+  
+  // Auto-correct Union Territory typos
+  clean = clean.replace(/union\s+tenitort/g, "union territory")
+               .replace(/union\s+teritpory/g, "union territory")
+               .replace(/union\s+teritory/g, "union territory")
+               .replace(/union\s+teritry/g, "union territory");
+
+  const isUt = clean.includes("union territory") || 
+               clean.includes("union territories") || 
+               clean === "ut" ||
+               (clean.includes("union") && (clean.includes("tenit") || clean.includes("terit")));
+
+  const terms = clean.split(/\s+/).filter(Boolean);
+  return { clean, isUt, terms };
+}
+
 /**
  * Multi-Field Weighted Relevance Search Engine for 9,763 Tenders.
- * Enforces Strict Term Matching (AND Logic) for 100% relevance accuracy.
+ * Enforces Strict Term Matching (AND Logic) with UT & typo auto-correction.
  */
 export function searchCatalog(params: SearchCatalogParams) {
   let catalog = [...getLocalCatalog()];
@@ -327,12 +345,12 @@ export function searchCatalog(params: SearchCatalogParams) {
     catalog = catalog.filter(t => t.source === source);
   }
 
-  // 2. Strict AND Term Relevance Engine
+  // 2. Strict AND Term Relevance Engine with UT & Typo Auto-Correction
   if (q && q.trim()) {
-    const qClean = q.trim().toLowerCase();
-    const terms = qClean.split(/\s+/).filter(Boolean);
-
+    const { clean: qClean, isUt: isUtQuery, terms } = normalizeQuery(q);
     const scored: { score: number; tender: Tender }[] = [];
+
+    const utKeywords = ["delhi", "jammu", "kashmir", "ladakh", "puducherry", "pondicherry", "chandigarh", "andaman", "nicobar", "daman", "diu", "dadra", "lakshadweep"];
 
     catalog.forEach(t => {
       const title = (t.title || "").toLowerCase();
@@ -345,29 +363,36 @@ export function searchCatalog(params: SearchCatalogParams) {
       const src = (t.source || "").toLowerCase();
       const fullText = `${title} ${cats} ${org} ${minst} ${dept} ${summary} ${st} ${src}`;
 
-      // STRICT AND MATCHING: EVERY term must be present in fullText (or UT query match)
-      const isUtQuery = qClean.includes("union territory") || qClean.includes("union territories") || qClean === "ut";
-      const isUtTender = ["delhi", "jammu", "kashmir", "ladakh", "puducherry", "pondicherry", "chandigarh", "andaman", "nicobar", "daman", "diu", "dadra", "lakshadweep"].some(kw => st.includes(kw));
+      const isUtTender = utKeywords.some(kw => st.includes(kw)) || fullText.includes("union territory");
 
-      const allTermsPresent = isUtQuery ? isUtTender : terms.every(term => fullText.includes(term));
-      if (!allTermsPresent) return;
+      // Matching logic: if UT query, match all UT tenders; otherwise check term coverage
+      let matches = false;
+      if (isUtQuery) {
+        matches = isUtTender;
+      } else {
+        matches = terms.every(term => fullText.includes(term));
+      }
+
+      if (!matches) return;
 
       let score = 0;
 
-      // Exact phrase match bonus
-      if (title.includes(qClean)) score += 120;
-      else if (cats.includes(qClean)) score += 80;
-      else if (org.includes(qClean) || minst.includes(qClean)) score += 60;
-      else if (summary.includes(qClean)) score += 40;
+      if (isUtQuery) {
+        score += 150;
+      } else {
+        if (title.includes(qClean)) score += 120;
+        else if (cats.includes(qClean)) score += 80;
+        else if (org.includes(qClean) || minst.includes(qClean)) score += 60;
+        else if (summary.includes(qClean)) score += 40;
 
-      // Tokenized term scoring
-      terms.forEach(term => {
-        if (title.includes(term)) score += 30;
-        if (cats.includes(term)) score += 20;
-        if (org.includes(term)) score += 15;
-        if (minst.includes(term) || dept.includes(term)) score += 12;
-        if (summary.includes(term)) score += 8;
-      });
+        terms.forEach(term => {
+          if (title.includes(term)) score += 30;
+          if (cats.includes(term)) score += 20;
+          if (org.includes(term)) score += 15;
+          if (minst.includes(term) || dept.includes(term)) score += 12;
+          if (summary.includes(term)) score += 8;
+        });
+      }
 
       scored.push({
         score,

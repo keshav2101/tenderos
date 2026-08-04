@@ -240,10 +240,11 @@ def _filter_catalog(
     # Weighted Relevance Search Engine with Strict AND Matching
     if q and q.strip():
         q_clean = q.lower().strip()
+        q_clean = q_clean.replace("union tenitort", "union territory").replace("union teritpory", "union territory").replace("union teritory", "union territory")
         terms = [t for t in q_clean.split() if t]
         scored_tenders = []
 
-        is_ut_query = "union territory" in q_clean or "union territories" in q_clean or q_clean == "ut"
+        is_ut_query = "union territory" in q_clean or "union territories" in q_clean or q_clean == "ut" or ("union" in q_clean and ("tenit" in q_clean or "terit" in q_clean))
         ut_keywords = ["delhi", "jammu", "kashmir", "ladakh", "puducherry", "pondicherry", "chandigarh", "andaman", "nicobar", "daman", "diu", "dadra", "lakshadweep"]
 
         for t in res:
@@ -258,7 +259,7 @@ def _filter_catalog(
             full_text = f"{title} {categories} {org} {minst} {dept} {ai_summary} {st} {src}"
 
             # STRICT AND MATCHING: All terms must match or UT query match
-            is_ut_tender = any(kw in st for kw in ut_keywords)
+            is_ut_tender = any(kw in st for kw in ut_keywords) or "union territory" in full_text
             if is_ut_query:
                 if not is_ut_tender:
                     continue
