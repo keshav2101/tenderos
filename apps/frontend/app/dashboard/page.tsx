@@ -479,8 +479,9 @@ function DashboardContent() {
 
       const { stateFilter, textQ } = search.trim() ? resolveStateFilter(search) : { stateFilter: undefined, textQ: undefined };
 
-      // If user searched for a state/UT name — skip backend API, go straight to client catalog
-      if (stateFilter) {
+      // ALWAYS use client-side catalog for ANY search query (state name, UT, or keyword)
+      // The 9,763-tender client catalog has accurate state/UT tags — backend is supplemental only
+      if (search.trim()) {
         const searchRes = searchCatalog({
           q: textQ || undefined,
           state: stateFilter,
@@ -493,8 +494,7 @@ function DashboardContent() {
         items = searchRes.tenders;
         totalCount = searchRes.total;
       } else {
-        // Regular search — try backend first, fall back to client catalog
-        if (search.trim()) params.q = search.trim();
+        // No search query — try backend for default page load, fall back to client catalog
         try {
           const { data } = await tendersApi.list(params);
           const apiItems = data.tenders || data.items || [];
@@ -505,7 +505,6 @@ function DashboardContent() {
             totalCount = apiTotal;
           } else {
             const searchRes = searchCatalog({
-              q: textQ || search || undefined,
               category: filterSector !== "All Sectors" ? filterSector : undefined,
               msme_eligible: filterMsme ? true : undefined,
               startup_eligible: filterStartup ? true : undefined,
@@ -517,7 +516,6 @@ function DashboardContent() {
           }
         } catch {
           const searchRes = searchCatalog({
-            q: textQ || search || undefined,
             category: filterSector !== "All Sectors" ? filterSector : undefined,
             msme_eligible: filterMsme ? true : undefined,
             startup_eligible: filterStartup ? true : undefined,
@@ -528,6 +526,7 @@ function DashboardContent() {
           totalCount = searchRes.total;
         }
       }
+
 
 
       setTenders(items);
