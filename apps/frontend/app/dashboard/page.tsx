@@ -428,7 +428,6 @@ function DashboardContent() {
       };
       if (filterMsme) params.msme_eligible = true;
       if (filterStartup) params.startup_eligible = true;
-      if (search.trim()) params.q = search.trim();
       if (filterSector && filterSector !== "All Sectors") {
         params.category = filterSector;
       }
@@ -480,29 +479,8 @@ function DashboardContent() {
 
       const { stateFilter, textQ } = search.trim() ? resolveStateFilter(search) : { stateFilter: undefined, textQ: undefined };
 
-      try {
-        const { data } = await tendersApi.list(params);
-        const apiItems = data.tenders || data.items || [];
-        const apiTotal = data.total || apiItems.length || 0;
-
-        if (apiItems.length > 0 && !stateFilter) {
-          items = apiItems;
-          totalCount = apiTotal;
-        } else {
-          // Use client catalog — always called when state/UT filter is active
-          const searchRes = searchCatalog({
-            q: textQ || undefined,
-            state: stateFilter,
-            category: filterSector !== "All Sectors" ? filterSector : undefined,
-            msme_eligible: filterMsme ? true : undefined,
-            startup_eligible: filterStartup ? true : undefined,
-            page,
-            page_size: pageSize,
-          });
-          items = searchRes.tenders;
-          totalCount = searchRes.total;
-        }
-      } catch {
+      // If user searched for a state/UT name — skip backend API, go straight to client catalog
+      if (stateFilter) {
         const searchRes = searchCatalog({
           q: textQ || undefined,
           state: stateFilter,
@@ -514,6 +492,41 @@ function DashboardContent() {
         });
         items = searchRes.tenders;
         totalCount = searchRes.total;
+      } else {
+        // Regular search — try backend first, fall back to client catalog
+        if (search.trim()) params.q = search.trim();
+        try {
+          const { data } = await tendersApi.list(params);
+          const apiItems = data.tenders || data.items || [];
+          const apiTotal = data.total || apiItems.length || 0;
+
+          if (apiItems.length > 0) {
+            items = apiItems;
+            totalCount = apiTotal;
+          } else {
+            const searchRes = searchCatalog({
+              q: textQ || search || undefined,
+              category: filterSector !== "All Sectors" ? filterSector : undefined,
+              msme_eligible: filterMsme ? true : undefined,
+              startup_eligible: filterStartup ? true : undefined,
+              page,
+              page_size: pageSize,
+            });
+            items = searchRes.tenders;
+            totalCount = searchRes.total;
+          }
+        } catch {
+          const searchRes = searchCatalog({
+            q: textQ || search || undefined,
+            category: filterSector !== "All Sectors" ? filterSector : undefined,
+            msme_eligible: filterMsme ? true : undefined,
+            startup_eligible: filterStartup ? true : undefined,
+            page,
+            page_size: pageSize,
+          });
+          items = searchRes.tenders;
+          totalCount = searchRes.total;
+        }
       }
 
 
