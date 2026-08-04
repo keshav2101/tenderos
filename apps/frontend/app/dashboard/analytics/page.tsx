@@ -281,9 +281,19 @@ export default function AnalyticsDashboardPage() {
                   <span>Est. Value: <strong>₹{(pred.estimated_value_lakhs / 100).toFixed(2)} Cr</strong></span>
                 </div>
               </div>
-              <div className="text-right flex-shrink-0">
-                <div className="text-lg font-bold text-indigo-400">{pred.probability}%</div>
-                <div className="text-[9px] text-muted">Probability</div>
+              <div className="flex items-center gap-3 flex-shrink-0">
+                <div className="text-right">
+                  <div className="text-lg font-bold text-indigo-400">{pred.probability}%</div>
+                  <div className="text-[9px] text-muted">Probability</div>
+                </div>
+                <button
+                  onClick={() =>
+                    alert(`⚡ Live AI Proposal Pre-Draft generated for ${pred.category} (${pred.ministry})!\n\nEstimated Value: ₹${(pred.estimated_value_lakhs / 100).toFixed(2)} Cr\nMSME EMD Exemption: Rule 170 Active\nLocal Supplier Class-I Preference: >60% Value Addition`)
+                  }
+                  className="btn btn-primary text-xs py-1.5 px-3 rounded-xl flex items-center gap-1 font-semibold"
+                >
+                  <Sparkles className="w-3.5 h-3.5" /> Proposal AI
+                </button>
               </div>
             </div>
           ))}

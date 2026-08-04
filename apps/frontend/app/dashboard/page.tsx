@@ -17,6 +17,7 @@ import { getConnectorsSummary, syncAllConnectors } from "@/lib/connectors-store"
 
 
 import { Tender, getLocalCatalog, searchCatalog } from "@/lib/catalog";
+import { addToWatchlist, removeFromWatchlist, isWatchlisted } from "@/lib/watchlist-store";
 
 // ─── Portal config ─────────────────────────────────────────────────────────────
 const PORTAL_CONFIG: Record<string, { label: string; color: string; bg: string; defaultUrl: string }> = {
@@ -547,7 +548,16 @@ function DashboardContent() {
   });
 
   function handleWatchlist(id: string) {
-    tendersApi.addWatchlist(id).catch(() => {});
+    const tender = tenders.find((t) => t.id === id);
+    if (tender) {
+      if (isWatchlisted(id)) {
+        removeFromWatchlist(id);
+      } else {
+        addToWatchlist(tender);
+      }
+    } else {
+      tendersApi.addWatchlist(id).catch(() => {});
+    }
   }
 
   function handleCompareToggle(id: string) {

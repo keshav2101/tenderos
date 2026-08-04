@@ -201,10 +201,10 @@ def _filter_catalog(
     if source:
         res = [t for t in res if t.get("source", "") == source]
 
-    # Weighted Relevance Search Engine
+    # Weighted Relevance Search Engine with Strict AND Matching
     if q and q.strip():
         q_clean = q.lower().strip()
-        terms = q_clean.split()
+        terms = [t for t in q_clean.split() if t]
         scored_tenders = []
 
         for t in res:
@@ -216,46 +216,36 @@ def _filter_catalog(
             categories = " ".join(t.get("categories") or []).lower()
             st = (t.get("state") or "").lower()
             src = (t.get("source") or "").lower()
+            full_text = f"{title} {categories} {org} {minst} {dept} {ai_summary} {st} {src}"
+
+            # STRICT AND MATCHING: All terms must match
+            if not all(term in full_text for term in terms):
+                continue
 
             score = 0.0
-
-            # Exact phrase match bonus
             if q_clean in title:
-                score += 100.0
+                score += 120.0
             elif q_clean in categories:
-                score += 60.0
+                score += 80.0
             elif q_clean in org or q_clean in minst:
-                score += 50.0
+                score += 60.0
             elif q_clean in ai_summary:
-                score += 30.0
+                score += 40.0
 
-            # Tokenized term matches
-            matches = 0
             for term in terms:
-                term_score = 0.0
                 if term in title:
-                    term_score += 25.0
+                    score += 30.0
                 if term in categories:
-                    term_score += 18.0
+                    score += 20.0
                 if term in org:
-                    term_score += 15.0
+                    score += 15.0
                 if term in minst or term in dept:
-                    term_score += 12.0
+                    score += 12.0
                 if term in ai_summary:
-                    term_score += 6.0
-                if term in st or term in src:
-                    term_score += 3.0
+                    score += 8.0
 
-                if term_score > 0:
-                    matches += 1
-                    score += term_score
+            scored_tenders.append((score, t))
 
-            if matches > 0:
-                coverage_ratio = matches / len(terms)
-                score *= (0.5 + 0.5 * coverage_ratio)
-                scored_tenders.append((score, t))
-
-        # Sort by relevance score descending
         scored_tenders.sort(key=lambda x: x[0], reverse=True)
         res = [item[1] for item in scored_tenders]
 
