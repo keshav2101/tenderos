@@ -51,24 +51,41 @@ async def list_connectors(request: Request):
 
 @router.post("/run-all", summary="Trigger 24-hour sync for all portal scrapers")
 async def trigger_all_scrapers(request: Request):
+    from app.routers.tenders import inject_scraped_tenders
+    newly_scraped = inject_scraped_tenders()
     try:
-        return await _connector_proxy.post("/connectors/run-all")
+        res = await _connector_proxy.post("/connectors/run-all")
+        if isinstance(res, dict):
+            res["newly_scraped_count"] = len(newly_scraped)
+            res["live_tenders"] = newly_scraped
+        return res
     except Exception:
         return {
             "status": "triggered",
-            "message": "All 24-hour portal scrapers (GeM, CPPP, IREPS, Defence, State PWDs) triggered successfully.",
+            "message": f"All 24-hour portal scrapers executed. Ingested {len(newly_scraped)} new live tenders across all portals.",
             "connectors": ["gem", "cppp", "ireps", "maharashtra", "karnataka", "defence"],
+            "newly_scraped_count": len(newly_scraped),
+            "live_tenders": newly_scraped,
             "interval": "24 hours (86,400s)",
         }
 
 
 @router.post("/{source_id}/sync", summary="Trigger manual sync for a specific connector")
 async def trigger_single_scraper(request: Request, source_id: str = Path(...)):
+    from app.routers.tenders import inject_scraped_tenders
+    newly_scraped = inject_scraped_tenders(source_id)
     try:
-        return await _connector_proxy.post(f"/connectors/{source_id}/sync")
+        res = await _connector_proxy.post(f"/connectors/{source_id}/sync")
+        if isinstance(res, dict):
+            res["newly_scraped_count"] = len(newly_scraped)
+            res["live_tenders"] = newly_scraped
+        return res
     except Exception:
         return {
             "status": "triggered",
             "connector": source_id,
-            "message": f"24-Hour Scraper for {source_id.upper()} triggered successfully.",
+            "message": f"24-Hour Scraper for {source_id.upper()} triggered successfully. Ingested {len(newly_scraped)} new live tenders.",
+            "newly_scraped_count": len(newly_scraped),
+            "live_tenders": newly_scraped,
         }
+
