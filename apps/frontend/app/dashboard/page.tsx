@@ -16,6 +16,42 @@ import { getConnectorsSummary, syncAllConnectors } from "@/lib/connectors-store"
 
 import { Tender, getLocalCatalog } from "@/lib/catalog";
 
+// ─── Portal config ─────────────────────────────────────────────────────────────
+const PORTAL_CONFIG: Record<string, { label: string; color: string; bg: string; defaultUrl: string }> = {
+  gem:         { label: "GeM",          color: "#4ade80", bg: "rgba(34,197,94,0.12)",   defaultUrl: "https://gem.gov.in" },
+  cppp:        { label: "CPPP",         color: "#60a5fa", bg: "rgba(96,165,250,0.12)",  defaultUrl: "https://eprocure.gov.in/eprocure/app" },
+  defence:     { label: "Defence",      color: "#f87171", bg: "rgba(239,68,68,0.12)",   defaultUrl: "https://defproc.gov.in" },
+  railways:    { label: "IREPS",        color: "#fb923c", bg: "rgba(251,146,60,0.12)",  defaultUrl: "https://ireps.gov.in" },
+  ireps:       { label: "IREPS",        color: "#fb923c", bg: "rgba(251,146,60,0.12)",  defaultUrl: "https://ireps.gov.in" },
+  maharashtra: { label: "Maha eProcure", color: "#a78bfa", bg: "rgba(167,139,250,0.12)", defaultUrl: "https://mahatenders.gov.in" },
+  karnataka:   { label: "Karnataka",    color: "#a78bfa", bg: "rgba(167,139,250,0.12)", defaultUrl: "https://eproc.karnataka.gov.in" },
+};
+
+function getPortal(source: string) {
+  const key = (source || "").toLowerCase();
+  return PORTAL_CONFIG[key] || {
+    label: (source || "GOV").toUpperCase(),
+    color: "#94a3b8",
+    bg: "rgba(148,163,184,0.12)",
+    defaultUrl: "https://cppp.gov.in"
+  };
+}
+
+function ensureAbsoluteUrl(url?: string | null, defaultUrl: string = "https://eprocure.gov.in/eprocure/app"): string {
+  if (!url || typeof url !== "string" || !url.trim()) return defaultUrl;
+  const trimmed = url.trim();
+  if (trimmed.includes("localhost") || trimmed.includes("127.0.0.1") || trimmed.startsWith("/")) {
+    return defaultUrl;
+  }
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return trimmed;
+  }
+  if (trimmed.startsWith("//")) {
+    return `https:${trimmed}`;
+  }
+  return `https://${trimmed}`;
+}
+
 // ─── Sector options ────────────────────────────────────────────────────────────
 const SECTORS = [
   "All Sectors",

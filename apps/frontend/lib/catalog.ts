@@ -23,6 +23,10 @@ export interface Tender {
   ai_summary: string | null;
   published_at?: string;
   procurement_method?: string;
+  match_score?: number;
+  winning_probability?: number;
+  recommendation?: string;
+  sector?: string;
 }
 
 const _CAT_TITLES: Record<string, string[]> = {

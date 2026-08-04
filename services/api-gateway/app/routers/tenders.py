@@ -1,7 +1,7 @@
 """Tender routes — proxy to tender-service, with built-in 9,000-tender in-memory catalog fallback."""
 
 import random
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, HTTPException, Path, Query, Request, status
 
