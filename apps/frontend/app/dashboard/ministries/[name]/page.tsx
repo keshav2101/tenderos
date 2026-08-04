@@ -8,6 +8,7 @@ import {
   TrendingUp, BarChart3, ShieldAlert, Award, Calendar
 } from "lucide-react";
 import { tendersApi } from "@/lib/api";
+import { searchCatalog } from "@/lib/catalog";
 
 export default function MinistryDetailPage() {
   const params = useParams();
@@ -28,8 +29,18 @@ export default function MinistryDetailPage() {
     async function loadData() {
       try {
         setLoading(true);
-        const { data } = await tendersApi.list({ ministry: ministryName, page_size: 50 });
-        const list = data.tenders || [];
+        let list: any[] = [];
+
+        try {
+          const { data } = await tendersApi.list({ ministry: ministryName, page_size: 100 });
+          list = data.tenders || [];
+        } catch (_) {}
+
+        if (list.length === 0) {
+          const searchRes = searchCatalog({ ministry: ministryName, page_size: 100 });
+          list = searchRes.tenders;
+        }
+
         setTenders(list);
 
         // Compute metrics

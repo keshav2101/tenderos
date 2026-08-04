@@ -7,7 +7,8 @@ import {
   ArrowLeft, FileText, IndianRupee, Clock, Building2,
   TrendingUp, BarChart3, ShieldAlert, Award, Calendar
 } from "lucide-react";
-import { tendersApi, analyticsApi } from "@/lib/api";
+import { tendersApi } from "@/lib/api";
+import { searchCatalog } from "@/lib/catalog";
 
 export default function StateDetailPage() {
   const params = useParams();
@@ -28,8 +29,18 @@ export default function StateDetailPage() {
     async function loadData() {
       try {
         setLoading(true);
-        const { data } = await tendersApi.list({ state: stateName, page_size: 50 });
-        const list = data.tenders || [];
+        let list: any[] = [];
+
+        try {
+          const { data } = await tendersApi.list({ state: stateName, page_size: 100 });
+          list = data.tenders || [];
+        } catch (_) {}
+
+        if (list.length === 0) {
+          const searchRes = searchCatalog({ state: stateName, page_size: 100 });
+          list = searchRes.tenders;
+        }
+
         setTenders(list);
 
         // Compute metrics
