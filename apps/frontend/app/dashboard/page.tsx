@@ -441,13 +441,20 @@ function DashboardContent() {
         const apiItems = data.tenders || data.items || [];
         const apiTotal = data.total || apiItems.length || 0;
 
-        if (apiTotal >= 100) {
-          // Backend has real data — use it
+        if (apiItems.length > 0) {
           items = apiItems;
           totalCount = apiTotal;
         } else {
-          // Backend stale/empty — use full client-side 9000-tender catalog
-          throw new Error(`Backend only has ${apiTotal} tenders — using client catalog`);
+          const searchRes = searchCatalog({
+            q: search,
+            category: filterSector !== "All Sectors" ? filterSector : undefined,
+            msme_eligible: filterMsme ? true : undefined,
+            startup_eligible: filterStartup ? true : undefined,
+            page,
+            page_size: pageSize,
+          });
+          items = searchRes.tenders;
+          totalCount = searchRes.total;
         }
       } catch {
         const searchRes = searchCatalog({
@@ -513,38 +520,7 @@ function DashboardContent() {
   }, [fetchTenders]);
 
   const filtered = tenders.filter((t) => {
-    const qLower = search.trim().toLowerCase();
-    const matchSearch =
-      !qLower ||
-      t.title.toLowerCase().includes(qLower) ||
-      (t.ministry || "").toLowerCase().includes(qLower) ||
-      (t.department || "").toLowerCase().includes(qLower) ||
-      (t.organisation || "").toLowerCase().includes(qLower) ||
-      (t.categories || []).some((c) => c.toLowerCase().includes(qLower));
-
-    const matchRec = filterRec === "all" || (t.recommendation || "BID") === filterRec;
-    const matchMsme = !filterMsme || t.msme_eligible;
-    const matchStartup = !filterStartup || t.startup_eligible;
-
-    const SECTOR_KEYWORDS: Record<string, string[]> = {
-      "Technology & IT": ["IT", "AI", "Cloud", "Cybersecurity", "GIS", "Software", "Data Analytics", "IoT", "Smart City"],
-      "Infrastructure & Civil Works": ["Construction", "Infrastructure", "Civil", "Smart City"],
-      "Defence & Aerospace": ["Defence", "Drone", "Aerospace"],
-      "Railways & Mobility": ["Railways", "Mobility", "Transport", "IoT"],
-      "Healthcare & Medical Equipment": ["Healthcare", "Medical", "Medical Equipment"],
-      "Energy & Renewable Power": ["Renewable Energy", "Energy", "Power"],
-      "Education & Training": ["Education", "Training"],
-      "Security & Surveillance": ["Cybersecurity", "Surveillance", "Security", "Drone"],
-    };
-
-    const targetKeywords = SECTOR_KEYWORDS[filterSector] || [filterSector];
-
-    const matchSector =
-      filterSector === "All Sectors" ||
-      (t.categories && t.categories.some((c) => targetKeywords.some((kw) => c.toLowerCase().includes(kw.toLowerCase()) || kw.toLowerCase().includes(c.toLowerCase())))) ||
-      (t.title && targetKeywords.some((kw) => t.title.toLowerCase().includes(kw.toLowerCase())));
-
-    return matchSearch && matchRec && matchMsme && matchStartup && matchSector;
+    return filterRec === "all" || (t.recommendation || "BID") === filterRec;
   });
 
   function handleWatchlist(id: string) {
