@@ -6,7 +6,7 @@ import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  Search, IndianRupee, MapPin, Building2, Clock,
+  Search, IndianRupee, MapPin, Building2, Clock, Zap,
   BookmarkPlus, BookmarkCheck, RefreshCw,
   TrendingUp, AlertCircle, Loader2, GitCompare, X, ExternalLink
 } from "lucide-react";
@@ -613,48 +613,57 @@ function DashboardContent() {
   const activeTendersCount = Math.max(total, connectorsStats.totalActiveTenders);
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-8 max-w-7xl mx-auto space-y-8 animate-fade-in">
+      {/* Executive Command Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800/80 pb-6">
         <div>
-          <h1 className="text-2xl font-bold text-primary">Your Tender Feed</h1>
-          <p className="text-sm text-muted mt-0.5">
-            Personalized matches ·{" "}
-            <span className="text-secondary">
-              Updated {formatDistanceToNow(refreshedAt, { addSuffix: true })}
+          <div className="flex items-center gap-2 mb-1">
+            <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
+              <Zap className="w-6 h-6 text-indigo-400" />
+              Procurement Command Center
+            </h1>
+            <span className="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 font-semibold border border-indigo-500/20">
+              Live Feed Active
+            </span>
+          </div>
+          <p className="text-xs text-slate-400">
+            Real-time procurement intelligence across GeM, CPPP, IREPS, Defence &amp; 36 States/UTs.
+            <span className="ml-2 text-slate-500">
+              Last synced {formatDistanceToNow(refreshedAt, { addSuffix: true })}
             </span>
           </p>
         </div>
-        <div className="flex items-center gap-2">
+
+        <div className="flex items-center gap-3">
           <button
             onClick={handleRunScrapers}
             disabled={isSyncingScrapers}
-            className="btn btn-primary text-xs px-3 py-2 flex items-center gap-1.5 font-semibold"
+            className="btn btn-primary text-xs px-4 py-2 flex items-center gap-2 font-semibold shadow-lg shadow-indigo-600/20"
             title="Trigger 24-hour scraper sync across GeM, CPPP, IREPS, Defence & State portals"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isSyncingScrapers ? "animate-spin" : ""}`} />
-            {isSyncingScrapers ? "Syncing 24-Hr Scrapers..." : "⚡ Sync 24-Hr Scrapers"}
+            {isSyncingScrapers ? "Syncing 24-Hr Scrapers..." : "⚡ Sync Scrapers Now"}
           </button>
           <button
             onClick={fetchTenders}
             disabled={loading}
-            className="btn btn-secondary text-sm"
+            className="p-2 rounded-xl bg-slate-800/60 border border-slate-700/60 text-slate-300 hover:text-white hover:border-slate-600 transition-colors"
             title="Refresh feed"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
           </button>
-          <Link href="/dashboard/profile" className="btn btn-secondary text-sm">
-            <Building2 className="w-4 h-4" /> Update Profile
+          <Link href="/dashboard/profile" className="btn btn-secondary text-xs py-2 px-3 flex items-center gap-2">
+            <Building2 className="w-3.5 h-3.5" /> Digital Twin
           </Link>
         </div>
       </div>
 
-      {/* Quick stats - Synced with Connectors Hub & Interactive */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+      {/* Executive KPI Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           {
             id: "active",
-            label: `Active Tenders (${connectorsStats.activeSourcesCount} Portals)`,
+            label: `Active Solicitations (${connectorsStats.activeSourcesCount} Portals)`,
             value: activeTendersCount.toLocaleString("en-IN"),
             color: "text-indigo-400",
             active: filterRec === "all" && filterSector === "All Sectors" && !search,
@@ -669,7 +678,7 @@ function DashboardContent() {
           },
           {
             id: "bid_recommended",
-            label: "Bid Recommended Matches",
+            label: "High Win Probability Bids",
             value: (filtered.filter(t => t.recommendation === "BID").length || 50).toString(),
             color: "text-emerald-400",
             active: filterRec === "BID",
@@ -690,7 +699,7 @@ function DashboardContent() {
           },
           {
             id: "operational",
-            label: "Tracked Portals Operational",
+            label: "Tracked Portals Status",
             value: `${connectorsStats.activeSourcesCount} / ${connectorsStats.activeSourcesCount} (100%)`,
             color: "text-blue-400",
             active: false,
@@ -700,99 +709,97 @@ function DashboardContent() {
           <button
             key={stat.id}
             onClick={stat.onClick}
-            className={`card p-4 text-center cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:border-slate-600 ${
+            className={`p-5 rounded-2xl border text-left cursor-pointer transition-all duration-200 hover:scale-[1.01] ${
               stat.active
-                ? "ring-2 ring-emerald-500/80 bg-emerald-950/20 shadow-lg shadow-emerald-950/40 border-emerald-500/50"
-                : ""
+                ? "bg-indigo-950/40 border-indigo-500/50 shadow-lg shadow-indigo-950/50 ring-1 ring-indigo-500/30"
+                : "bg-slate-900/60 border-slate-800 hover:border-slate-700"
             }`}
           >
-            <div className={`text-2xl font-bold ${stat.color} mb-0.5 flex items-center justify-center gap-1.5`}>
-              {stat.value}
-            </div>
-            <div className="text-[10px] text-muted font-medium flex items-center justify-center gap-1">
-              {stat.label}
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 flex items-center justify-between mb-2">
+              <span>{stat.label}</span>
               {stat.active && (
-                <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
-                  ACTIVE
-                </span>
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               )}
+            </div>
+            <div className={`text-2xl font-bold ${stat.color} tracking-tight tabular-nums`}>
+              {stat.value}
             </div>
           </button>
         ))}
       </div>
 
-      {/* Filters */}
-      <div id="tender-feed-section" className="flex items-center gap-3 mb-5 flex-wrap">
-        <div className="relative flex-1 min-w-48 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
+      {/* Interactive Controls & Filters Bar */}
+      <div id="tender-feed-section" className="p-4 rounded-2xl bg-slate-900/40 border border-slate-800/80 flex items-center gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-48">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search tenders…"
-            className="input pl-9 text-sm"
+            placeholder="Filter live tenders by title, keyword, state..."
+            className="input pl-10 text-xs py-2 bg-slate-950/60 border-slate-800"
           />
         </div>
         <select
           value={filterRec}
           onChange={(e) => setFilterRec(e.target.value)}
-          className="input w-auto text-sm px-3"
+          className="input w-auto text-xs py-2 px-3 bg-slate-950/60 border-slate-800"
           style={{ width: "auto" }}
         >
           <option value="all">All Recommendations</option>
-          <option value="BID">BID only</option>
+          <option value="BID">BID Only</option>
           <option value="CONDITIONAL_BID">Conditional</option>
-          <option value="REVIEW">Review</option>
+          <option value="REVIEW">Review Needed</option>
         </select>
         <select
           value={filterSector}
           onChange={(e) => { setFilterSector(e.target.value); setPage(1); }}
-          className="input w-auto text-sm px-3"
+          className="input w-auto text-xs py-2 px-3 bg-slate-950/60 border-slate-800"
           style={{ width: "auto" }}
         >
           {SECTORS.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
-        <label className="flex items-center gap-2 text-sm text-secondary cursor-pointer select-none">
+        <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer select-none bg-slate-950/60 px-3 py-2 rounded-xl border border-slate-800">
           <input
             type="checkbox"
             checked={filterMsme}
             onChange={(e) => { setFilterMsme(e.target.checked); setPage(1); }}
-            className="accent-indigo-500"
+            className="accent-indigo-500 rounded"
           />
-          MSME
+          <span>MSME Exempt</span>
         </label>
-        <label className="flex items-center gap-2 text-sm text-secondary cursor-pointer select-none">
+        <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer select-none bg-slate-950/60 px-3 py-2 rounded-xl border border-slate-800">
           <input
             type="checkbox"
             checked={filterStartup}
             onChange={(e) => { setFilterStartup(e.target.checked); setPage(1); }}
-            className="accent-indigo-500"
+            className="accent-indigo-500 rounded"
           />
-          Startup
+          <span>Startup Relaxed</span>
         </label>
-        <Link href="/dashboard/search" className="btn btn-primary text-sm">
-          <Search className="w-4 h-4" /> Advanced Search
+        <Link href="/dashboard/search" className="btn btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 ml-auto">
+          <Search className="w-3.5 h-3.5" /> Multi-Field Search
         </Link>
       </div>
 
-      {/* Tender list */}
+      {/* Live Feed List */}
       {loading ? (
         <div className="space-y-3">
           {Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)}
         </div>
       ) : error ? (
-        <div className="card p-12 text-center">
-          <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-3" />
-          <p className="text-secondary mb-2">{error}</p>
-          <button onClick={fetchTenders} className="btn btn-secondary text-sm mt-2">
-            <RefreshCw className="w-4 h-4" /> Retry
+        <div className="p-12 rounded-2xl bg-slate-900/40 border border-slate-800 text-center space-y-3">
+          <AlertCircle className="w-8 h-8 text-red-400 mx-auto" />
+          <p className="text-xs text-slate-300">{error}</p>
+          <button onClick={fetchTenders} className="btn btn-secondary text-xs px-4 py-2 inline-flex items-center gap-2">
+            <RefreshCw className="w-3.5 h-3.5" /> Retry Sync
           </button>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="card p-12 text-center">
-          <TrendingUp className="w-8 h-8 text-muted mx-auto mb-3" />
-          <p className="text-secondary">No tenders match your current filters.</p>
-          <p className="text-muted text-sm mt-1">Try clearing the search or removing filters.</p>
+        <div className="p-12 rounded-2xl bg-slate-900/40 border border-slate-800 text-center space-y-2">
+          <TrendingUp className="w-8 h-8 text-slate-500 mx-auto mb-2" />
+          <p className="text-sm text-slate-300 font-medium">No live tenders match your current filters.</p>
+          <p className="text-xs text-slate-500">Clear search or reset sector filters to view all active solicitations.</p>
         </div>
       ) : (
         <>
@@ -808,16 +815,18 @@ function DashboardContent() {
             ))}
           </div>
 
-          {/* Pagination */}
-          <div className="flex items-center justify-between mt-6 text-sm text-secondary">
+          {/* Pagination Controls */}
+          <div className="flex items-center justify-between pt-4 text-xs text-slate-400 border-t border-slate-800/80">
             <div className="flex items-center gap-3">
-              <span>Showing {activeTendersCount > 0 ? (page - 1) * pageSize + 1 : 0}–{Math.min(page * pageSize, activeTendersCount)} of {activeTendersCount.toLocaleString("en-IN")} live tenders</span>
-              <div className="flex items-center gap-1.5 text-xs text-muted">
+              <span>
+                Showing {activeTendersCount > 0 ? (page - 1) * pageSize + 1 : 0}–{Math.min(page * pageSize, activeTendersCount)} of {activeTendersCount.toLocaleString("en-IN")} live tenders
+              </span>
+              <div className="flex items-center gap-1.5">
                 <span>Per page:</span>
                 <select
                   value={pageSize}
                   onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
-                  className="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-secondary focus:outline-none focus:border-indigo-500"
+                  className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-slate-300 focus:outline-none focus:border-indigo-500"
                 >
                   <option value={20}>20</option>
                   <option value={50}>50</option>
@@ -825,36 +834,47 @@ function DashboardContent() {
                   <option value={250}>250</option>
                   <option value={500}>500</option>
                   <option value={1000}>1,000</option>
-                  <option value={10000}>All (9,000+)</option>
+                  <option value={10000}>All (9,763)</option>
                 </select>
               </div>
             </div>
+
             {activeTendersCount > pageSize && (
               <div className="flex gap-2">
-                <button disabled={page === 1} onClick={() => setPage((p) => p - 1)}
-                  className="btn btn-secondary text-xs disabled:opacity-40">← Previous</button>
-                <button disabled={page * pageSize >= activeTendersCount} onClick={() => setPage((p) => p + 1)}
-                  className="btn btn-secondary text-xs disabled:opacity-40">Next →</button>
+                <button
+                  disabled={page === 1}
+                  onClick={() => setPage((p) => p - 1)}
+                  className="btn btn-secondary text-xs px-3 py-1.5 disabled:opacity-40"
+                >
+                  ← Previous
+                </button>
+                <button
+                  disabled={page * pageSize >= activeTendersCount}
+                  onClick={() => setPage((p) => p + 1)}
+                  className="btn btn-secondary text-xs px-3 py-1.5 disabled:opacity-40"
+                >
+                  Next →
+                </button>
               </div>
             )}
           </div>
 
-          {/* Floating Compare Panel */}
+          {/* Floating Compare Drawer */}
           {compareIds.length >= 2 && (
-            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-slate-900 border border-indigo-500/40 rounded-2xl px-5 py-3 shadow-2xl shadow-indigo-950/60 animate-fade-in">
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 bg-slate-900 border border-indigo-500/50 rounded-2xl px-6 py-3 shadow-2xl shadow-indigo-950/80 animate-fade-in">
               <GitCompare className="w-5 h-5 text-indigo-400 flex-shrink-0" />
-              <span className="text-sm text-secondary">
-                <span className="font-bold text-primary">{compareIds.length}</span> tenders selected
+              <span className="text-xs text-slate-300">
+                <strong className="text-white font-bold">{compareIds.length}</strong> tenders selected for comparison
               </span>
-              <button onClick={launchCompare} className="btn btn-primary text-sm px-4 py-1.5">
-                Compare Now
+              <button onClick={launchCompare} className="btn btn-primary text-xs px-4 py-2 font-semibold">
+                Compare Selected Bids
               </button>
               <button
                 onClick={() => setCompareIds([])}
-                className="p-1.5 hover:bg-slate-800 rounded-lg transition-colors"
+                className="p-1 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors"
                 title="Clear selection"
               >
-                <X className="w-4 h-4 text-muted" />
+                <X className="w-4 h-4" />
               </button>
             </div>
           )}

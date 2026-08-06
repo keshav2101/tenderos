@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  Search, IndianRupee, MapPin, Building2, Clock, Filter,
+  Search, IndianRupee, MapPin, Building2, Clock, Filter, Sparkles,
   RotateCcw, SlidersHorizontal, ArrowUpDown, ChevronRight, AlertCircle, Loader2, ExternalLink
 } from "lucide-react";
 import { searchApi, tendersApi, eligibilityApi } from "@/lib/api";
@@ -349,38 +349,38 @@ function SearchContent() {
           </div>
 
           {/* MSME / Startup checkboxes */}
-          <div className="space-y-2 pt-2 border-t border-subtle">
-            <label className="flex items-center gap-2 text-xs text-secondary cursor-pointer select-none">
+          <div className="space-y-2 pt-3 border-t border-slate-800">
+            <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={msmeOnly}
                 onChange={e => { setMsmeOnly(e.target.checked); setPage(1); }}
-                className="accent-indigo-500"
+                className="accent-indigo-500 rounded"
               />
-              MSME Waiver Exempt
+              <span>MSME EMD Waiver</span>
             </label>
-            <label className="flex items-center gap-2 text-xs text-secondary cursor-pointer select-none">
+            <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={startupOnly}
                 onChange={e => { setStartupOnly(e.target.checked); setPage(1); }}
-                className="accent-indigo-500"
+                className="accent-indigo-500 rounded"
               />
-              Startup Relaxations
+              <span>Startup Relaxations</span>
             </label>
           </div>
         </div>
 
         {/* Recent Searches */}
         {recentSearches.length > 0 && (
-          <div className="card p-4">
-            <span className="text-[10px] font-semibold text-muted uppercase tracking-wider block mb-2">Recent Searches</span>
+          <div className="p-4 rounded-2xl bg-slate-900/40 border border-slate-800/80">
+            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-2">Recent Searches</span>
             <div className="space-y-1.5">
               {recentSearches.map((rec, i) => (
                 <button
                   key={i}
                   onClick={() => { setQuery(rec); executeSearch(rec); }}
-                  className="text-xs text-secondary hover:text-indigo-300 block text-left truncate w-full"
+                  className="text-xs text-slate-300 hover:text-indigo-400 block text-left truncate w-full transition-colors"
                 >
                   🔍 {rec}
                 </button>
@@ -394,35 +394,35 @@ function SearchContent() {
       <div className="flex-1 space-y-4">
         {/* Search bar */}
         <div className="relative">
-          <div className="flex gap-2 p-1.5 rounded-xl border border-subtle" style={{ background: "var(--color-bg-card)" }}>
-            <div className="flex-1 flex items-center gap-2 px-2">
-              <Search className="w-4 h-4 text-muted" />
+          <div className="flex gap-2 p-1.5 rounded-2xl border border-slate-800 bg-slate-900/60 shadow-lg">
+            <div className="flex-1 flex items-center gap-2 px-3">
+              <Search className="w-4 h-4 text-slate-400" />
               <input
                 type="text"
                 value={query}
                 onChange={e => setQuery(e.target.value)}
                 onFocus={() => setShowSuggestions(true)}
                 onKeyDown={e => e.key === "Enter" && executeSearch()}
-                placeholder="Search by keywords, tags, or tender ID..."
-                className="bg-transparent text-sm text-primary outline-none w-full py-1"
+                placeholder="Search by keywords, tags, state, ministry, or tender ID..."
+                className="bg-transparent text-xs text-slate-100 placeholder-slate-400 outline-none w-full py-2"
               />
             </div>
-            <button onClick={() => executeSearch()} className="btn btn-primary px-5 py-1.5 text-xs">
-              Search
+            <button onClick={() => executeSearch()} className="btn btn-primary px-5 py-2 text-xs font-semibold">
+              Search Tenders
             </button>
           </div>
 
           {/* Suggestions Dropdown */}
           {showSuggestions && suggestions.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-1 rounded-xl border border-subtle shadow-2xl z-30 divide-y divide-subtle overflow-hidden"
-              style={{ background: "var(--color-bg-card)" }}>
+            <div className="absolute top-full left-0 right-0 mt-2 rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl z-30 divide-y divide-slate-800/60 overflow-hidden">
               {suggestions.map((sug, i) => (
                 <button
                   key={i}
                   onClick={() => { setQuery(sug); executeSearch(sug); }}
-                  className="w-full text-left px-4 py-2.5 hover:bg-white/5 text-xs text-primary transition-colors"
+                  className="w-full text-left px-4 py-2.5 hover:bg-slate-800/60 text-xs text-slate-200 transition-colors flex items-center gap-2"
                 >
-                  💡 {sug}
+                  <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>{sug}</span>
                 </button>
               ))}
             </div>
@@ -430,20 +430,24 @@ function SearchContent() {
         </div>
 
         {/* Toolbar */}
-        <div className="flex items-center justify-between text-xs text-secondary border-b border-subtle pb-2">
-          <span>Found <strong>{total}</strong> opportunities</span>
-          <div className="flex items-center gap-2">
-            <ArrowUpDown className="w-3.5 h-3.5 text-muted" />
-            <select
-              value={sortBy}
-              onChange={e => setSortBy(e.target.value)}
-              className="bg-transparent text-primary border-none outline-none font-medium"
-            >
-              <option value="published_at_desc">Newest Published</option>
-              <option value="submission_deadline_asc">Closing Soon</option>
-              <option value="estimated_cost_lakhs_desc">Highest Value</option>
-              <option value="match_score_desc">Best Match Score</option>
-            </select>
+        <div className="flex items-center justify-between text-xs text-slate-400 border-b border-slate-800/80 pb-3">
+          <span className="text-slate-300 font-medium">
+            Found <strong className="text-white font-bold">{total.toLocaleString("en-IN")}</strong> active solicitations
+          </span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1">
+              <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
+              <select
+                value={sortBy}
+                onChange={e => setSortBy(e.target.value)}
+                className="bg-transparent text-xs text-slate-200 outline-none font-medium"
+              >
+                <option value="published_at_desc">Newest Published</option>
+                <option value="submission_deadline_asc">Closing Soon</option>
+                <option value="estimated_cost_lakhs_desc">Highest Value</option>
+                <option value="match_score_desc">Best Match Score</option>
+              </select>
+            </div>
           </div>
         </div>
 

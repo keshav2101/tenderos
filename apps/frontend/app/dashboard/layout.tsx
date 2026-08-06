@@ -5,31 +5,33 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, Search, BarChart3, BookmarkCheck,
-  Bell, Settings, Zap, Building2, Shield, LogOut, Radio
+  Bell, Settings, Zap, Building2, Shield, LogOut, Radio,
+  Command, ChevronDown, CheckCircle2, Sliders, Layers, Sparkles
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { fetchRealtimeNotifications } from "@/lib/notifications-store";
+import { CommandPalette } from "@/app/components/CommandPalette";
 
 const NAV_ITEMS = [
-  { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { href: "/dashboard/search", icon: Search, label: "Search Tenders" },
-  { href: "/dashboard/intelligence", icon: Zap, label: "Procurement Intelligence" },
-  { href: "/dashboard/analytics", icon: BarChart3, label: "Analytics" },
-  { href: "/dashboard/watchlist", icon: BookmarkCheck, label: "Watchlist" },
+  { href: "/dashboard", icon: LayoutDashboard, label: "Command Center" },
+  { href: "/dashboard/search", icon: Search, label: "Tender Search" },
+  { href: "/dashboard/intelligence", icon: Zap, label: "AI Copilot & RAG" },
+  { href: "/dashboard/analytics", icon: BarChart3, label: "Market Analytics" },
+  { href: "/dashboard/watchlist", icon: BookmarkCheck, label: "Watchlist & Proposals" },
   { href: "/dashboard/notifications", icon: Bell, label: "Notifications", isNotification: true },
 ];
 
 const SECONDARY_NAV = [
-  { href: "/dashboard/profile", icon: Building2, label: "Company Profile" },
-  { href: "/dashboard/connectors", icon: Radio, label: "Connectors Hub" },
-  { href: "/dashboard/admin", icon: Shield, label: "Admin Panel" },
-  { href: "/dashboard/settings", icon: Settings, label: "Settings" },
+  { href: "/dashboard/profile", icon: Building2, label: "Digital Twin Profile" },
+  { href: "/dashboard/connectors", icon: Radio, label: "Portals Hub (36 States/UTs)" },
+  { href: "/dashboard/admin", icon: Shield, label: "Admin Console" },
+  { href: "/dashboard/settings", icon: Settings, label: "System Settings" },
 ];
 
 const PLAN_LABELS: Record<string, string> = {
   free: "Free Plan",
   sme: "SME Plan",
-  enterprise: "Enterprise",
+  enterprise: "Enterprise AI",
   api: "API Plan",
 };
 
@@ -38,6 +40,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const { user, isLoading, isAuthenticated, logout } = useAuth();
   const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [isCommandOpen, setIsCommandOpen] = useState(false);
+  const [workspace, setWorkspace] = useState("Enterprise India Procurement");
 
   const isGuestPath = pathname === "/dashboard/search" || pathname.startsWith("/dashboard/tenders/");
 
@@ -58,6 +62,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => window.removeEventListener("tenderos-notifications-updated", syncNotifications);
   }, []);
 
+  // Keyboard shortcut listener for Cmd + K / Ctrl + K
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setIsCommandOpen(prev => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   // Auth guard — redirect unauthenticated users to /login ONLY on protected pages
   useEffect(() => {
     if (!isLoading && !isAuthenticated && !isGuestPath) {
@@ -67,14 +83,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   if (isLoading || (!user && !isGuestPath)) {
     return (
-      <div className="flex h-screen items-center justify-center" style={{ background: "var(--color-bg-primary)" }}>
-        <div className="auth-spinner" style={{ width: "2rem", height: "2rem", borderWidth: "3px" }} />
+      <div className="flex h-screen items-center justify-center bg-slate-950">
+        <div className="auth-spinner w-8 h-8 border-3 border-indigo-500 border-t-transparent" />
       </div>
     );
   }
 
   const activeUser = user || {
-    name: "Guest User",
+    name: "Guest Operator",
     email: "guest@tenderos.in",
     role: "viewer" as const,
     plan: "free" as const,
@@ -86,37 +102,54 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     : activeUser.email.slice(0, 2).toUpperCase();
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: "var(--color-bg-primary)" }}>
+    <div className="flex h-screen overflow-hidden bg-[#090d16] text-slate-100 font-sans">
+      {/* Global Command Palette */}
+      <CommandPalette isOpen={isCommandOpen} onClose={() => setIsCommandOpen(false)} />
+
       {/* ─── Sidebar ────────────────────────────────────────────────────────── */}
-      <aside className="w-64 flex-shrink-0 flex flex-col border-r border-subtle"
-        style={{ background: "var(--color-bg-secondary)" }}>
-        {/* Logo */}
-        <div className="flex items-center gap-2.5 px-4 py-4 border-b border-subtle">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center"
-            style={{ background: "linear-gradient(135deg, #6172f3, #a855f7)" }}>
-            <Zap className="w-4 h-4 text-white" />
-          </div>
-          <div>
-            <div className="text-sm font-bold text-primary">TenderOS</div>
-            <div className="text-[10px] text-muted">AI Procurement</div>
+      <aside className="w-64 flex-shrink-0 flex flex-col border-r border-slate-800/80 bg-slate-900/90 backdrop-blur-md">
+        {/* Logo & Workspace Selector */}
+        <div className="p-3 border-b border-slate-800/80">
+          <div className="flex items-center gap-2.5 px-2 py-1.5 rounded-xl bg-slate-800/50 border border-slate-700/40">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+              <Zap className="w-4 h-4 text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-bold text-slate-100 flex items-center gap-1.5 truncate">
+                <span>TenderOS</span>
+                <span className="text-[9px] px-1.5 py-0.2 rounded bg-indigo-500/20 text-indigo-300 font-bold border border-indigo-500/30">
+                  v2.6
+                </span>
+              </div>
+              <div className="text-[10px] text-slate-400 truncate">{workspace}</div>
+            </div>
           </div>
         </div>
 
         {/* Primary navigation */}
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+          <div className="px-3 pb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+            Core Operating System
+          </div>
           {NAV_ITEMS.map(({ href, icon: Icon, label, isNotification }) => {
-            const active = pathname === href || pathname.startsWith(href + "/");
+            const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
             const needsAuth = href !== "/dashboard/search";
             const locked = needsAuth && !isAuthenticated;
 
             return (
-              <Link key={href} href={locked ? "/login" : href}
-                className={`nav-item ${active ? "active" : ""} ${locked ? "opacity-60 hover:opacity-100" : ""}`}>
-                <Icon className="w-4 h-4 flex-shrink-0" />
-                <span className="flex-1 truncate">{label} {locked && "🔒"}</span>
+              <Link
+                key={href}
+                href={locked ? "/login" : href}
+                className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+                  active
+                    ? "bg-indigo-600/15 text-indigo-400 border border-indigo-500/30 shadow-sm font-semibold"
+                    : "text-slate-300 hover:text-white hover:bg-slate-800/50"
+                } ${locked ? "opacity-60" : ""}`}
+              >
+                <Icon className={`w-4 h-4 flex-shrink-0 ${active ? "text-indigo-400" : "text-slate-400"}`} />
+                <span className="flex-1 truncate">{label}</span>
                 {!locked && isNotification && unreadCount > 0 && (
-                  <span className="w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold animate-pulse"
-                    style={{ background: "#4c51e8", color: "white" }}>
+                  <span className="w-4 h-4 flex items-center justify-center rounded-full text-[9px] font-bold bg-indigo-600 text-white animate-pulse">
                     {unreadCount}
                   </span>
                 )}
@@ -124,8 +157,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             );
           })}
 
-          <div className="pt-4 pb-2">
-            <p className="px-3 text-[10px] font-medium text-muted uppercase tracking-wider font-semibold">Account</p>
+          <div className="pt-5 pb-2 px-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+            Infrastructure & Control
           </div>
 
           {SECONDARY_NAV.map(({ href, icon: Icon, label }) => {
@@ -133,53 +166,92 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             const locked = !isAuthenticated;
 
             return (
-              <Link key={href} href={locked ? "/login" : href}
-                className={`nav-item ${active ? "active" : ""} ${locked ? "opacity-60 hover:opacity-100" : ""}`}>
-                <Icon className="w-4 h-4 flex-shrink-0" />
-                <span className="truncate">{label} {locked && "🔒"}</span>
+              <Link
+                key={href}
+                href={locked ? "/login" : href}
+                className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+                  active
+                    ? "bg-indigo-600/15 text-indigo-400 border border-indigo-500/30 font-semibold"
+                    : "text-slate-300 hover:text-white hover:bg-slate-800/50"
+                } ${locked ? "opacity-60" : ""}`}
+              >
+                <Icon className={`w-4 h-4 flex-shrink-0 ${active ? "text-indigo-400" : "text-slate-400"}`} />
+                <span className="truncate">{label}</span>
               </Link>
             );
           })}
         </nav>
 
-        {/* User footer — wired to real auth context / guest sign in */}
-        <div className="px-3 py-4 border-t border-subtle">
+        {/* User footer */}
+        <div className="p-3 border-t border-slate-800/80 bg-slate-900/60">
           {isAuthenticated ? (
-            <div className="flex items-center gap-3 px-3 py-2 rounded-xl"
-              style={{ background: "var(--color-bg-elevated)" }}>
-              <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
-                style={{ background: "linear-gradient(135deg, #6172f3, #a855f7)", color: "white" }}>
+            <div className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-800/40 border border-slate-700/40">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-xs font-bold text-white flex-shrink-0 shadow">
                 {initials}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-xs font-medium text-primary truncate">{activeUser.name}</div>
-                <div className="text-[10px] text-muted">{PLAN_LABELS[activeUser.plan] ?? activeUser.plan}</div>
+                <div className="text-xs font-semibold text-slate-200 truncate">{activeUser.name}</div>
+                <div className="text-[10px] text-slate-400 truncate">{PLAN_LABELS[activeUser.plan] ?? activeUser.plan}</div>
               </div>
               <button
                 onClick={logout}
                 title="Sign out"
                 aria-label="Sign out"
-                className="btn-ghost p-1 rounded-lg"
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 transition-colors"
               >
-                <LogOut className="w-3.5 h-3.5 text-muted hover:text-primary transition-colors" />
+                <LogOut className="w-3.5 h-3.5" />
               </button>
             </div>
           ) : (
-            <div className="flex flex-col gap-2">
-              <Link href="/login" className="btn btn-primary w-full text-center py-2 text-xs font-semibold">
+            <div className="flex flex-col gap-1.5">
+              <Link href="/login" className="btn btn-primary w-full text-center py-2 text-xs font-semibold justify-center">
                 Sign In
               </Link>
-              <p className="text-[10px] text-muted text-center">Sign in to unlock watchlist & proposals</p>
+              <p className="text-[10px] text-slate-400 text-center">Sign in for full AI bid generation</p>
             </div>
           )}
         </div>
       </aside>
 
-      {/* ─── Main Content ───────────────────────────────────────────────────── */}
-      <main className="flex-1 overflow-y-auto">
-        {children}
-      </main>
+      {/* ─── Main Content Shell ─────────────────────────────────────────────── */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Top Header Bar */}
+        <header className="h-14 border-b border-slate-800/80 bg-slate-900/40 backdrop-blur-md px-6 flex items-center justify-between gap-4 flex-shrink-0">
+          {/* Spotlight Command Bar Trigger */}
+          <button
+            onClick={() => setIsCommandOpen(true)}
+            className="flex items-center gap-3 px-3 py-1.5 rounded-xl bg-slate-950/60 border border-slate-800 text-xs text-slate-400 hover:border-slate-700 hover:text-slate-200 transition-all max-w-md w-full"
+          >
+            <Search className="w-3.5 h-3.5 text-slate-400" />
+            <span className="flex-1 text-left truncate">Search tenders, states, UTs or commands...</span>
+            <kbd className="flex items-center gap-0.5">
+              <Command className="w-3 h-3" /> K
+            </kbd>
+          </button>
+
+          {/* Right Status Controls */}
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <span className="hidden md:flex items-center gap-1.5 text-[11px] font-medium text-emerald-400 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Live Ingestion Active (9,763 Tenders)
+            </span>
+
+            <Link href="/dashboard/notifications" className="relative p-2 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition-colors">
+              <Bell className="w-4 h-4" />
+              {unreadCount > 0 && (
+                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-indigo-500" />
+              )}
+            </Link>
+          </div>
+        </header>
+
+        {/* Dynamic Page Workspace */}
+        <main className="flex-1 overflow-y-auto bg-[#090d16]">
+          {children}
+        </main>
+      </div>
     </div>
   );
 }
+
 
