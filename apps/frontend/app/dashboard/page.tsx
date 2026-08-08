@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   Search, IndianRupee, MapPin, Building2, Clock, Zap,
   BookmarkPlus, BookmarkCheck, RefreshCw, TrendingUp,
@@ -21,23 +21,23 @@ import { getConnectorsSummary } from "@/lib/connectors-store";
 import { Tender, getLocalCatalog, searchCatalog } from "@/lib/catalog";
 import { addToWatchlist, removeFromWatchlist, isWatchlisted } from "@/lib/watchlist-store";
 
-// Portal styling mapping
+// Portal styling mapping (Clean Light Theme)
 const PORTAL_CONFIG: Record<string, { label: string; color: string; bg: string; defaultUrl: string }> = {
-  gem:         { label: "GeM",          color: "#4ade80", bg: "rgba(34,197,94,0.12)",   defaultUrl: "https://gem.gov.in" },
-  cppp:        { label: "CPPP",         color: "#60a5fa", bg: "rgba(96,165,250,0.12)",  defaultUrl: "https://eprocure.gov.in/eprocure/app" },
-  defence:     { label: "Defence",      color: "#f87171", bg: "rgba(239,68,68,0.12)",   defaultUrl: "https://defproc.gov.in" },
-  railways:    { label: "IREPS",        color: "#fb923c", bg: "rgba(251,146,60,0.12)",  defaultUrl: "https://ireps.gov.in" },
-  ireps:       { label: "IREPS",        color: "#fb923c", bg: "rgba(251,146,60,0.12)",  defaultUrl: "https://ireps.gov.in" },
-  maharashtra: { label: "Maha eProc",   color: "#a78bfa", bg: "rgba(167,139,250,0.12)", defaultUrl: "https://mahatenders.gov.in" },
-  karnataka:   { label: "Karnataka",    color: "#a78bfa", bg: "rgba(167,139,250,0.12)", defaultUrl: "https://eproc.karnataka.gov.in" },
+  gem:         { label: "GeM",          color: "#15803d", bg: "#f0fdf4", defaultUrl: "https://gem.gov.in" },
+  cppp:        { label: "CPPP",         color: "#1d4ed8", bg: "#eff6ff", defaultUrl: "https://eprocure.gov.in/eprocure/app" },
+  defence:     { label: "Defence",      color: "#b91c1c", bg: "#fef2f2", defaultUrl: "https://defproc.gov.in" },
+  railways:    { label: "IREPS",        color: "#c2410c", bg: "#fff7ed", defaultUrl: "https://ireps.gov.in" },
+  ireps:       { label: "IREPS",        color: "#c2410c", bg: "#fff7ed", defaultUrl: "https://ireps.gov.in" },
+  maharashtra: { label: "Maha eProc",   color: "#6b21a8", bg: "#faf5ff", defaultUrl: "https://mahatenders.gov.in" },
+  karnataka:   { label: "Karnataka",    color: "#6b21a8", bg: "#faf5ff", defaultUrl: "https://eproc.karnataka.gov.in" },
 };
 
 function getPortalInfo(source: string) {
   const key = (source || "").toLowerCase();
   return PORTAL_CONFIG[key] || {
     label: (source || "GOV").toUpperCase(),
-    color: "#94a3b8",
-    bg: "rgba(148,163,184,0.12)",
+    color: "#475569",
+    bg: "#f8fafc",
     defaultUrl: "https://cppp.gov.in"
   };
 }
@@ -87,11 +87,9 @@ function DashboardContent() {
   const [filterMsme, setFilterMsme] = useState(false);
   const [filterStartup, setFilterStartup] = useState(false);
 
-  // Pagination & Compare
+  // Pagination
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
-  const [compareIds, setCompareIds] = useState<string[]>([]);
-  const [connectorsStats, setConnectorsStats] = useState(() => getConnectorsSummary());
 
   const fetchTenders = useCallback(async () => {
     setLoading(true);
@@ -114,7 +112,6 @@ function DashboardContent() {
         setSelectedTender(localRes.tenders[0]);
       }
       setRefreshedAt(new Date());
-      setConnectorsStats(getConnectorsSummary());
     } catch (err: any) {
       console.error("Failed to load catalog feed", err);
       setError("Unable to sync catalog feed.");
@@ -137,7 +134,7 @@ function DashboardContent() {
     }
   };
 
-  // Keyboard navigation listener (J / K row movement, Enter to open, B to bookmark)
+  // Keyboard navigation listener (J / K row movement, Enter to open)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (["INPUT", "TEXTAREA", "SELECT"].includes((e.target as HTMLElement).tagName)) return;
@@ -196,84 +193,84 @@ function DashboardContent() {
   }, [tenders]);
 
   return (
-    <div className="p-8 max-w-[1600px] mx-auto space-y-8 animate-fade-in text-slate-100">
-      {/* ─── 1. Editorial Focus Header (Visual Anchor) ────────────────────────── */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-indigo-950/40 to-slate-900 border border-slate-800/80 p-8 shadow-2xl">
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+    <div className="p-8 max-w-[1600px] mx-auto space-y-8 animate-fade-in text-slate-900">
+      {/* ─── 1. Executive Editorial Briefing (Visual Anchor - Light Theme) ───── */}
+      <div className="rounded-2xl bg-white border border-slate-200 p-8 shadow-xs">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-2 max-w-3xl">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-mono uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-bold">
+              <span className="text-[11px] font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200">
                 Executive Action Briefing
               </span>
-              <span className="text-xs text-slate-400 flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                Live Network Active
+              <span className="text-xs text-slate-500 flex items-center gap-1.5 font-medium">
+                <span className="w-2 h-2 rounded-full bg-green-600 animate-pulse" />
+                Live Ingestion Active
               </span>
             </div>
-            <h1 className="text-2xl lg:text-3xl font-extrabold tracking-tight text-white leading-tight">
+            <h1 className="text-2xl lg:text-3xl font-extrabold tracking-tight text-slate-900 leading-snug">
               {urgentCount > 0 ? (
                 <>
-                  <strong className="text-amber-400">{urgentCount} High-Yield Solicitations</strong> Closing in &lt;72h (Total Budget: <strong className="text-emerald-400">₹{totalValueCr} Cr</strong>)
+                  <strong className="text-amber-700 font-bold">{urgentCount} High-Yield Solicitations</strong> Closing in &lt;72h (Total Volume: <strong className="text-green-700 font-bold">₹{totalValueCr} Cr</strong>)
                 </>
               ) : (
                 <>
-                  <strong className="text-indigo-400">9,763 Live Opportunities</strong> Ingested Across GeM, CPPP, Defence &amp; 36 States/UTs
+                  <strong className="text-blue-700 font-bold">9,763 Active Opportunities</strong> Ingested Across GeM, CPPP, Defence &amp; 36 States/UTs
                 </>
               )}
             </h1>
-            <p className="text-xs text-slate-300 leading-relaxed max-w-2xl">
-              100% of tracked opportunities qualify for <strong className="text-emerald-400">Udyam MSME Rule 170 EMD Exemptions</strong> and <strong className="text-indigo-300">Make in India (MII) Class-I Local Supplier Preference</strong>.
+            <p className="text-xs text-slate-600 leading-relaxed max-w-2xl">
+              All indexed solicitations qualify for <strong className="text-slate-900 font-medium">Udyam MSME Rule 170 EMD Exemptions</strong> and <strong className="text-slate-900 font-medium">Make in India (MII) Class-I Local Supplier Preference</strong>.
             </p>
           </div>
 
           <div className="flex items-center gap-3 flex-shrink-0">
             <button
               onClick={() => router.push("/dashboard/intelligence")}
-              className="btn btn-primary text-xs px-5 py-3 rounded-2xl flex items-center gap-2 font-semibold shadow-lg shadow-indigo-600/30 hover:scale-[1.02] transition-all"
+              className="btn btn-primary text-xs px-4 py-2.5 rounded-lg flex items-center gap-2 font-medium"
             >
-              <Zap className="w-4 h-4 text-amber-300" />
+              <Zap className="w-4 h-4 text-white" />
               Launch AI Qualification Copilot
             </button>
             <button
               onClick={handleRunScrapers}
               disabled={isSyncingScrapers}
-              className="px-4 py-3 rounded-2xl bg-slate-800/80 border border-slate-700/60 text-slate-200 text-xs font-semibold hover:bg-slate-700/60 transition-all flex items-center gap-2"
+              className="btn btn-secondary text-xs px-3.5 py-2.5 rounded-lg flex items-center gap-2 font-medium"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${isSyncingScrapers ? "animate-spin text-indigo-400" : "text-slate-400"}`} />
+              <RefreshCw className={`w-3.5 h-3.5 ${isSyncingScrapers ? "animate-spin text-blue-600" : "text-slate-500"}`} />
               {isSyncingScrapers ? "Syncing..." : "Sync Scrapers"}
             </button>
           </div>
         </div>
 
-        {/* Integrated Narrative Metric Strip (Not Card Walls) */}
-        <div className="mt-8 pt-6 border-t border-slate-800/80 grid grid-cols-2 md:grid-cols-4 gap-6 text-xs">
+        {/* Integrated Narrative Metric Strip */}
+        <div className="mt-8 pt-6 border-t border-slate-200 grid grid-cols-2 md:grid-cols-4 gap-6 text-xs">
           <div className="space-y-0.5">
             <span className="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">Active Stream</span>
-            <div className="text-lg font-bold text-white tabular-nums">{tenders.length.toLocaleString("en-IN")} Solicitations</div>
+            <div className="text-lg font-bold text-slate-900 tabular-nums">{tenders.length.toLocaleString("en-IN")} Solicitations</div>
           </div>
           <div className="space-y-0.5">
             <span className="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">MSME EMD Saved</span>
-            <div className="text-lg font-bold text-emerald-400 tabular-nums">₹{(parseFloat(totalValueCr) * 0.02 * 100).toFixed(0)} Lakhs Waived</div>
+            <div className="text-lg font-bold text-green-700 tabular-nums">₹{(parseFloat(totalValueCr) * 0.02 * 100).toFixed(0)} Lakhs Waived</div>
           </div>
           <div className="space-y-0.5">
             <span className="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">Avg Win Match</span>
-            <div className="text-lg font-bold text-indigo-300 tabular-nums">88.4% Fit Probability</div>
+            <div className="text-lg font-bold text-blue-700 tabular-nums">88.4% Fit Probability</div>
           </div>
           <div className="space-y-0.5">
             <span className="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">Portals Status</span>
-            <div className="text-lg font-bold text-blue-400 tabular-nums">36 States &amp; UTs Online</div>
+            <div className="text-lg font-bold text-slate-900 tabular-nums">36 States &amp; UTs Online</div>
           </div>
         </div>
       </div>
 
-      {/* ─── 2. Asymmetrical 2-Column Workspace Layout ──────────────────────── */}
+      {/* ─── 2. Asymmetrical 2-Column Operating Workspace ─────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
-        {/* LEFT COLUMN: Main High-Density Editorial Feed (8 Cols) */}
+        {/* LEFT COLUMN: Main Editorial Stream Table (8 Cols) */}
         <div className="lg:col-span-8 space-y-4">
           
           {/* Stream Toolbar & Filters */}
-          <div className="p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800/80 flex items-center justify-between gap-3 flex-wrap shadow-sm">
+          <div className="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between gap-3 flex-wrap shadow-2xs">
             <div className="flex items-center gap-2 flex-1 min-w-48">
               <Search className="w-4 h-4 text-slate-400 ml-1" />
               <input
@@ -281,7 +278,7 @@ function DashboardContent() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Filter by keyword, state (e.g. Delhi, J&K), ministry..."
-                className="bg-transparent text-xs text-slate-100 placeholder-slate-400 outline-none w-full"
+                className="bg-transparent text-xs text-slate-900 placeholder-slate-400 outline-none w-full"
               />
             </div>
 
@@ -289,17 +286,17 @@ function DashboardContent() {
               <select
                 value={filterSector}
                 onChange={(e) => setFilterSector(e.target.value)}
-                className="bg-slate-950 border border-slate-800 text-slate-300 text-xs rounded-xl px-2.5 py-1.5 outline-none"
+                className="bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-lg px-2.5 py-1.5 outline-none font-medium"
               >
                 {SECTORS.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
 
               <button
                 onClick={() => setFilterMsme(!filterMsme)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
                   filterMsme
-                    ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
-                    : "bg-slate-950 text-slate-400 border-slate-800 hover:text-slate-200"
+                    ? "bg-green-50 text-green-700 border-green-200"
+                    : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
                 }`}
               >
                 MSME Exempt
@@ -307,10 +304,10 @@ function DashboardContent() {
 
               <button
                 onClick={() => setFilterStartup(!filterStartup)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
                   filterStartup
-                    ? "bg-purple-500/20 text-purple-300 border-purple-500/40"
-                    : "bg-slate-950 text-slate-400 border-slate-800 hover:text-slate-200"
+                    ? "bg-blue-50 text-blue-700 border-blue-200"
+                    : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
                 }`}
               >
                 Startup
@@ -319,8 +316,8 @@ function DashboardContent() {
           </div>
 
           {/* Keyboard Helper Hint */}
-          <div className="flex items-center justify-between text-[11px] text-slate-400 px-2">
-            <span className="flex items-center gap-2">
+          <div className="flex items-center justify-between text-[11px] text-slate-500 px-1">
+            <span className="flex items-center gap-1.5">
               <kbd>J</kbd><kbd>K</kbd> Navigate rows · <kbd>↵</kbd> Open workspace · <kbd>Cmd+K</kbd> Command Bar
             </span>
             <span>Showing {filteredTenders.length} opportunities</span>
@@ -330,19 +327,19 @@ function DashboardContent() {
           {loading ? (
             <div className="space-y-3">
               {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 animate-pulse h-24" />
+                <div key={i} className="p-5 rounded-xl bg-white border border-slate-200 animate-pulse h-24" />
               ))}
             </div>
           ) : filteredTenders.length === 0 ? (
-            <div className="p-12 text-center rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-3">
-              <AlertCircle className="w-8 h-8 text-slate-500 mx-auto" />
-              <p className="text-xs text-slate-300 font-medium">No tenders match your current stream filters.</p>
-              <button onClick={() => { setSearch(""); setFilterSector("All Sectors"); setFilterMsme(false); }} className="text-xs text-indigo-400 hover:underline">
+            <div className="p-12 text-center rounded-xl bg-white border border-slate-200 space-y-3">
+              <AlertCircle className="w-8 h-8 text-slate-400 mx-auto" />
+              <p className="text-xs text-slate-600 font-medium">No tenders match your current stream filters.</p>
+              <button onClick={() => { setSearch(""); setFilterSector("All Sectors"); setFilterMsme(false); }} className="text-xs text-blue-600 hover:underline font-medium">
                 Reset filters
               </button>
             </div>
           ) : (
-            <div className="space-y-2.5">
+            <div className="space-y-2">
               {filteredTenders.slice((page - 1) * pageSize, page * pageSize).map((t, idx) => {
                 const isSelected = selectedTender?.id === t.id;
                 const portal = getPortalInfo(t.source);
@@ -352,70 +349,72 @@ function DashboardContent() {
                   : null;
 
                 return (
-                  <motion.div
+                  <div
                     key={t.id}
-                    layout
                     onClick={() => { setSelectedTender(t); setSelectedIndex(idx); }}
-                    className={`group relative p-4 rounded-2xl border transition-all duration-150 cursor-pointer ${
+                    className={`group relative p-4 rounded-xl border transition-all duration-150 cursor-pointer ${
                       isSelected
-                        ? "bg-indigo-950/40 border-indigo-500/60 shadow-lg ring-1 ring-indigo-500/30"
-                        : "bg-slate-900/60 border-slate-800/80 hover:border-slate-700 hover:bg-slate-900/90"
+                        ? "bg-blue-50/70 border-blue-300 shadow-2xs"
+                        : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/60"
                     }`}
                   >
-                    {/* Selected Left Accent Line */}
+                    {/* Selected Left Accent Bar */}
                     {isSelected && (
-                      <div className="absolute left-0 top-3 bottom-3 w-1 rounded-r-full bg-indigo-500" />
+                      <div className="absolute left-0 top-3 bottom-3 w-1 rounded-r-full bg-blue-600" />
                     )}
 
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0 space-y-1.5">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700/60">
+                          <span 
+                            className="text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded border"
+                            style={{ color: portal.color, backgroundColor: portal.bg, borderColor: portal.bg }}
+                          >
                             {portal.label}
                           </span>
                           <span className="text-[10px] font-mono text-slate-400">
                             {t.source_tender_id || t.id}
                           </span>
                           {t.msme_eligible && (
-                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200">
                               Udyam EMD Exempt
                             </span>
                           )}
                           {daysLeft !== null && daysLeft <= 3 && (
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 animate-pulse">
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
                               Closing in {daysLeft}d
                             </span>
                           )}
                         </div>
 
-                        <h3 className="text-sm font-bold text-slate-100 group-hover:text-indigo-300 transition-colors line-clamp-1">
+                        <h3 className="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-1">
                           {t.title}
                         </h3>
 
-                        <div className="flex items-center gap-4 text-[11px] text-slate-400 flex-wrap">
+                        <div className="flex items-center gap-4 text-[11px] text-slate-500 flex-wrap">
                           <span className="flex items-center gap-1">
-                            <Building2 className="w-3.5 h-3.5 text-slate-500" />
-                            <span className="truncate max-w-[200px]">{t.organisation || t.department || "Central / State Portal"}</span>
+                            <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                            <span className="truncate max-w-[200px]">{t.organisation || t.department || "Central / State Body"}</span>
                           </span>
                           <span className="flex items-center gap-1">
-                            <MapPin className="w-3.5 h-3.5 text-slate-500" />
+                            <MapPin className="w-3.5 h-3.5 text-slate-400" />
                             <span>{t.state || "Pan-India"}</span>
                           </span>
-                          <span className="font-mono text-slate-200 font-bold tabular-nums">
+                          <span className="font-mono text-slate-900 font-bold tabular-nums">
                             ₹{(t.estimated_cost_lakhs || 0).toLocaleString("en-IN")} Lakhs
                           </span>
                         </div>
                       </div>
 
                       {/* Right Action Icons */}
-                      <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className="flex items-center gap-1 flex-shrink-0">
                         <a
                           href={portalUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           onClick={(e) => e.stopPropagation()}
                           title="Open official portal link"
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-400 hover:bg-slate-800 transition-colors"
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-slate-100 transition-colors"
                         >
                           <ExternalLink className="w-4 h-4" />
                         </a>
@@ -424,33 +423,33 @@ function DashboardContent() {
                             e.stopPropagation();
                             router.push(`/dashboard/tenders/${t.id}`);
                           }}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors"
                         >
                           <ChevronRight className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
-                  </motion.div>
+                  </div>
                 );
               })}
             </div>
           )}
 
           {/* Pagination Controls */}
-          <div className="flex items-center justify-between pt-4 text-xs text-slate-400 border-t border-slate-800">
+          <div className="flex items-center justify-between pt-4 text-xs text-slate-500 border-t border-slate-200">
             <span>Page {page} of {Math.ceil(filteredTenders.length / pageSize) || 1}</span>
             <div className="flex gap-2">
               <button
                 disabled={page === 1}
                 onClick={() => setPage(p => p - 1)}
-                className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs disabled:opacity-40"
+                className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 text-xs font-medium disabled:opacity-40 hover:bg-slate-50"
               >
                 Previous
               </button>
               <button
                 disabled={page * pageSize >= filteredTenders.length}
                 onClick={() => setPage(p => p + 1)}
-                className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs disabled:opacity-40"
+                className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 text-xs font-medium disabled:opacity-40 hover:bg-slate-50"
               >
                 Next
               </button>
@@ -458,18 +457,18 @@ function DashboardContent() {
           </div>
         </div>
 
-        {/* RIGHT COLUMN: Context Inspector & Real-Time Signal Stream (4 Cols) */}
+        {/* RIGHT COLUMN: Context Inspector & Network Monitor (4 Cols) */}
         <div className="lg:col-span-4 space-y-6 sticky top-20">
           
           {/* Selected Tender Context Inspector */}
-          <div className="p-6 rounded-3xl bg-slate-900/80 border border-slate-800/80 space-y-5 shadow-xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div className="p-6 rounded-2xl bg-white border border-slate-200 space-y-5 shadow-xs">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-indigo-400" />
-                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-200">AI Context Inspector</h2>
+                <Sparkles className="w-4 h-4 text-blue-600" />
+                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900">AI Context Inspector</h2>
               </div>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-bold border border-emerald-500/20">
-                Live Analysis
+              <span className="text-[10px] px-2 py-0.5 rounded bg-green-50 text-green-700 font-bold border border-green-200">
+                Live Verified
               </span>
             </div>
 
@@ -477,44 +476,44 @@ function DashboardContent() {
               <div className="space-y-4">
                 <div className="space-y-1">
                   <div className="text-[10px] font-mono text-slate-400 uppercase">Selected Tender</div>
-                  <h3 className="text-sm font-bold text-white leading-snug line-clamp-2">
+                  <h3 className="text-sm font-bold text-slate-900 leading-snug line-clamp-2">
                     {selectedTender.title}
                   </h3>
                 </div>
 
-                <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800/80 space-y-2">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-400">Match Qualification Score</span>
-                    <span className="font-bold text-emerald-400">92% Match</span>
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                  <div className="flex justify-between text-xs font-medium">
+                    <span className="text-slate-500">Qualification Score</span>
+                    <span className="font-bold text-green-700">92% Match</span>
                   </div>
-                  <div className="w-full bg-slate-800 rounded-full h-1.5">
-                    <div className="bg-emerald-400 h-1.5 rounded-full w-[92%]" />
+                  <div className="w-full bg-slate-200 rounded-full h-1.5">
+                    <div className="bg-green-600 h-1.5 rounded-full w-[92%]" />
                   </div>
-                  <p className="text-[11px] text-slate-400 pt-1">
+                  <p className="text-[11px] text-slate-600 pt-1">
                     ✔ Past experience matches scope requirement.<br />
                     ✔ 100% EMD waived under Udyam MSME Rule 170.
                   </p>
                 </div>
 
                 <div className="space-y-2 text-xs">
-                  <div className="flex justify-between py-1.5 border-b border-slate-800 text-slate-300">
-                    <span className="text-slate-400">Estimated Cost</span>
-                    <span className="font-mono font-bold text-white">₹{(selectedTender.estimated_cost_lakhs || 0).toLocaleString("en-IN")} Lakhs</span>
+                  <div className="flex justify-between py-1.5 border-b border-slate-200 text-slate-700">
+                    <span className="text-slate-500">Estimated Cost</span>
+                    <span className="font-mono font-bold text-slate-900">₹{(selectedTender.estimated_cost_lakhs || 0).toLocaleString("en-IN")} Lakhs</span>
                   </div>
-                  <div className="flex justify-between py-1.5 border-b border-slate-800 text-slate-300">
-                    <span className="text-slate-400">EMD Requirement</span>
-                    <span className="font-bold text-emerald-400">₹0 (Waived)</span>
+                  <div className="flex justify-between py-1.5 border-b border-slate-200 text-slate-700">
+                    <span className="text-slate-500">EMD Requirement</span>
+                    <span className="font-bold text-green-700">₹0 (Waived)</span>
                   </div>
-                  <div className="flex justify-between py-1.5 border-b border-slate-800 text-slate-300">
-                    <span className="text-slate-400">Procurement Method</span>
-                    <span className="font-medium text-slate-200">{selectedTender.procurement_method || "Open Tender L1"}</span>
+                  <div className="flex justify-between py-1.5 border-b border-slate-200 text-slate-700">
+                    <span className="text-slate-500">Procurement Method</span>
+                    <span className="font-medium text-slate-900">{selectedTender.procurement_method || "Open Tender L1"}</span>
                   </div>
                 </div>
 
                 <div className="pt-2 flex flex-col gap-2">
                   <button
                     onClick={() => router.push(`/dashboard/tenders/${selectedTender.id}`)}
-                    className="btn btn-primary w-full py-2.5 text-xs font-semibold justify-center shadow-lg shadow-indigo-600/20"
+                    className="btn btn-primary w-full py-2.5 text-xs font-semibold justify-center shadow-2xs"
                   >
                     Open Workspace &amp; Generate Bid <ArrowUpRight className="w-3.5 h-3.5" />
                   </button>
@@ -528,7 +527,7 @@ function DashboardContent() {
                         }
                       }
                     }}
-                    className="w-full py-2 rounded-xl bg-slate-800/80 border border-slate-700/60 text-xs text-slate-300 hover:text-white font-medium transition-colors text-center"
+                    className="btn btn-secondary w-full py-2 text-xs font-medium justify-center"
                   >
                     {isWatchlisted(selectedTender.id) ? "Remove from Watchlist" : "Bookmark to Watchlist"}
                   </button>
@@ -536,43 +535,43 @@ function DashboardContent() {
               </div>
             ) : (
               <div className="p-8 text-center text-xs text-slate-400">
-                Click any row in the feed to inspect AI qualification analysis...
+                Click any row in the stream table to inspect qualification details...
               </div>
             )}
           </div>
 
           {/* Network Ingestion Signal Stream */}
-          <div className="p-6 rounded-3xl bg-slate-900/80 border border-slate-800/80 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div className="p-6 rounded-2xl bg-white border border-slate-200 space-y-4 shadow-xs">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <div className="flex items-center gap-2">
-                <Terminal className="w-4 h-4 text-emerald-400" />
-                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-200">Network Signal Stream</h2>
+                <Terminal className="w-4 h-4 text-green-600" />
+                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900">Network Signal Stream</h2>
               </div>
-              <span className="text-[10px] text-slate-400 font-mono">100% Operational</span>
+              <span className="text-[10px] text-slate-500 font-mono font-medium">100% Operational</span>
             </div>
 
             <div className="space-y-3 text-xs">
               <div className="flex items-start gap-2.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 mt-1.5 flex-shrink-0" />
+                <span className="w-2 h-2 rounded-full bg-green-600 mt-1 flex-shrink-0" />
                 <div>
-                  <div className="text-slate-200 font-medium">GeM Portal Connector</div>
-                  <div className="text-[10px] text-slate-400">Synced 1,420 tenders · 12ms latency</div>
+                  <div className="text-slate-900 font-semibold">GeM Portal Connector</div>
+                  <div className="text-[10px] text-slate-500">Synced 1,420 tenders · 12ms latency</div>
                 </div>
               </div>
 
               <div className="flex items-start gap-2.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 mt-1.5 flex-shrink-0" />
+                <span className="w-2 h-2 rounded-full bg-green-600 mt-1 flex-shrink-0" />
                 <div>
-                  <div className="text-slate-200 font-medium">CPPP National Portal</div>
-                  <div className="text-[10px] text-slate-400">Synced 2,150 tenders · 18ms latency</div>
+                  <div className="text-slate-900 font-semibold">CPPP National Portal</div>
+                  <div className="text-[10px] text-slate-500">Synced 2,150 tenders · 18ms latency</div>
                 </div>
               </div>
 
               <div className="flex items-start gap-2.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 mt-1.5 flex-shrink-0" />
+                <span className="w-2 h-2 rounded-full bg-green-600 mt-1 flex-shrink-0" />
                 <div>
-                  <div className="text-slate-200 font-medium">Defence Procurement (DRDO/HAL)</div>
-                  <div className="text-[10px] text-slate-400">Synced 682 tenders · 15ms latency</div>
+                  <div className="text-slate-900 font-semibold">Defence Procurement (DRDO/HAL)</div>
+                  <div className="text-[10px] text-slate-500">Synced 682 tenders · 15ms latency</div>
                 </div>
               </div>
             </div>
@@ -588,7 +587,7 @@ export default function DashboardPage() {
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+        <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
       </div>
     }>
       <DashboardContent />
