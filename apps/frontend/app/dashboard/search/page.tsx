@@ -33,23 +33,24 @@ interface Tender {
   status: string;
 }
 
-const PORTAL_CONFIG: Record<string, { label: string; color: string; bg: string; defaultUrl: string }> = {
-  gem:         { label: "GeM",          color: "#4ade80", bg: "rgba(34,197,94,0.12)",   defaultUrl: "https://gem.gov.in" },
-  cppp:        { label: "CPPP",         color: "#60a5fa", bg: "rgba(96,165,250,0.12)",  defaultUrl: "https://eprocure.gov.in/eprocure/app" },
-  defence:     { label: "Defence",      color: "#f87171", bg: "rgba(239,68,68,0.12)",   defaultUrl: "https://defproc.gov.in" },
-  railways:    { label: "IREPS",        color: "#fb923c", bg: "rgba(251,146,60,0.12)",  defaultUrl: "https://ireps.gov.in" },
-  ireps:       { label: "IREPS",        color: "#fb923c", bg: "rgba(251,146,60,0.12)",  defaultUrl: "https://ireps.gov.in" },
-  maharashtra: { label: "Maha eProcure", color: "#a78bfa", bg: "rgba(167,139,250,0.12)", defaultUrl: "https://mahatenders.gov.in" },
-  karnataka:   { label: "Karnataka",    color: "#a78bfa", bg: "rgba(167,139,250,0.12)", defaultUrl: "https://eproc.karnataka.gov.in" },
+const PORTAL_CONFIG: Record<string, { label: string; color: string; bg: string; border: string; defaultUrl: string }> = {
+  gem:         { label: "GeM",       color: "var(--gem-color)",   bg: "var(--gem-bg)",   border: "var(--success-border)", defaultUrl: "https://gem.gov.in" },
+  cppp:        { label: "CPPP",      color: "var(--cppp-color)",  bg: "var(--cppp-bg)",  border: "var(--info-border)",    defaultUrl: "https://eprocure.gov.in/eprocure/app" },
+  defence:     { label: "Defence",   color: "var(--def-color)",   bg: "var(--def-bg)",   border: "var(--error-border)",   defaultUrl: "https://defproc.gov.in" },
+  railways:    { label: "IREPS",     color: "var(--rail-color)",  bg: "var(--rail-bg)",  border: "var(--warning-border)", defaultUrl: "https://ireps.gov.in" },
+  ireps:       { label: "IREPS",     color: "var(--rail-color)",  bg: "var(--rail-bg)",  border: "var(--warning-border)", defaultUrl: "https://ireps.gov.in" },
+  maharashtra: { label: "Maha",      color: "var(--state-color)", bg: "var(--state-bg)", border: "#ddd6fe",               defaultUrl: "https://mahatenders.gov.in" },
+  karnataka:   { label: "Karnataka", color: "var(--state-color)", bg: "var(--state-bg)", border: "#ddd6fe",               defaultUrl: "https://eproc.karnataka.gov.in" },
 };
 
 function getPortal(source: string) {
   const key = (source || "").toLowerCase();
   return PORTAL_CONFIG[key] || {
-    label: (source || "GOV").toUpperCase(),
-    color: "#94a3b8",
-    bg: "rgba(148,163,184,0.12)",
-    defaultUrl: "https://cppp.gov.in"
+    label:      (source || "GOV").toUpperCase().slice(0, 6),
+    color:      "var(--text-tertiary)",
+    bg:         "var(--bg-subtle)",
+    border:     "var(--border)",
+    defaultUrl: "https://cppp.gov.in",
   };
 }
 

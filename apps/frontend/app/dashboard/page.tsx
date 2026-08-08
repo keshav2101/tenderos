@@ -5,14 +5,12 @@ export const dynamic = "force-dynamic";
 import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { motion } from "framer-motion";
 import {
   Search, IndianRupee, MapPin, Building2, Clock, Zap,
-  BookmarkPlus, BookmarkCheck, RefreshCw, TrendingUp,
-  AlertCircle, Loader2, GitCompare, X, ExternalLink,
-  ChevronRight, Sparkles, Filter, Sliders, ShieldCheck,
-  ArrowUpRight, FileText, CheckCircle2, CornerDownRight,
-  Layers, Terminal, BarChart2
+  BookmarkPlus, BookmarkCheck, RefreshCw,
+  AlertCircle, Loader2, ExternalLink,
+  ChevronRight, Sparkles, ShieldCheck,
+  ArrowUpRight, FileText, Terminal, BarChart2
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { tendersApi, eligibilityApi } from "@/lib/api";
@@ -21,88 +19,120 @@ import { getConnectorsSummary } from "@/lib/connectors-store";
 import { Tender, getLocalCatalog, searchCatalog } from "@/lib/catalog";
 import { addToWatchlist, removeFromWatchlist, isWatchlisted } from "@/lib/watchlist-store";
 
-// Portal styling mapping (Clean Light Theme)
-const PORTAL_CONFIG: Record<string, { label: string; color: string; bg: string; defaultUrl: string }> = {
-  gem:         { label: "GeM",          color: "#15803d", bg: "#f0fdf4", defaultUrl: "https://gem.gov.in" },
-  cppp:        { label: "CPPP",         color: "#1d4ed8", bg: "#eff6ff", defaultUrl: "https://eprocure.gov.in/eprocure/app" },
-  defence:     { label: "Defence",      color: "#b91c1c", bg: "#fef2f2", defaultUrl: "https://defproc.gov.in" },
-  railways:    { label: "IREPS",        color: "#c2410c", bg: "#fff7ed", defaultUrl: "https://ireps.gov.in" },
-  ireps:       { label: "IREPS",        color: "#c2410c", bg: "#fff7ed", defaultUrl: "https://ireps.gov.in" },
-  maharashtra: { label: "Maha eProc",   color: "#6b21a8", bg: "#faf5ff", defaultUrl: "https://mahatenders.gov.in" },
-  karnataka:   { label: "Karnataka",    color: "#6b21a8", bg: "#faf5ff", defaultUrl: "https://eproc.karnataka.gov.in" },
+/* ── Portal config ──────────────────────────────────────────────────────────── */
+const PORTAL_CONFIG: Record<string, { label: string; color: string; bg: string; border: string; defaultUrl: string }> = {
+  gem:         { label: "GeM",        color: "var(--gem-color)",   bg: "var(--gem-bg)",   border: "var(--success-border)", defaultUrl: "https://gem.gov.in" },
+  cppp:        { label: "CPPP",       color: "var(--cppp-color)",  bg: "var(--cppp-bg)",  border: "var(--info-border)",    defaultUrl: "https://eprocure.gov.in/eprocure/app" },
+  defence:     { label: "Defence",    color: "var(--def-color)",   bg: "var(--def-bg)",   border: "var(--error-border)",   defaultUrl: "https://defproc.gov.in" },
+  railways:    { label: "IREPS",      color: "var(--rail-color)",  bg: "var(--rail-bg)",  border: "var(--warning-border)", defaultUrl: "https://ireps.gov.in" },
+  ireps:       { label: "IREPS",      color: "var(--rail-color)",  bg: "var(--rail-bg)",  border: "var(--warning-border)", defaultUrl: "https://ireps.gov.in" },
+  maharashtra: { label: "Maha",       color: "var(--state-color)", bg: "var(--state-bg)", border: "#ddd6fe",               defaultUrl: "https://mahatenders.gov.in" },
+  karnataka:   { label: "Karnataka",  color: "var(--state-color)", bg: "var(--state-bg)", border: "#ddd6fe",               defaultUrl: "https://eproc.karnataka.gov.in" },
 };
 
 function getPortalInfo(source: string) {
   const key = (source || "").toLowerCase();
   return PORTAL_CONFIG[key] || {
-    label: (source || "GOV").toUpperCase(),
-    color: "#475569",
-    bg: "#f8fafc",
-    defaultUrl: "https://cppp.gov.in"
+    label: (source || "GOV").toUpperCase().slice(0, 6),
+    color: "var(--text-tertiary)",
+    bg:    "var(--bg-subtle)",
+    border: "var(--border)",
+    defaultUrl: "https://cppp.gov.in",
   };
 }
 
 function ensureAbsoluteUrl(url?: string | null, defaultUrl: string = "https://eprocure.gov.in/eprocure/app"): string {
   if (!url || typeof url !== "string" || !url.trim()) return defaultUrl;
-  const trimmed = url.trim();
-  if (trimmed.includes("localhost") || trimmed.includes("127.0.0.1") || trimmed.startsWith("/")) {
-    return defaultUrl;
-  }
-  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) return trimmed;
-  if (trimmed.startsWith("//")) return `https:${trimmed}`;
-  return `https://${trimmed}`;
+  const t = url.trim();
+  if (t.includes("localhost") || t.includes("127.0.0.1") || t.startsWith("/")) return defaultUrl;
+  if (t.startsWith("http://") || t.startsWith("https://")) return t;
+  if (t.startsWith("//")) return `https:${t}`;
+  return `https://${t}`;
 }
 
 const SECTORS = [
   "All Sectors",
   "Technology & IT",
-  "Infrastructure & Civil Works",
+  "Infrastructure & Civil",
   "Defence & Aerospace",
   "Railways & Mobility",
-  "Healthcare & Medical Equipment",
-  "Energy & Renewable Power",
-  "Telecommunications & Networking",
-  "Water & Waste Management",
+  "Healthcare & Medical",
+  "Energy & Renewables",
+  "Telecom & Networking",
+  "Water & Waste",
 ];
 
-function DashboardContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const { user } = useAuth();
+/* ── Signal feed items ──────────────────────────────────────────────────────── */
+const SIGNAL_FEED = [
+  { status: "live",  label: "GeM Portal",          detail: "1,420 tenders · 12ms" },
+  { status: "live",  label: "CPPP National",        detail: "2,150 tenders · 18ms" },
+  { status: "live",  label: "Defence (DRDO/HAL)",   detail: "682 tenders · 15ms" },
+  { status: "live",  label: "Indian Railways",      detail: "534 tenders · 20ms" },
+  { status: "live",  label: "36 State/UT Portals",  detail: "4,977 tenders · avg 25ms" },
+];
 
-  const [tenders, setTenders] = useState<Tender[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [refreshedAt, setRefreshedAt] = useState<Date>(new Date());
+/* ── Stat item component ─────────────────────────────────────────────────────── */
+function StatItem({
+  label, value, sub, accent
+}: { label: string; value: string; sub?: string; accent?: string }) {
+  return (
+    <div className="stat-block">
+      <div className="stat-label">{label}</div>
+      <div
+        className="stat-value"
+        style={{ color: accent || "var(--text-primary)" }}
+      >
+        {value}
+      </div>
+      {sub && (
+        <div className="text-[10px] mt-0.5" style={{ color: "var(--text-muted)" }}>
+          {sub}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Main dashboard content ─────────────────────────────────────────────────── */
+function DashboardContent() {
+  const router       = useRouter();
+  const searchParams = useSearchParams();
+  const { user }     = useAuth();
+
+  const [tenders,           setTenders]           = useState<Tender[]>([]);
+  const [loading,           setLoading]           = useState(true);
+  const [error,             setError]             = useState<string | null>(null);
   const [isSyncingScrapers, setIsSyncingScrapers] = useState(false);
 
-  // Selection & Inspector State
+  /* Selection & Inspector */
   const [selectedTender, setSelectedTender] = useState<Tender | null>(null);
-  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [selectedIndex,  setSelectedIndex]  = useState(0);
 
-  // Filters
-  const [search, setSearch] = useState("");
-  const [filterRec, setFilterRec] = useState<string>("all");
-  const [filterSector, setFilterSector] = useState<string>("All Sectors");
-  const [filterMsme, setFilterMsme] = useState(false);
+  /* Filters */
+  const [search,        setSearch]        = useState("");
+  const [filterSector,  setFilterSector]  = useState("All Sectors");
+  const [filterMsme,    setFilterMsme]    = useState(false);
   const [filterStartup, setFilterStartup] = useState(false);
 
-  // Pagination
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(25);
+  /* Pagination */
+  const [page,     setPage]     = useState(1);
+  const [pageSize] = useState(30);
 
+  /* ── Data fetch ─────────────────────────────────────────────────────────── */
   const fetchTenders = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const q = searchParams.get("q") || "";
+      const q          = searchParams.get("q") || "";
       const stateParam = searchParams.get("state") || "";
-      const costMinParam = searchParams.get("cost_min") ? parseFloat(searchParams.get("cost_min")!) : undefined;
+      const costMin    = searchParams.get("cost_min")
+        ? parseFloat(searchParams.get("cost_min")!)
+        : undefined;
 
       const localRes = searchCatalog({
-        q: q || search || undefined,
-        state: stateParam || undefined,
-        cost_min: costMinParam,
+        q:         q || search || undefined,
+        state:     stateParam || undefined,
+        cost_min:  costMin,
         page,
         page_size: pageSize,
       });
@@ -111,18 +141,14 @@ function DashboardContent() {
       if (localRes.tenders.length > 0 && !selectedTender) {
         setSelectedTender(localRes.tenders[0]);
       }
-      setRefreshedAt(new Date());
     } catch (err: any) {
-      console.error("Failed to load catalog feed", err);
       setError("Unable to sync catalog feed.");
     } finally {
       setLoading(false);
     }
   }, [searchParams, search, page, pageSize]);
 
-  useEffect(() => {
-    fetchTenders();
-  }, [fetchTenders]);
+  useEffect(() => { fetchTenders(); }, [fetchTenders]);
 
   const handleRunScrapers = async () => {
     setIsSyncingScrapers(true);
@@ -134,446 +160,782 @@ function DashboardContent() {
     }
   };
 
-  // Keyboard navigation listener (J / K row movement, Enter to open)
+  /* ── Keyboard navigation (J/K/Enter) ───────────────────────────────────── */
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handler = (e: KeyboardEvent) => {
       if (["INPUT", "TEXTAREA", "SELECT"].includes((e.target as HTMLElement).tagName)) return;
-
       if (e.key === "j" || e.key === "ArrowDown") {
         e.preventDefault();
-        setSelectedIndex((prev) => {
+        setSelectedIndex(prev => {
           const next = Math.min(prev + 1, tenders.length - 1);
           if (tenders[next]) setSelectedTender(tenders[next]);
           return next;
         });
       } else if (e.key === "k" || e.key === "ArrowUp") {
         e.preventDefault();
-        setSelectedIndex((prev) => {
-          const prevIdx = Math.max(prev - 1, 0);
-          if (tenders[prevIdx]) setSelectedTender(tenders[prevIdx]);
-          return prevIdx;
+        setSelectedIndex(prev => {
+          const p = Math.max(prev - 1, 0);
+          if (tenders[p]) setSelectedTender(tenders[p]);
+          return p;
         });
       } else if (e.key === "Enter" && selectedTender) {
         e.preventDefault();
         router.push(`/dashboard/tenders/${selectedTender.id}`);
       }
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
   }, [tenders, selectedTender, router]);
 
-  // Derived filtered tenders list
+  /* ── Derived values ─────────────────────────────────────────────────────── */
   const filteredTenders = useMemo(() => {
-    return tenders.filter((t) => {
-      if (filterRec !== "all" && t.recommendation !== filterRec) return false;
-      if (filterMsme && !t.msme_eligible) return false;
+    return tenders.filter(t => {
+      if (filterMsme    && !t.msme_eligible)    return false;
       if (filterStartup && !t.startup_eligible) return false;
       if (filterSector !== "All Sectors") {
-        const sectorLower = filterSector.toLowerCase().split(" ")[0];
-        const matchCat = (t.categories || []).some(c => c.toLowerCase().includes(sectorLower));
-        if (!matchCat) return false;
+        const key = filterSector.toLowerCase().split(" ")[0];
+        const ok  = (t.categories || []).some(c => c.toLowerCase().includes(key));
+        if (!ok) return false;
       }
       return true;
     });
-  }, [tenders, filterRec, filterMsme, filterStartup, filterSector]);
+  }, [tenders, filterMsme, filterStartup, filterSector]);
 
-  // High priority urgent tenders closing soon (<72 hours)
   const urgentCount = useMemo(() => {
     const now = Date.now();
     return tenders.filter(t => {
       if (!t.submission_deadline) return false;
-      const hours = (new Date(t.submission_deadline).getTime() - now) / 3600000;
-      return hours > 0 && hours <= 72;
+      const h = (new Date(t.submission_deadline).getTime() - now) / 3600000;
+      return h > 0 && h <= 72;
     }).length;
   }, [tenders]);
 
   const totalValueCr = useMemo(() => {
-    const totalLakhs = tenders.reduce((acc, t) => acc + (t.estimated_cost_lakhs || 0), 0);
-    return (totalLakhs / 100).toFixed(1);
+    const lakhs = tenders.reduce((acc, t) => acc + (t.estimated_cost_lakhs || 0), 0);
+    return (lakhs / 100).toFixed(0);
   }, [tenders]);
 
+  const msmeCount = useMemo(() =>
+    tenders.filter(t => t.msme_eligible).length
+  , [tenders]);
+
+  const pagedTenders = filteredTenders.slice((page - 1) * pageSize, page * pageSize);
+  const totalPages   = Math.ceil(filteredTenders.length / pageSize) || 1;
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     RENDER
+  ─────────────────────────────────────────────────────────────────────────── */
   return (
-    <div className="p-8 max-w-[1600px] mx-auto space-y-8 animate-fade-in text-slate-900 dark:text-slate-100 transition-colors duration-200">
-      {/* ─── 1. Executive Editorial Briefing (Visual Anchor - Dual Theme) ───── */}
-      <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 shadow-xs transition-colors duration-200">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="space-y-2 max-w-3xl">
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-md bg-blue-50 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-500/30">
-                Executive Action Briefing
+    <div className="animate-fade-in" style={{ minHeight: "100%" }}>
+
+      {/* ── Page Header — editorial, not a hero card ────────────────────────── */}
+      <div
+        style={{
+          padding: "28px 32px 0",
+          borderBottom: "1px solid var(--border)",
+          background: "var(--bg-base)",
+        }}
+      >
+        {/* Top row: title + actions */}
+        <div className="flex items-start justify-between gap-6 pb-6">
+          <div className="space-y-1 flex-1 min-w-0">
+            {/* Live indicator pill — minimal */}
+            <div className="flex items-center gap-2 mb-3">
+              <span className="status-dot status-dot-live" />
+              <span
+                className="text-[11px] font-semibold"
+                style={{ color: "var(--success)", letterSpacing: "0.04em" }}
+              >
+                LIVE INGESTION
               </span>
-              <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5 font-medium">
-                <span className="w-2 h-2 rounded-full bg-green-600 dark:bg-green-400 animate-pulse" />
-                Live Ingestion Active
+              <span
+                className="text-[11px]"
+                style={{ color: "var(--text-muted)" }}
+              >
+                · Updated {formatDistanceToNow(new Date(), { addSuffix: true })}
               </span>
             </div>
-            <h1 className="text-2xl lg:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-snug">
+
+            {/* Primary headline — editorial, not a widget title */}
+            <h1
+              className="font-display leading-tight"
+              style={{
+                fontSize: "28px",
+                color: "var(--text-primary)",
+                letterSpacing: "-0.03em",
+                fontWeight: 800,
+              }}
+            >
               {urgentCount > 0 ? (
                 <>
-                  <strong className="text-amber-700 dark:text-amber-400 font-bold">{urgentCount} High-Yield Solicitations</strong> Closing in &lt;72h (Total Volume: <strong className="text-green-700 dark:text-green-400 font-bold">₹{totalValueCr} Cr</strong>)
+                  <span style={{ color: "var(--warning)" }}>{urgentCount} solicitations</span>{" "}
+                  closing within 72 hours
                 </>
               ) : (
                 <>
-                  <strong className="text-blue-700 dark:text-blue-400 font-bold">9,763 Active Opportunities</strong> Ingested Across GeM, CPPP, Defence &amp; 36 States/UTs
+                  9,763 active procurement{" "}
+                  <span style={{ color: "var(--brand)" }}>opportunities</span>
                 </>
               )}
             </h1>
-            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed max-w-2xl">
-              All indexed solicitations qualify for <strong className="text-slate-900 dark:text-white font-medium">Udyam MSME Rule 170 EMD Exemptions</strong> and <strong className="text-slate-900 dark:text-white font-medium">Make in India (MII) Class-I Local Supplier Preference</strong>.
+
+            <p
+              className="text-[13px] leading-relaxed max-w-xl mt-1"
+              style={{ color: "var(--text-tertiary)" }}
+            >
+              GeM · CPPP · Defence · IREPS · 36 States &amp; UTs — all indexed, filtered,
+              and ranked by qualification probability for your company profile.
             </p>
           </div>
 
-          <div className="flex items-center gap-3 flex-shrink-0">
+          {/* CTA cluster */}
+          <div className="flex items-center gap-2 flex-shrink-0 pt-1">
             <button
               onClick={() => router.push("/dashboard/intelligence")}
-              className="btn btn-primary text-xs px-4 py-2.5 rounded-lg flex items-center gap-2 font-medium"
+              className="btn btn-primary text-[12px] px-4 py-2"
             >
-              <Zap className="w-4 h-4 text-white" />
-              Launch AI Qualification Copilot
+              <Sparkles className="w-3.5 h-3.5" />
+              AI Copilot
             </button>
             <button
               onClick={handleRunScrapers}
               disabled={isSyncingScrapers}
-              className="btn btn-secondary text-xs px-3.5 py-2.5 rounded-lg flex items-center gap-2 font-medium"
+              className="btn btn-secondary text-[12px] px-3 py-2"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${isSyncingScrapers ? "animate-spin text-blue-600 dark:text-blue-400" : "text-slate-500 dark:text-slate-400"}`} />
-              {isSyncingScrapers ? "Syncing..." : "Sync Scrapers"}
+              <RefreshCw className={`w-3.5 h-3.5 ${isSyncingScrapers ? "animate-spin" : ""}`} style={{ color: isSyncingScrapers ? "var(--brand)" : "var(--text-muted)" }} />
+              {isSyncingScrapers ? "Syncing..." : "Sync"}
             </button>
           </div>
         </div>
 
-        {/* Integrated Narrative Metric Strip */}
-        <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-800 grid grid-cols-2 md:grid-cols-4 gap-6 text-xs">
-          <div className="space-y-0.5">
-            <span className="text-[10px] uppercase font-semibold text-slate-400 dark:text-slate-500 tracking-wider">Active Stream</span>
-            <div className="text-lg font-bold text-slate-900 dark:text-white tabular-nums">{tenders.length.toLocaleString("en-IN")} Solicitations</div>
-          </div>
-          <div className="space-y-0.5">
-            <span className="text-[10px] uppercase font-semibold text-slate-400 dark:text-slate-500 tracking-wider">MSME EMD Saved</span>
-            <div className="text-lg font-bold text-green-700 dark:text-green-400 tabular-nums">₹{(parseFloat(totalValueCr) * 0.02 * 100).toFixed(0)} Lakhs Waived</div>
-          </div>
-          <div className="space-y-0.5">
-            <span className="text-[10px] uppercase font-semibold text-slate-400 dark:text-slate-500 tracking-wider">Avg Win Match</span>
-            <div className="text-lg font-bold text-blue-700 dark:text-blue-400 tabular-nums">88.4% Fit Probability</div>
-          </div>
-          <div className="space-y-0.5">
-            <span className="text-[10px] uppercase font-semibold text-slate-400 dark:text-slate-500 tracking-wider">Portals Status</span>
-            <div className="text-lg font-bold text-slate-900 dark:text-white tabular-nums">36 States &amp; UTs Online</div>
-          </div>
+        {/* Stat strip — plain, editorial, no cards or boxes */}
+        <div
+          className="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-4 pb-5"
+          style={{ borderTop: "1px solid var(--border)", paddingTop: "20px" }}
+        >
+          <StatItem
+            label="Active Stream"
+            value={`${tenders.length.toLocaleString("en-IN")}`}
+            sub="solicitations indexed"
+          />
+          <StatItem
+            label="Total Value"
+            value={`₹${Number(totalValueCr).toLocaleString("en-IN")} Cr`}
+            sub="combined tender value"
+            accent="var(--brand)"
+          />
+          <StatItem
+            label="MSME Eligible"
+            value={`${msmeCount.toLocaleString("en-IN")}`}
+            sub="EMD waived under Udyam Rule 170"
+            accent="var(--success)"
+          />
+          <StatItem
+            label="Portals Online"
+            value="36"
+            sub="States & UTs + Central"
+          />
         </div>
       </div>
 
-      {/* ─── 2. Asymmetrical 2-Column Operating Workspace ─────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        
-        {/* LEFT COLUMN: Main Editorial Stream Table (8 Cols) */}
-        <div className="lg:col-span-8 space-y-4">
-          
-          {/* Stream Toolbar & Filters */}
-          <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl flex items-center justify-between gap-3 flex-wrap shadow-2xs transition-colors duration-200">
-            <div className="flex items-center gap-2 flex-1 min-w-48">
-              <Search className="w-4 h-4 text-slate-400 dark:text-slate-500 ml-1" />
+      {/* ── Main 2-column workspace ──────────────────────────────────────────── */}
+      <div
+        style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 0, minHeight: "calc(100vh - 200px)" }}
+      >
+        {/* ── LEFT: Stream feed ──────────────────────────────────────────────── */}
+        <div
+          style={{ borderRight: "1px solid var(--border)", padding: "0" }}
+        >
+          {/* Filter toolbar — strip, not a search card */}
+          <div
+            className="flex items-center gap-3 px-6 py-3"
+            style={{ borderBottom: "1px solid var(--border)", background: "var(--bg-base)" }}
+          >
+            {/* Inline search */}
+            <div className="flex items-center gap-2 flex-1" style={{ maxWidth: "260px" }}>
+              <Search className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "var(--text-muted)" }} />
               <input
                 type="text"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Filter by keyword, state (e.g. Delhi, J&K), ministry..."
-                className="bg-transparent text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 outline-none w-full"
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Filter stream..."
+                style={{
+                  background:  "transparent",
+                  border:      "none",
+                  outline:     "none",
+                  fontSize:    "13px",
+                  color:       "var(--text-primary)",
+                  width:       "100%",
+                }}
               />
             </div>
 
-            <div className="flex items-center gap-2 flex-wrap">
-              <select
-                value={filterSector}
-                onChange={(e) => setFilterSector(e.target.value)}
-                className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-xs rounded-lg px-2.5 py-1.5 outline-none font-medium"
-              >
-                {SECTORS.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
+            <div
+              style={{ width: "1px", height: "16px", background: "var(--border)", flexShrink: 0 }}
+            />
 
-              <button
-                onClick={() => setFilterMsme(!filterMsme)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
-                  filterMsme
-                    ? "bg-green-50 dark:bg-green-500/20 text-green-700 dark:text-green-400 border-green-200 dark:border-green-500/30"
-                    : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800"
-                }`}
-              >
-                MSME Exempt
-              </button>
+            {/* Sector select */}
+            <select
+              value={filterSector}
+              onChange={e => setFilterSector(e.target.value)}
+              style={{
+                background:  "transparent",
+                border:      "none",
+                outline:     "none",
+                fontSize:    "12px",
+                color:       "var(--text-secondary)",
+                cursor:      "pointer",
+                fontFamily:  "inherit",
+              }}
+            >
+              {SECTORS.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
 
-              <button
-                onClick={() => setFilterStartup(!filterStartup)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
-                  filterStartup
-                    ? "bg-blue-50 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-500/30"
-                    : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800"
-                }`}
-              >
-                Startup
-              </button>
-            </div>
-          </div>
+            <div
+              style={{ width: "1px", height: "16px", background: "var(--border)", flexShrink: 0 }}
+            />
 
-          {/* Keyboard Helper Hint */}
-          <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 px-1">
-            <span className="flex items-center gap-1.5">
-              <kbd>J</kbd><kbd>K</kbd> Navigate rows · <kbd>↵</kbd> Open workspace · <kbd>Cmd+K</kbd> Command Bar
+            {/* Filter toggles */}
+            <button
+              onClick={() => setFilterMsme(!filterMsme)}
+              style={{
+                fontSize:    "11px",
+                fontWeight:  filterMsme ? 600 : 500,
+                padding:     "3px 9px",
+                borderRadius: "4px",
+                border:      `1px solid ${filterMsme ? "var(--success-border)" : "var(--border)"}`,
+                background:  filterMsme ? "var(--success-bg)" : "transparent",
+                color:       filterMsme ? "var(--success)" : "var(--text-muted)",
+                cursor:      "pointer",
+                transition:  "all 0.1s ease",
+                whiteSpace:  "nowrap",
+              }}
+            >
+              MSME Exempt
+            </button>
+
+            <button
+              onClick={() => setFilterStartup(!filterStartup)}
+              style={{
+                fontSize:    "11px",
+                fontWeight:  filterStartup ? 600 : 500,
+                padding:     "3px 9px",
+                borderRadius: "4px",
+                border:      `1px solid ${filterStartup ? "var(--brand-border)" : "var(--border)"}`,
+                background:  filterStartup ? "var(--brand-muted)" : "transparent",
+                color:       filterStartup ? "var(--brand)" : "var(--text-muted)",
+                cursor:      "pointer",
+                transition:  "all 0.1s ease",
+                whiteSpace:  "nowrap",
+              }}
+            >
+              Startup
+            </button>
+
+            {/* Count */}
+            <span
+              className="ml-auto text-[11px] font-mono flex-shrink-0"
+              style={{ color: "var(--text-muted)" }}
+            >
+              {filteredTenders.length.toLocaleString("en-IN")} results
             </span>
-            <span>Showing {filteredTenders.length} opportunities</span>
           </div>
 
-          {/* Editorial Stream Rows */}
-          {loading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 animate-pulse h-24" />
-              ))}
-            </div>
-          ) : filteredTenders.length === 0 ? (
-            <div className="p-12 text-center rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3">
-              <AlertCircle className="w-8 h-8 text-slate-400 dark:text-slate-500 mx-auto" />
-              <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">No tenders match your current stream filters.</p>
-              <button onClick={() => { setSearch(""); setFilterSector("All Sectors"); setFilterMsme(false); }} className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium">
-                Reset filters
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {filteredTenders.slice((page - 1) * pageSize, page * pageSize).map((t, idx) => {
+          {/* Keyboard hint — ultra-minimal */}
+          <div
+            className="flex items-center gap-2 px-6 py-1.5"
+            style={{ borderBottom: "1px solid var(--border)", background: "var(--bg-canvas)" }}
+          >
+            <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+              <kbd>J</kbd><kbd>K</kbd> navigate · <kbd>↵</kbd> open workspace · <kbd>⌘K</kbd> command bar
+            </span>
+          </div>
+
+          {/* Stream rows */}
+          <div style={{ background: "var(--bg-base)" }}>
+            {loading ? (
+              /* Skeleton rows */
+              <div>
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      padding:     "14px 24px",
+                      borderBottom: "1px solid var(--border)",
+                      display:     "flex",
+                      gap:         "12px",
+                      alignItems:  "flex-start",
+                    }}
+                  >
+                    <div className="skeleton" style={{ width: "52px", height: "18px", borderRadius: "3px", flexShrink: 0 }} />
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "6px" }}>
+                      <div className="skeleton" style={{ width: "70%", height: "14px" }} />
+                      <div className="skeleton" style={{ width: "45%", height: "11px" }} />
+                    </div>
+                    <div className="skeleton" style={{ width: "64px", height: "14px", flexShrink: 0 }} />
+                  </div>
+                ))}
+              </div>
+            ) : filteredTenders.length === 0 ? (
+              <div
+                className="flex flex-col items-center justify-center py-20 gap-3"
+                style={{ color: "var(--text-muted)" }}
+              >
+                <AlertCircle className="w-7 h-7" />
+                <p className="text-[13px]">No tenders match current filters.</p>
+                <button
+                  onClick={() => { setSearch(""); setFilterSector("All Sectors"); setFilterMsme(false); setFilterStartup(false); }}
+                  style={{ color: "var(--brand)", fontSize: "12px", background: "none", border: "none", cursor: "pointer" }}
+                >
+                  Clear filters
+                </button>
+              </div>
+            ) : (
+              pagedTenders.map((t, idx) => {
                 const isSelected = selectedTender?.id === t.id;
-                const portal = getPortalInfo(t.source);
-                const portalUrl = ensureAbsoluteUrl(t.source_url, portal.defaultUrl);
-                const daysLeft = t.submission_deadline
+                const portal     = getPortalInfo(t.source);
+                const portalUrl  = ensureAbsoluteUrl(t.source_url, portal.defaultUrl);
+                const daysLeft   = t.submission_deadline
                   ? Math.ceil((new Date(t.submission_deadline).getTime() - Date.now()) / 86400000)
                   : null;
+                const isUrgent = daysLeft !== null && daysLeft <= 3;
 
                 return (
                   <div
                     key={t.id}
                     onClick={() => { setSelectedTender(t); setSelectedIndex(idx); }}
-                    className={`group relative p-4 rounded-xl border transition-all duration-150 cursor-pointer ${
-                      isSelected
-                        ? "bg-blue-50/70 dark:bg-indigo-950/40 border-blue-300 dark:border-indigo-500/60 shadow-2xs"
-                        : "bg-white dark:bg-slate-900/60 border-slate-200 dark:border-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50/60 dark:hover:bg-slate-900/90"
-                    }`}
+                    className={`stream-row ${isSelected ? "selected" : ""}`}
+                    style={{
+                      display: "block",
+                      padding: "13px 24px",
+                      borderBottom: "1px solid var(--border)",
+                      cursor: "pointer",
+                      position: "relative",
+                      transition: "background 0.1s ease",
+                      background: isSelected ? "var(--brand-muted)" : "var(--bg-base)",
+                    }}
                   >
-                    {/* Selected Left Accent Bar */}
+                    {/* Selected accent bar */}
                     {isSelected && (
-                      <div className="absolute left-0 top-3 bottom-3 w-1 rounded-r-full bg-blue-600 dark:bg-indigo-500" />
+                      <div
+                        style={{
+                          position: "absolute",
+                          left: 0, top: 0, bottom: 0,
+                          width: "3px",
+                          background: "var(--brand)",
+                        }}
+                      />
                     )}
 
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0 space-y-1.5">
+                    <div className="flex items-start gap-4">
+                      {/* Portal badge — left column, fixed width for rhythm */}
+                      <div className="flex-shrink-0 pt-0.5" style={{ width: "58px" }}>
+                        <span
+                          style={{
+                            display:      "inline-block",
+                            fontSize:     "9px",
+                            fontWeight:   700,
+                            letterSpacing:"0.05em",
+                            textTransform:"uppercase",
+                            padding:      "2px 6px",
+                            borderRadius: "3px",
+                            background:   portal.bg,
+                            color:        portal.color,
+                            border:       `1px solid ${portal.border}`,
+                            lineHeight:   1.6,
+                          }}
+                        >
+                          {portal.label}
+                        </span>
+                      </div>
+
+                      {/* Main content */}
+                      <div className="flex-1 min-w-0 space-y-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span 
-                            className="text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded border"
-                            style={{ color: portal.color, backgroundColor: portal.bg, borderColor: portal.bg }}
+                          <span
+                            className="font-mono text-[10px]"
+                            style={{ color: "var(--text-muted)" }}
                           >
-                            {portal.label}
-                          </span>
-                          <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500">
                             {t.source_tender_id || t.id}
                           </span>
                           {t.msme_eligible && (
-                            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-500/20">
-                              Udyam EMD Exempt
+                            <span
+                              style={{
+                                fontSize: "9px", fontWeight: 700, letterSpacing: "0.04em",
+                                padding: "1px 5px", borderRadius: "3px", textTransform: "uppercase",
+                                background: "var(--success-bg)", color: "var(--success)",
+                                border: "1px solid var(--success-border)",
+                              }}
+                            >
+                              EMD Exempt
                             </span>
                           )}
-                          {daysLeft !== null && daysLeft <= 3 && (
-                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-500/30">
-                              Closing in {daysLeft}d
+                          {isUrgent && (
+                            <span
+                              style={{
+                                fontSize: "9px", fontWeight: 700, letterSpacing: "0.04em",
+                                padding: "1px 5px", borderRadius: "3px", textTransform: "uppercase",
+                                background: "var(--warning-bg)", color: "var(--warning)",
+                                border: "1px solid var(--warning-border)",
+                              }}
+                            >
+                              {daysLeft}d left
                             </span>
                           )}
                         </div>
 
-                        <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-indigo-300 transition-colors line-clamp-1">
+                        <h3
+                          style={{
+                            fontSize:     "13px",
+                            fontWeight:   600,
+                            color:        "var(--text-primary)",
+                            letterSpacing:"-0.01em",
+                            lineHeight:   1.35,
+                            display:      "-webkit-box",
+                            WebkitLineClamp: 1,
+                            WebkitBoxOrient: "vertical",
+                            overflow:     "hidden",
+                          }}
+                        >
                           {t.title}
                         </h3>
 
-                        <div className="flex items-center gap-4 text-[11px] text-slate-500 dark:text-slate-400 flex-wrap">
-                          <span className="flex items-center gap-1">
-                            <Building2 className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
-                            <span className="truncate max-w-[200px]">{t.organisation || t.department || "Central / State Body"}</span>
+                        <div
+                          className="flex items-center gap-4"
+                          style={{ fontSize: "11px", color: "var(--text-muted)" }}
+                        >
+                          <span className="flex items-center gap-1 max-w-[180px] truncate">
+                            <Building2 className="w-3 h-3 flex-shrink-0" />
+                            {t.organisation || t.department || "Central Body"}
                           </span>
                           <span className="flex items-center gap-1">
-                            <MapPin className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
-                            <span>{t.state || "Pan-India"}</span>
-                          </span>
-                          <span className="font-mono text-slate-900 dark:text-slate-100 font-bold tabular-nums">
-                            ₹{(t.estimated_cost_lakhs || 0).toLocaleString("en-IN")} Lakhs
+                            <MapPin className="w-3 h-3 flex-shrink-0" />
+                            {t.state || "Pan-India"}
                           </span>
                         </div>
                       </div>
 
-                      {/* Right Action Icons */}
-                      <div className="flex items-center gap-1 flex-shrink-0">
-                        <a
-                          href={portalUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          title="Open official portal link"
-                          className="p-1.5 rounded-lg text-slate-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                      {/* Right: value + actions */}
+                      <div className="flex-shrink-0 flex flex-col items-end gap-2 min-w-[80px]">
+                        <span
+                          className="font-mono font-bold text-[12px] tabular-nums"
+                          style={{ color: "var(--text-primary)" }}
                         >
-                          <ExternalLink className="w-4 h-4" />
-                        </a>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            router.push(`/dashboard/tenders/${t.id}`);
-                          }}
-                          className="p-1.5 rounded-lg text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                        >
-                          <ChevronRight className="w-4 h-4" />
-                        </button>
+                          ₹{(t.estimated_cost_lakhs || 0).toLocaleString("en-IN")}L
+                        </span>
+                        <div className="flex items-center gap-0.5">
+                          <a
+                            href={portalUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={e => e.stopPropagation()}
+                            style={{ padding: "3px", color: "var(--text-muted)", borderRadius: "4px", display: "flex" }}
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                          <button
+                            onClick={e => { e.stopPropagation(); router.push(`/dashboard/tenders/${t.id}`); }}
+                            style={{ padding: "3px", color: "var(--text-muted)", borderRadius: "4px", display: "flex", background: "none", border: "none", cursor: "pointer" }}
+                          >
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
                 );
-              })}
+              })
+            )}
+          </div>
+
+          {/* Pagination — plain, no card wrapper */}
+          {!loading && filteredTenders.length > 0 && (
+            <div
+              className="flex items-center justify-between px-6 py-3"
+              style={{ borderTop: "1px solid var(--border)", background: "var(--bg-base)" }}
+            >
+              <span
+                className="text-[11px] font-mono"
+                style={{ color: "var(--text-muted)" }}
+              >
+                Page {page} / {totalPages}
+              </span>
+              <div className="flex gap-2">
+                <button
+                  disabled={page === 1}
+                  onClick={() => setPage(p => p - 1)}
+                  className="btn btn-secondary"
+                  style={{ padding: "4px 12px", fontSize: "11px" }}
+                >
+                  ← Previous
+                </button>
+                <button
+                  disabled={page >= totalPages}
+                  onClick={() => setPage(p => p + 1)}
+                  className="btn btn-secondary"
+                  style={{ padding: "4px 12px", fontSize: "11px" }}
+                >
+                  Next →
+                </button>
+              </div>
             </div>
           )}
-
-          {/* Pagination Controls */}
-          <div className="flex items-center justify-between pt-4 text-xs text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800">
-            <span>Page {page} of {Math.ceil(filteredTenders.length / pageSize) || 1}</span>
-            <div className="flex gap-2">
-              <button
-                disabled={page === 1}
-                onClick={() => setPage(p => p - 1)}
-                className="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-xs font-medium disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-800"
-              >
-                Previous
-              </button>
-              <button
-                disabled={page * pageSize >= filteredTenders.length}
-                onClick={() => setPage(p => p + 1)}
-                className="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-xs font-medium disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-800"
-              >
-                Next
-              </button>
-            </div>
-          </div>
         </div>
 
-        {/* RIGHT COLUMN: Context Inspector & Network Monitor (4 Cols) */}
-        <div className="lg:col-span-4 space-y-6 sticky top-20">
-          
-          {/* Selected Tender Context Inspector */}
-          <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-5 shadow-xs transition-colors duration-200">
-            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+        {/* ── RIGHT: Inspector panel ──────────────────────────────────────────── */}
+        <div
+          style={{
+            position:  "sticky",
+            top:       0,
+            height:    "calc(100vh - 48px)", /* subtract header height */
+            overflowY: "auto",
+            padding:   "24px 20px",
+            background: "var(--bg-canvas)",
+            display:   "flex",
+            flexDirection: "column",
+            gap:       "20px",
+          }}
+        >
+
+          {/* ── Inspector card ─────────────────────────────────────────────── */}
+          <div className="inspector-panel">
+            {/* Header */}
+            <div
+              className="flex items-center justify-between px-4 py-3"
+              style={{ borderBottom: "1px solid var(--border)" }}
+            >
               <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-blue-600 dark:text-indigo-400" />
-                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100">AI Context Inspector</h2>
+                <Sparkles
+                  className="w-3.5 h-3.5"
+                  style={{ color: "var(--brand)" }}
+                />
+                <span
+                  className="text-overline"
+                  style={{ color: "var(--text-primary)", fontSize: "10px" }}
+                >
+                  Inspector
+                </span>
               </div>
-              <span className="text-[10px] px-2 py-0.5 rounded bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-400 font-bold border border-green-200 dark:border-green-500/20">
-                Live Verified
+              <span
+                style={{
+                  fontSize: "9px", fontWeight: 700, padding: "2px 6px",
+                  borderRadius: "3px", textTransform: "uppercase", letterSpacing: "0.05em",
+                  background: "var(--success-bg)", color: "var(--success)",
+                  border: "1px solid var(--success-border)",
+                }}
+              >
+                AI Verified
               </span>
             </div>
 
             {selectedTender ? (
-              <div className="space-y-4">
-                <div className="space-y-1">
-                  <div className="text-[10px] font-mono text-slate-400 dark:text-slate-500 uppercase">Selected Tender</div>
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 leading-snug line-clamp-2">
+              <div className="px-4 py-4 space-y-4">
+                {/* Tender title */}
+                <div>
+                  <div
+                    className="text-overline mb-1.5"
+                    style={{ color: "var(--text-muted)", fontSize: "9px" }}
+                  >
+                    Selected tender
+                  </div>
+                  <h3
+                    style={{
+                      fontSize: "13px", fontWeight: 700, color: "var(--text-primary)",
+                      letterSpacing: "-0.01em", lineHeight: 1.4,
+                      display: "-webkit-box", WebkitLineClamp: 3,
+                      WebkitBoxOrient: "vertical", overflow: "hidden",
+                    }}
+                  >
                     {selectedTender.title}
                   </h3>
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 space-y-2">
-                  <div className="flex justify-between text-xs font-medium">
-                    <span className="text-slate-500 dark:text-slate-400">Qualification Score</span>
-                    <span className="font-bold text-green-700 dark:text-green-400">92% Match</span>
+                {/* Qualification bar */}
+                <div
+                  style={{
+                    padding: "12px",
+                    background: "var(--bg-subtle)",
+                    borderRadius: "8px",
+                    border: "1px solid var(--border)",
+                  }}
+                >
+                  <div
+                    className="flex justify-between text-[11px] font-semibold mb-2"
+                  >
+                    <span style={{ color: "var(--text-secondary)" }}>Qualification Score</span>
+                    <span style={{ color: "var(--success)", fontVariantNumeric: "tabular-nums" }}>92%</span>
                   </div>
-                  <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-1.5">
-                    <div className="bg-green-600 dark:bg-green-400 h-1.5 rounded-full w-[92%]" />
+                  <div className="progress-track">
+                    <div className="progress-fill" style={{ width: "92%" }} />
                   </div>
-                  <p className="text-[11px] text-slate-600 dark:text-slate-400 pt-1">
-                    ✔ Past experience matches scope requirement.<br />
-                    ✔ 100% EMD waived under Udyam MSME Rule 170.
-                  </p>
+                  <div className="mt-2.5 space-y-1">
+                    <div className="flex items-start gap-1.5 text-[11px]" style={{ color: "var(--success)" }}>
+                      <ShieldCheck className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                      <span>Past experience matches scope requirement</span>
+                    </div>
+                    <div className="flex items-start gap-1.5 text-[11px]" style={{ color: "var(--success)" }}>
+                      <ShieldCheck className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                      <span>100% EMD waived — Udyam MSME Rule 170</span>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="space-y-2 text-xs">
-                  <div className="flex justify-between py-1.5 border-b border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300">
-                    <span className="text-slate-500 dark:text-slate-400">Estimated Cost</span>
-                    <span className="font-mono font-bold text-slate-900 dark:text-slate-100">₹{(selectedTender.estimated_cost_lakhs || 0).toLocaleString("en-IN")} Lakhs</span>
+                {/* Data rows */}
+                <div>
+                  <div className="inspector-row">
+                    <span style={{ color: "var(--text-muted)", fontSize: "12px" }}>Estimated Cost</span>
+                    <span className="font-mono font-bold text-[12px]" style={{ color: "var(--text-primary)" }}>
+                      ₹{(selectedTender.estimated_cost_lakhs || 0).toLocaleString("en-IN")} L
+                    </span>
                   </div>
-                  <div className="flex justify-between py-1.5 border-b border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300">
-                    <span className="text-slate-500 dark:text-slate-400">EMD Requirement</span>
-                    <span className="font-bold text-green-700 dark:text-green-400">₹0 (Waived)</span>
+                  <div className="inspector-row">
+                    <span style={{ color: "var(--text-muted)", fontSize: "12px" }}>EMD Required</span>
+                    <span className="font-bold text-[12px]" style={{ color: "var(--success)" }}>₹0 Waived</span>
                   </div>
-                  <div className="flex justify-between py-1.5 border-b border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300">
-                    <span className="text-slate-500 dark:text-slate-400">Procurement Method</span>
-                    <span className="font-medium text-slate-900 dark:text-slate-100">{selectedTender.procurement_method || "Open Tender L1"}</span>
+                  <div className="inspector-row">
+                    <span style={{ color: "var(--text-muted)", fontSize: "12px" }}>Method</span>
+                    <span className="font-medium text-[12px]" style={{ color: "var(--text-primary)" }}>
+                      {selectedTender.procurement_method || "Open Tender L1"}
+                    </span>
+                  </div>
+                  <div className="inspector-row">
+                    <span style={{ color: "var(--text-muted)", fontSize: "12px" }}>Portal</span>
+                    <span style={{ color: "var(--text-primary)", fontSize: "12px", fontWeight: 500 }}>
+                      {getPortalInfo(selectedTender.source).label}
+                    </span>
+                  </div>
+                  <div className="inspector-row" style={{ borderBottom: "none", paddingBottom: 0 }}>
+                    <span style={{ color: "var(--text-muted)", fontSize: "12px" }}>State</span>
+                    <span style={{ color: "var(--text-primary)", fontSize: "12px", fontWeight: 500 }}>
+                      {selectedTender.state || "Pan-India"}
+                    </span>
                   </div>
                 </div>
 
-                <div className="pt-2 flex flex-col gap-2">
+                {/* Actions */}
+                <div className="space-y-2 pt-1">
                   <button
                     onClick={() => router.push(`/dashboard/tenders/${selectedTender.id}`)}
-                    className="btn btn-primary w-full py-2.5 text-xs font-semibold justify-center shadow-2xs"
+                    className="btn btn-primary w-full text-[12px]"
+                    style={{ justifyContent: "center", padding: "9px" }}
                   >
-                    Open Workspace &amp; Generate Bid <ArrowUpRight className="w-3.5 h-3.5" />
+                    Open Workspace
+                    <ArrowUpRight className="w-3.5 h-3.5" />
                   </button>
                   <button
                     onClick={() => {
-                      if (selectedTender) {
-                        if (isWatchlisted(selectedTender.id)) {
-                          removeFromWatchlist(selectedTender.id);
-                        } else {
-                          addToWatchlist(selectedTender);
-                        }
+                      if (!selectedTender) return;
+                      if (isWatchlisted(selectedTender.id)) {
+                        removeFromWatchlist(selectedTender.id);
+                      } else {
+                        addToWatchlist(selectedTender);
                       }
                     }}
-                    className="btn btn-secondary w-full py-2 text-xs font-medium justify-center"
+                    className="btn btn-secondary w-full text-[12px]"
+                    style={{ justifyContent: "center", padding: "8px" }}
                   >
-                    {isWatchlisted(selectedTender.id) ? "Remove from Watchlist" : "Bookmark to Watchlist"}
+                    {isWatchlisted(selectedTender.id)
+                      ? <><BookmarkCheck className="w-3.5 h-3.5" style={{ color: "var(--brand)" }} /> Bookmarked</>
+                      : <><BookmarkPlus className="w-3.5 h-3.5" /> Bookmark</>
+                    }
                   </button>
                 </div>
               </div>
             ) : (
-              <div className="p-8 text-center text-xs text-slate-400 dark:text-slate-500">
-                Click any row in the stream table to inspect qualification details...
+              <div
+                className="flex flex-col items-center justify-center py-10"
+                style={{ color: "var(--text-muted)" }}
+              >
+                <FileText className="w-7 h-7 mb-3 opacity-40" />
+                <p className="text-[12px] text-center">
+                  Select a tender to inspect
+                  <br />qualification details
+                </p>
               </div>
             )}
           </div>
 
-          {/* Network Ingestion Signal Stream */}
-          <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4 shadow-xs transition-colors duration-200">
-            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+          {/* ── Portal Signal Feed ──────────────────────────────────────────── */}
+          <div className="inspector-panel">
+            <div
+              className="flex items-center justify-between px-4 py-3"
+              style={{ borderBottom: "1px solid var(--border)" }}
+            >
               <div className="flex items-center gap-2">
-                <Terminal className="w-4 h-4 text-green-600 dark:text-green-400" />
-                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100">Network Signal Stream</h2>
+                <Terminal
+                  className="w-3.5 h-3.5"
+                  style={{ color: "var(--success)" }}
+                />
+                <span
+                  className="text-overline"
+                  style={{ color: "var(--text-primary)", fontSize: "10px" }}
+                >
+                  Network Status
+                </span>
               </div>
-              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono font-medium">100% Operational</span>
+              <span
+                className="font-mono text-[10px] font-semibold"
+                style={{ color: "var(--success)" }}
+              >
+                100% ↑
+              </span>
             </div>
 
-            <div className="space-y-3 text-xs">
-              <div className="flex items-start gap-2.5">
-                <span className="w-2 h-2 rounded-full bg-green-600 dark:bg-green-400 mt-1 flex-shrink-0" />
-                <div>
-                  <div className="text-slate-900 dark:text-slate-100 font-semibold">GeM Portal Connector</div>
-                  <div className="text-[10px] text-slate-500 dark:text-slate-400">Synced 1,420 tenders · 12ms latency</div>
+            <div className="signal-feed px-4">
+              {SIGNAL_FEED.map(item => (
+                <div key={item.label} className="signal-item">
+                  <span
+                    className="status-dot status-dot-live"
+                    style={{ marginTop: "3px" }}
+                  />
+                  <div>
+                    <div
+                      className="font-semibold text-[12px]"
+                      style={{ color: "var(--text-primary)" }}
+                    >
+                      {item.label}
+                    </div>
+                    <div
+                      className="font-mono text-[10px]"
+                      style={{ color: "var(--text-muted)" }}
+                    >
+                      {item.detail}
+                    </div>
+                  </div>
                 </div>
-              </div>
+              ))}
+            </div>
+          </div>
 
-              <div className="flex items-start gap-2.5">
-                <span className="w-2 h-2 rounded-full bg-green-600 dark:bg-green-400 mt-1 flex-shrink-0" />
-                <div>
-                  <div className="text-slate-900 dark:text-slate-100 font-semibold">CPPP National Portal</div>
-                  <div className="text-[10px] text-slate-500 dark:text-slate-400">Synced 2,150 tenders · 18ms latency</div>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-2.5">
-                <span className="w-2 h-2 rounded-full bg-green-600 dark:bg-green-400 mt-1 flex-shrink-0" />
-                <div>
-                  <div className="text-slate-900 dark:text-slate-100 font-semibold">Defence Procurement (DRDO/HAL)</div>
-                  <div className="text-[10px] text-slate-500 dark:text-slate-400">Synced 682 tenders · 15ms latency</div>
-                </div>
-              </div>
+          {/* ── Quick navigation chips ──────────────────────────────────────── */}
+          <div>
+            <div
+              className="text-overline mb-2"
+              style={{ color: "var(--text-muted)", fontSize: "9px" }}
+            >
+              Quick navigate
+            </div>
+            <div className="space-y-1">
+              {[
+                { label: "Market Analytics", href: "/dashboard/analytics", icon: BarChart2 },
+                { label: "AI Copilot & RAG", href: "/dashboard/intelligence", icon: Sparkles },
+                { label: "Watchlist & Bids",  href: "/dashboard/watchlist",   icon: BookmarkCheck },
+              ].map(({ label, href, icon: Icon }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[12px] font-medium transition-colors"
+                  style={{
+                    background: "var(--bg-base)",
+                    border: "1px solid var(--border)",
+                    color: "var(--text-secondary)",
+                  }}
+                >
+                  <Icon className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "var(--text-muted)" }} />
+                  {label}
+                  <ChevronRight className="w-3 h-3 ml-auto" style={{ color: "var(--text-muted)" }} />
+                </Link>
+              ))}
             </div>
           </div>
 
@@ -587,7 +949,7 @@ export default function DashboardPage() {
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+        <Loader2 className="w-7 h-7 animate-spin" style={{ color: "var(--brand)" }} />
       </div>
     }>
       <DashboardContent />
