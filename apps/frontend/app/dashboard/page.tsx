@@ -59,28 +59,50 @@ const SECTORS = [
 
 const SOURCES = ["All Sources", "GeM", "CPPP", "Defence/DRDO", "IREPS", "State Portals"];
 
-/* ─── KPI strip ──────────────────────────────────────────────────────────────── */
+/* ─── KPI strip with micro-graphics ─────────────────────────────────────────── */
 function KpiStrip({ tenders, urgentCount, totalValueCr, msmeCount }:
   { tenders: Tender[]; urgentCount: number; totalValueCr: string; msmeCount: number }) {
   return (
     <div className="kpi-strip">
       <div className="kpi-item">
-        <div className="kpi-label">Active Tenders</div>
+        <div className="flex items-center justify-between">
+          <div className="kpi-label">Active Tenders</div>
+          <div className="sparkline-bar">
+            <span className="sparkline-bar-item" style={{ height: "40%" }} />
+            <span className="sparkline-bar-item" style={{ height: "65%" }} />
+            <span className="sparkline-bar-item" style={{ height: "55%" }} />
+            <span className="sparkline-bar-item" style={{ height: "85%" }} />
+            <span className="sparkline-bar-item active" style={{ height: "100%" }} />
+          </div>
+        </div>
         <div className="kpi-value">{tenders.length.toLocaleString("en-IN")}</div>
         <div className="kpi-delta kpi-delta-up">↑ 142 new today</div>
       </div>
       <div className="kpi-item">
-        <div className="kpi-label">Pipeline Value</div>
+        <div className="flex items-center justify-between">
+          <div className="kpi-label">Pipeline Value</div>
+          <div className="sparkline-bar">
+            <span className="sparkline-bar-item" style={{ height: "50%" }} />
+            <span className="sparkline-bar-item" style={{ height: "70%" }} />
+            <span className="sparkline-bar-item active" style={{ height: "95%" }} />
+          </div>
+        </div>
         <div className="kpi-value">₹{Number(totalValueCr).toLocaleString("en-IN")} Cr</div>
         <div className="kpi-delta" style={{ color: "var(--text-muted)" }}>Combined est. value</div>
       </div>
       <div className="kpi-item">
-        <div className="kpi-label">MSME Eligible</div>
+        <div className="flex items-center justify-between">
+          <div className="kpi-label">MSME Eligible</div>
+          <ShieldCheck className="w-3.5 h-3.5 text-success" />
+        </div>
         <div className="kpi-value" style={{ color: "var(--success)" }}>{msmeCount.toLocaleString("en-IN")}</div>
         <div className="kpi-delta" style={{ color: "var(--text-muted)" }}>EMD exempt · Udyam Rule 170</div>
       </div>
       <div className="kpi-item">
-        <div className="kpi-label">Deadlines Today</div>
+        <div className="flex items-center justify-between">
+          <div className="kpi-label">Deadlines Today</div>
+          <Clock className="w-3.5 h-3.5 text-warning" />
+        </div>
         <div className="kpi-value" style={{ color: urgentCount > 0 ? "var(--warning)" : "var(--text-primary)" }}>
           {urgentCount}
         </div>
@@ -89,7 +111,10 @@ function KpiStrip({ tenders, urgentCount, totalValueCr, msmeCount }:
         </div>
       </div>
       <div className="kpi-item">
-        <div className="kpi-label">Portals Online</div>
+        <div className="flex items-center justify-between">
+          <div className="kpi-label">Portals Online</div>
+          <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
+        </div>
         <div className="kpi-value">36</div>
         <div className="kpi-delta" style={{ color: "var(--success)" }}>● All operational</div>
       </div>

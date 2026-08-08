@@ -368,7 +368,7 @@ function SearchContent() {
   const totalPages = Math.ceil(total / pageSize) || 1;
 
   return (
-    <div style={{ display: "flex", height: "100%", overflow: "hidden" }}>
+    <div className="bg-data-grid" style={{ display: "flex", height: "100%", overflow: "hidden" }}>
 
       {/* ── Filter panel ─────────────────────────────────────────────────────── */}
       <FilterPanel

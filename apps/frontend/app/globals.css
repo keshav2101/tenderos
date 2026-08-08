@@ -1406,3 +1406,105 @@ kbd {
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   VISUAL DEPTH & BACKGROUND PATTERNS
+══════════════════════════════════════════════════════════════════════════════ */
+
+/* Data grid background pattern — financial/engineering terminal feel (2-4% opacity) */
+.bg-data-grid {
+  background-image: 
+    linear-gradient(to right, rgba(0, 0, 0, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.035) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.dark .bg-data-grid {
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+}
+
+/* Document workspace paper texture background */
+.bg-document-workspace {
+  background-color: #f7f7f5;
+  background-image: radial-gradient(rgba(0, 0, 0, 0.02) 1px, transparent 0);
+  background-size: 16px 16px;
+}
+
+.dark .bg-document-workspace {
+  background-color: #0b0f17;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 0);
+}
+
+/* Depth surfaces */
+.surface-card {
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.03), 0 1px 2px rgba(0,0,0,0.02);
+}
+
+.surface-raised {
+  background: var(--bg-base);
+  border: 1px solid var(--border-hover);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+/* Micro Graphics */
+.sparkline-bar {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 16px;
+}
+.sparkline-bar-item {
+  width: 3px;
+  background: var(--brand);
+  border-radius: 1px;
+  opacity: 0.7;
+}
+.sparkline-bar-item.active {
+  opacity: 1;
+  background: var(--brand-hover);
+}
+
+/* Timeline Graphic */
+.timeline-node {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.timeline-line {
+  height: 2px;
+  background: var(--border);
+  flex: 1;
+}
+.timeline-line.active {
+  background: var(--brand);
+}
+.timeline-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--bg-base);
+  background: var(--border-strong);
+  z-index: 1;
+}
+.timeline-dot.completed {
+  background: var(--success);
+}
+.timeline-dot.current {
+  background: var(--brand);
+  box-shadow: 0 0 0 3px var(--brand-light);
+}
+
+/* Treemap Block */
+.treemap-block {
+  transition: transform var(--t), filter var(--t);
+  cursor: pointer;
+}
+.treemap-block:hover {
+  filter: brightness(0.96);
+}
+

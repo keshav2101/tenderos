@@ -779,6 +779,41 @@ export default function TenderDetailPage({ params }: { params: { id: string } })
 
         {activeTab === "overview" && (
           <div className="space-y-4 animate-fade-in">
+            {/* ─── Visual Procurement Lifecycle Timeline Graphic ─── */}
+            <div className="card p-5 space-y-3">
+              <div className="flex items-center justify-between border-b border-subtle pb-2">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-brand" />
+                  <span className="text-xs font-bold text-primary uppercase tracking-wider">Procurement Lifecycle &amp; Key Milestones</span>
+                </div>
+                <span className="text-[10px] font-mono text-muted">Official Schedule</span>
+              </div>
+
+              {/* Timeline Horizontal graphic */}
+              <div className="grid grid-cols-6 gap-2 pt-2 relative">
+                {[
+                  { step: "Published", date: tender.published_at ? new Date(tender.published_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short" }) : "01 Aug", status: "completed" },
+                  { step: "Pre-Bid Meeting", date: "07 Aug 2026", status: "completed" },
+                  { step: "Clarifications", date: "10 Aug 2026", status: "current" },
+                  { step: "Tech Opening", date: new Date(tender.submission_deadline || Date.now()).toLocaleDateString("en-IN", { day: "2-digit", month: "short" }), status: "upcoming" },
+                  { step: "Fin Opening", date: "TBD", status: "upcoming" },
+                  { step: "Award / LOA", date: "TBD", status: "upcoming" },
+                ].map((node, i) => (
+                  <div key={node.step} className="flex flex-col items-center text-center relative z-10">
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold border ${
+                      node.status === "completed" ? "bg-success text-white border-success" :
+                      node.status === "current" ? "bg-brand text-white border-brand ring-4 ring-brand-light" :
+                      "bg-subtle text-muted border-border"
+                    }`}>
+                      {node.status === "completed" ? "✓" : i + 1}
+                    </div>
+                    <span className="text-[11px] font-semibold text-primary mt-1.5 line-clamp-1">{node.step}</span>
+                    <span className="text-[10px] text-muted font-mono">{node.date}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             {/* Official Source Banner */}
             <div className="card p-5 border-emerald-500/30 bg-emerald-500/5">
               <div className="flex items-center justify-between gap-4">
