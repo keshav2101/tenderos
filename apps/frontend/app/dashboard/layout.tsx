@@ -1,52 +1,103 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  LayoutDashboard, Search, BarChart3, BookmarkCheck,
-  Bell, Settings, Zap, Building2, Shield, LogOut, Radio,
-  Command, Sparkles, Sun, Moon, ChevronDown
+  LayoutDashboard, Search, FileText, BookmarkCheck, Bell,
+  Settings, Zap, Building2, Shield, LogOut, Radio, BarChart3,
+  Sparkles, Sun, Moon, ChevronRight, Users, FolderOpen,
+  ShieldCheck, Clock, AlertTriangle
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { fetchRealtimeNotifications } from "@/lib/notifications-store";
 import { CommandPalette } from "@/app/components/CommandPalette";
 
-const NAV_ITEMS = [
-  { href: "/dashboard",             icon: LayoutDashboard, label: "Command Center" },
-  { href: "/dashboard/search",      icon: Search,          label: "Tender Search" },
-  { href: "/dashboard/intelligence",icon: Sparkles,        label: "AI Copilot" },
-  { href: "/dashboard/analytics",   icon: BarChart3,       label: "Market Analytics" },
-  { href: "/dashboard/watchlist",   icon: BookmarkCheck,   label: "Watchlist" },
-  { href: "/dashboard/notifications",icon: Bell,           label: "Notifications", isNotification: true },
-];
+/* ─── Navigation structure ───────────────────────────────────────────────────── */
 
-const SECONDARY_NAV = [
-  { href: "/dashboard/profile",    icon: Building2, label: "Digital Twin" },
-  { href: "/dashboard/connectors", icon: Radio,     label: "Portal Hub" },
-  { href: "/dashboard/admin",      icon: Shield,    label: "Admin" },
-  { href: "/dashboard/settings",   icon: Settings,  label: "Settings" },
+interface NavItem {
+  href: string;
+  icon: React.ComponentType<{ style?: React.CSSProperties; className?: string }>;
+  label: string;
+  desc: string;
+  isNotification?: boolean;
+  guestOk?: boolean;
+}
+
+interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    label: "Discovery",
+    items: [
+      { href: "/dashboard",              icon: LayoutDashboard, label: "Command Center",       desc: "Overview & live feed" },
+      { href: "/dashboard/search",       icon: Search,          label: "Tender Search",        desc: "Search 9,763 tenders",  guestOk: true },
+      { href: "/dashboard/watchlist",    icon: BookmarkCheck,   label: "Watchlist",            desc: "Saved opportunities" },
+      { href: "/dashboard/compare",      icon: FileText,        label: "Compare",              desc: "Side-by-side analysis" },
+    ],
+  },
+  {
+    label: "Intelligence",
+    items: [
+      { href: "/dashboard/intelligence", icon: Sparkles,        label: "AI Copilot",           desc: "Bid assessment & RAG" },
+      { href: "/dashboard/analytics",    icon: BarChart3,       label: "Market Analytics",     desc: "Spend, ministries, states" },
+      { href: "/dashboard/notifications",icon: Bell,            label: "Notifications",        desc: "Amendments & alerts", isNotification: true },
+    ],
+  },
+  {
+    label: "Administration",
+    items: [
+      { href: "/dashboard/profile",      icon: Building2,       label: "Company Profile",      desc: "Digital twin" },
+      { href: "/dashboard/connectors",   icon: Radio,           label: "Portal Connectors",    desc: "36 State/UT portals" },
+      { href: "/dashboard/admin",        icon: Shield,          label: "Admin Console",        desc: "System administration" },
+      { href: "/dashboard/settings",     icon: Settings,        label: "Settings",             desc: "Preferences" },
+    ],
+  },
 ];
 
 const PLAN_LABELS: Record<string, string> = {
-  free: "Free",
-  sme: "SME",
+  free: "Free Plan",
+  sme: "SME Plan",
   enterprise: "Enterprise AI",
-  api: "API",
+  api: "API Plan",
 };
 
+/* ─── Sync timestamp ─────────────────────────────────────────────────────────── */
+function useSyncTime() {
+  const [syncTime, setSyncTime] = useState("");
+  useEffect(() => {
+    const fmt = () => {
+      const now = new Date();
+      setSyncTime(
+        now.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) +
+        ", " +
+        now.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })
+      );
+    };
+    fmt();
+    const id = setInterval(fmt, 60000);
+    return () => clearInterval(id);
+  }, []);
+  return syncTime;
+}
+
+/* ─── Component ──────────────────────────────────────────────────────────────── */
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const pathname  = usePathname();
-  const router    = useRouter();
+  const pathname = usePathname();
+  const router   = useRouter();
   const { user, isLoading, isAuthenticated, logout } = useAuth();
 
-  const [unreadCount,    setUnreadCount]    = useState<number>(0);
-  const [isCommandOpen,  setIsCommandOpen]  = useState(false);
-  const [theme,          setTheme]          = useState<"light" | "dark">("light");
+  const [unreadCount,   setUnreadCount]   = useState(0);
+  const [isCommandOpen, setIsCommandOpen] = useState(false);
+  const [theme,         setTheme]         = useState<"light" | "dark">("light");
+  const syncTime = useSyncTime();
 
   const isGuestPath = pathname === "/dashboard/search" || pathname.startsWith("/dashboard/tenders/");
 
-  /* ── Theme persistence ──────────────────────────────────────────────────── */
+  /* Theme */
   useEffect(() => {
     const saved = typeof window !== "undefined"
       ? (localStorage.getItem("tenderos-theme") as "light" | "dark" | null)
@@ -64,58 +115,48 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     document.documentElement.classList.toggle("dark", next === "dark");
   };
 
-  /* ── Notifications ──────────────────────────────────────────────────────── */
-  async function syncNotifications() {
+  /* Notifications */
+  const syncNotifs = useCallback(async () => {
     try {
-      const notifs = await fetchRealtimeNotifications();
-      setUnreadCount(notifs.filter((n) => !n.read).length);
-    } catch {
-      setUnreadCount(0);
-    }
-  }
-
-  useEffect(() => {
-    syncNotifications();
-    window.addEventListener("tenderos-notifications-updated", syncNotifications);
-    return () => window.removeEventListener("tenderos-notifications-updated", syncNotifications);
+      const n = await fetchRealtimeNotifications();
+      setUnreadCount(n.filter(x => !x.read).length);
+    } catch { setUnreadCount(0); }
   }, []);
 
-  /* ── Cmd+K ──────────────────────────────────────────────────────────────── */
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
+    syncNotifs();
+    window.addEventListener("tenderos-notifications-updated", syncNotifs);
+    return () => window.removeEventListener("tenderos-notifications-updated", syncNotifs);
+  }, [syncNotifs]);
+
+  /* Cmd+K */
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        setIsCommandOpen(prev => !prev);
+        setIsCommandOpen(p => !p);
       }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
   }, []);
 
-  /* ── Auth guard ─────────────────────────────────────────────────────────── */
+  /* Auth guard */
   useEffect(() => {
-    if (!isLoading && !isAuthenticated && !isGuestPath) {
-      router.replace("/login");
-    }
+    if (!isLoading && !isAuthenticated && !isGuestPath) router.replace("/login");
   }, [isLoading, isAuthenticated, isGuestPath, router]);
 
   if (isLoading || (!user && !isGuestPath)) {
     return (
-      <div
-        style={{ background: "var(--bg-canvas)" }}
-        className="flex h-screen items-center justify-center"
-      >
-        <div className="w-7 h-7 border-2 border-[var(--border)] border-t-[var(--brand)] rounded-full animate-spin" />
+      <div className="flex h-screen items-center justify-center" style={{ background: "var(--bg-canvas)" }}>
+        <div style={{ width: 28, height: 28, borderRadius: "50%", border: "2px solid var(--border)", borderTopColor: "var(--brand)", animation: "spin 0.65s linear infinite" }} />
       </div>
     );
   }
 
   const activeUser = user || {
-    name: "Guest Operator",
-    email: "guest@tenderos.in",
-    role: "viewer" as const,
-    plan: "free"  as const,
-    company_id: null,
+    name: "Guest Operator", email: "guest@tenderos.in",
+    role: "viewer" as const, plan: "free" as const, company_id: null,
   };
 
   const initials = activeUser.name
@@ -123,259 +164,166 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     : activeUser.email.slice(0, 2).toUpperCase();
 
   return (
-    <div
-      className="flex h-screen overflow-hidden"
-      style={{ background: "var(--bg-canvas)", color: "var(--text-primary)" }}
-    >
-      {/* ── Command Palette ─────────────────────────────────────────────────── */}
+    <div className="app-shell" style={{ fontFamily: "var(--font-sans)" }}>
+      {/* Global Command Palette */}
       <CommandPalette isOpen={isCommandOpen} onClose={() => setIsCommandOpen(false)} />
 
-      {/* ── Sidebar ─────────────────────────────────────────────────────────── */}
-      <aside
-        className="w-56 flex-shrink-0 flex flex-col"
-        style={{ background: "var(--bg-sidebar)", borderRight: "1px solid var(--border)" }}
-      >
-        {/* Logo mark */}
-        <div className="px-4 pt-5 pb-4" style={{ borderBottom: "1px solid var(--border)" }}>
-          <div className="flex items-center gap-2.5">
-            <div
-              className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-              style={{ background: "var(--brand)" }}
-            >
-              <Zap className="w-4 h-4 text-white" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span
-                  className="text-sm font-bold tracking-tight"
-                  style={{ color: "var(--text-primary)", letterSpacing: "-0.02em" }}
-                >
-                  TenderOS
-                </span>
-                <span
-                  className="text-[9px] font-mono font-semibold px-1.5 py-0.5 rounded"
-                  style={{ background: "var(--brand-muted)", color: "var(--brand)", border: "1px solid var(--brand-border)" }}
-                >
-                  v2.6
-                </span>
-              </div>
-              <div
-                className="text-[10px] truncate mt-0.5"
-                style={{ color: "var(--text-muted)" }}
-              >
-                India Procurement OS
-              </div>
-            </div>
+      {/* ── Sidebar — always dark navy ────────────────────────────────────────── */}
+      <aside className="sidebar">
+        {/* Logo */}
+        <div className="sidebar-logo">
+          <div className="sidebar-logo-icon">
+            <Zap style={{ width: 15, height: 15, color: "#fff" }} />
+          </div>
+          <div>
+            <div className="sidebar-logo-text">TenderOS</div>
+            <div className="sidebar-logo-sub">India Procurement Intelligence</div>
           </div>
         </div>
 
-        {/* Search bar trigger */}
-        <div className="px-3 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
-          <button
-            onClick={() => setIsCommandOpen(true)}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition-colors"
-            style={{
-              background: "var(--bg-overlay)",
-              border: "1px solid var(--border)",
-              color: "var(--text-muted)",
-              fontSize: "12px",
-            }}
-          >
-            <Search className="w-3.5 h-3.5 flex-shrink-0" />
-            <span className="flex-1">Search...</span>
-            <kbd>⌘K</kbd>
+        {/* Search trigger */}
+        <div className="sidebar-search">
+          <button className="sidebar-search-btn" onClick={() => setIsCommandOpen(true)}>
+            <Search style={{ width: 13, height: 13 }} />
+            <span style={{ flex: 1, textAlign: "left" }}>Search tenders…</span>
+            <kbd className="kbd-hint" style={{ fontSize: 9 }}>⌘K</kbd>
           </button>
         </div>
 
-        {/* Primary Nav */}
-        <nav className="flex-1 px-3 py-3 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
-          <div className="space-y-0.5">
-            {NAV_ITEMS.map(({ href, icon: Icon, label, isNotification }) => {
-              const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
-              const needsAuth = href !== "/dashboard/search";
-              const locked   = needsAuth && !isAuthenticated;
-
-              return (
-                <Link
-                  key={href}
-                  href={locked ? "/login" : href}
-                  className={`nav-link ${active ? "active" : ""} ${locked ? "opacity-50" : ""}`}
-                >
-                  <Icon
-                    className="w-4 h-4 flex-shrink-0"
-                    style={{ color: active ? "var(--brand)" : "var(--text-muted)" }}
-                  />
-                  <span className="flex-1 text-[13px]">{label}</span>
-                  {!locked && isNotification && unreadCount > 0 && (
-                    <span
-                      className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
-                      style={{ background: "var(--brand)", color: "#fff" }}
-                    >
-                      {unreadCount}
-                    </span>
-                  )}
-                </Link>
-              );
-            })}
-          </div>
-
-          {/* Secondary nav */}
-          <div className="mt-6">
-            <div className="nav-section-label">System</div>
-            <div className="space-y-0.5 mt-2">
-              {SECONDARY_NAV.map(({ href, icon: Icon, label }) => {
-                const active = pathname === href;
-                const locked = !isAuthenticated;
+        {/* Navigation */}
+        <nav className="sidebar-nav">
+          {NAV_GROUPS.map(group => (
+            <div key={group.label}>
+              <div className="sidebar-section">{group.label}</div>
+              {group.items.map(({ href, icon: Icon, label, isNotification, guestOk }) => {
+                const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
+                const needsAuth = !guestOk;
+                const locked = needsAuth && !isAuthenticated;
 
                 return (
                   <Link
                     key={href}
                     href={locked ? "/login" : href}
-                    className={`nav-link ${active ? "active" : ""} ${locked ? "opacity-50" : ""}`}
+                    className={`nav-item${active ? " active" : ""}${locked ? " opacity-50" : ""}`}
                   >
-                    <Icon
-                      className="w-4 h-4 flex-shrink-0"
-                      style={{ color: active ? "var(--brand)" : "var(--text-muted)" }}
-                    />
-                    <span className="flex-1 text-[13px]">{label}</span>
+                    <Icon className="nav-item-icon" style={{ width: 15, height: 15 }} />
+                    <span style={{ flex: 1 }}>{label}</span>
+                    {!locked && isNotification && unreadCount > 0 && (
+                      <span className="nav-badge">{unreadCount > 9 ? "9+" : unreadCount}</span>
+                    )}
                   </Link>
                 );
               })}
             </div>
-          </div>
+          ))}
         </nav>
 
-        {/* User footer */}
-        <div
-          className="px-3 py-3"
-          style={{ borderTop: "1px solid var(--border)" }}
-        >
-          {/* Theme toggle */}
+        {/* Footer: theme + user */}
+        <div className="sidebar-footer">
           <button
             onClick={toggleTheme}
-            title={`Switch to ${theme === "light" ? "Dark" : "Light"} Mode`}
-            className="nav-link w-full mb-2"
-            style={{ justifyContent: "flex-start" }}
+            className="nav-item"
+            style={{ width: "100%", marginBottom: 8, background: "none", border: "none", padding: "5px 6px" }}
           >
-            {theme === "light" ? (
-              <Moon className="w-4 h-4 flex-shrink-0" style={{ color: "var(--text-muted)" }} />
-            ) : (
-              <Sun className="w-4 h-4 flex-shrink-0" style={{ color: "#f59e0b" }} />
-            )}
-            <span className="text-[13px]" style={{ color: "var(--text-tertiary)" }}>
-              {theme === "light" ? "Dark mode" : "Light mode"}
+            {theme === "light"
+              ? <Moon style={{ width: 14, height: 14, color: "var(--sidebar-icon)" }} />
+              : <Sun  style={{ width: 14, height: 14, color: "#fbbf24" }} />
+            }
+            <span style={{ fontSize: 12, color: "var(--sidebar-section)" }}>
+              {theme === "light" ? "Dark Mode" : "Light Mode"}
             </span>
           </button>
 
           {isAuthenticated ? (
-            <div
-              className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg"
-              style={{ background: "var(--bg-overlay)", border: "1px solid var(--border)" }}
-            >
-              <div
-                className="w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0"
-                style={{ background: "var(--brand)" }}
-              >
-                {initials}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div
-                  className="text-[12px] font-semibold truncate"
-                  style={{ color: "var(--text-primary)" }}
-                >
-                  {activeUser.name}
-                </div>
-                <div
-                  className="text-[10px] truncate"
-                  style={{ color: "var(--text-muted)" }}
-                >
-                  {PLAN_LABELS[activeUser.plan] ?? activeUser.plan}
-                </div>
+            <div className="sidebar-user">
+              <div className="sidebar-avatar">{initials}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="sidebar-user-name">{activeUser.name}</div>
+                <div className="sidebar-user-plan">{PLAN_LABELS[activeUser.plan] ?? activeUser.plan}</div>
               </div>
               <button
                 onClick={logout}
                 title="Sign out"
-                aria-label="Sign out"
-                className="p-1 rounded flex-shrink-0 transition-colors"
-                style={{ color: "var(--text-muted)" }}
+                style={{ padding: 4, background: "none", border: "none", cursor: "pointer", color: "var(--sidebar-section)", display: "flex", borderRadius: 4 }}
               >
-                <LogOut className="w-3.5 h-3.5" />
+                <LogOut style={{ width: 13, height: 13 }} />
               </button>
             </div>
           ) : (
-            <div className="space-y-1.5">
-              <Link
-                href="/login"
-                className="btn btn-primary w-full text-[12px] py-2"
-                style={{ justifyContent: "center" }}
-              >
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <Link href="/login" className="btn btn-primary" style={{ justifyContent: "center", fontSize: 12, padding: "7px 12px", width: "100%" }}>
                 Sign In
               </Link>
-              <p className="text-center text-[10px]" style={{ color: "var(--text-muted)" }}>
-                Full AI bid generation requires sign in
+              <p style={{ fontSize: 10, color: "var(--sidebar-section)", textAlign: "center" }}>
+                Sign in to access AI features
               </p>
             </div>
           )}
         </div>
       </aside>
 
-      {/* ── Main Content Area ────────────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Top bar — minimal, no status clutter */}
-        <header
-          className="h-12 px-6 flex items-center justify-between gap-4 flex-shrink-0"
-          style={{
-            background:  "var(--bg-base)",
-            borderBottom: "1px solid var(--border)",
-          }}
-        >
-          {/* Breadcrumb-style location */}
-          <div className="flex items-center gap-2 min-w-0">
-            <span
-              className="text-[12px] font-medium truncate"
-              style={{ color: "var(--text-muted)" }}
-            >
-              {NAV_ITEMS.find(n => n.href === pathname || (n.href !== "/dashboard" && pathname.startsWith(n.href)))?.label
-                ?? SECONDARY_NAV.find(n => n.href === pathname)?.label
-                ?? "TenderOS"}
+      {/* ── Main content column ───────────────────────────────────────────────── */}
+      <div className="main-col">
+        {/* Top bar */}
+        <header className="topbar">
+          {/* Page breadcrumb */}
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+              {NAV_GROUPS.flatMap(g => g.items).find(n =>
+                n.href === pathname || (n.href !== "/dashboard" && pathname.startsWith(n.href))
+              )?.label ?? "TenderOS"}
             </span>
           </div>
 
-          {/* Right: Status pill + notifications */}
-          <div className="flex items-center gap-3 flex-shrink-0">
-            <div
-              className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold"
-              style={{
-                background: "var(--success-bg)",
-                color: "var(--success)",
-                border: "1px solid var(--success-border)",
-              }}
-            >
-              <span className="status-dot status-dot-live" />
-              Live — 9,763 tenders
-            </div>
+          {/* Global search */}
+          <button className="topbar-search" onClick={() => setIsCommandOpen(true)}>
+            <Search style={{ width: 14, height: 14, flexShrink: 0 }} />
+            <span style={{ flex: 1, textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              Search tender ID, title, organization, category…
+            </span>
+            <kbd>⌘K</kbd>
+          </button>
 
+          {/* Right controls */}
+          <div className="topbar-right">
             <Link
               href="/dashboard/notifications"
-              className="relative p-1.5 rounded-lg transition-colors"
-              style={{ color: "var(--text-muted)" }}
+              className="btn btn-ghost btn-icon"
+              title="Notifications"
+              style={{ position: "relative" }}
             >
-              <Bell className="w-4 h-4" />
+              <Bell style={{ width: 16, height: 16 }} />
               {unreadCount > 0 && (
-                <span
-                  className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full"
-                  style={{ background: "var(--brand)" }}
-                />
+                <span style={{
+                  position: "absolute", top: 5, right: 5,
+                  width: 7, height: 7, borderRadius: "50%",
+                  background: "var(--error)",
+                  border: "1.5px solid var(--bg-base)",
+                }} />
               )}
             </Link>
           </div>
         </header>
 
+        {/* Institutional info strip */}
+        <div className="info-strip">
+          <span className="info-strip-text">
+            <span style={{ fontWeight: 600, color: "var(--text-secondary)" }}>
+              Government Procurement Intelligence
+            </span>
+            <span className="info-strip-sep">·</span>
+            <span>Last data synchronisation: {syncTime}</span>
+            <span className="info-strip-sep">·</span>
+            <span>Sources: GeM · CPPP · IREPS · Defence · 36 State/UT Portals</span>
+          </span>
+          <span className="info-strip-live" style={{ marginLeft: "auto" }}>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--success)", display: "inline-block", animation: "pulse-dot 2s ease-in-out infinite" }} />
+            Live
+          </span>
+        </div>
+
         {/* Page workspace */}
-        <main
-          className="flex-1 overflow-y-auto"
-          style={{ background: "var(--bg-canvas)" }}
-        >
+        <main className="page-canvas">
           {children}
         </main>
       </div>

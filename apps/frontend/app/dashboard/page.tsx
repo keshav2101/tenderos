@@ -1,945 +1,633 @@
 "use client";
-
 export const dynamic = "force-dynamic";
 
-import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
+import { useState, useEffect, useCallback, useMemo, Suspense, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  Search, IndianRupee, MapPin, Building2, Clock, Zap,
-  BookmarkPlus, BookmarkCheck, RefreshCw,
-  AlertCircle, Loader2, ExternalLink,
-  ChevronRight, Sparkles, ShieldCheck,
-  ArrowUpRight, FileText, Terminal, BarChart2
+  Search, MapPin, Building2, ExternalLink, ChevronRight,
+  BookmarkPlus, BookmarkCheck, RefreshCw, AlertCircle,
+  Loader2, ArrowUpRight, ShieldCheck, X, Filter,
+  ArrowUpDown, Clock, Download, FileText
 } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
-import { tendersApi, eligibilityApi } from "@/lib/api";
+import { formatDistanceToNow, format, differenceInDays } from "date-fns";
 import { useAuth } from "@/lib/auth-context";
-import { getConnectorsSummary } from "@/lib/connectors-store";
-import { Tender, getLocalCatalog, searchCatalog } from "@/lib/catalog";
+import { Tender, searchCatalog } from "@/lib/catalog";
 import { addToWatchlist, removeFromWatchlist, isWatchlisted } from "@/lib/watchlist-store";
 
-/* ── Portal config ──────────────────────────────────────────────────────────── */
-const PORTAL_CONFIG: Record<string, { label: string; color: string; bg: string; border: string; defaultUrl: string }> = {
-  gem:         { label: "GeM",        color: "var(--gem-color)",   bg: "var(--gem-bg)",   border: "var(--success-border)", defaultUrl: "https://gem.gov.in" },
-  cppp:        { label: "CPPP",       color: "var(--cppp-color)",  bg: "var(--cppp-bg)",  border: "var(--info-border)",    defaultUrl: "https://eprocure.gov.in/eprocure/app" },
-  defence:     { label: "Defence",    color: "var(--def-color)",   bg: "var(--def-bg)",   border: "var(--error-border)",   defaultUrl: "https://defproc.gov.in" },
-  railways:    { label: "IREPS",      color: "var(--rail-color)",  bg: "var(--rail-bg)",  border: "var(--warning-border)", defaultUrl: "https://ireps.gov.in" },
-  ireps:       { label: "IREPS",      color: "var(--rail-color)",  bg: "var(--rail-bg)",  border: "var(--warning-border)", defaultUrl: "https://ireps.gov.in" },
-  maharashtra: { label: "Maha",       color: "var(--state-color)", bg: "var(--state-bg)", border: "#ddd6fe",               defaultUrl: "https://mahatenders.gov.in" },
-  karnataka:   { label: "Karnataka",  color: "var(--state-color)", bg: "var(--state-bg)", border: "#ddd6fe",               defaultUrl: "https://eproc.karnataka.gov.in" },
+/* ─── Portal helpers ─────────────────────────────────────────────────────────── */
+type PortalKey = "gem" | "cppp" | "defence" | "railways" | "ireps" | "state" | "gov";
+
+const PORTAL_MAP: Record<string, { label: string; cls: string; url: string }> = {
+  gem:         { label: "GeM",      cls: "portal-badge portal-gem",   url: "https://gem.gov.in" },
+  cppp:        { label: "CPPP",     cls: "portal-badge portal-cppp",  url: "https://eprocure.gov.in/eprocure/app" },
+  defence:     { label: "Defence",  cls: "portal-badge portal-def",   url: "https://defproc.gov.in" },
+  railways:    { label: "IREPS",    cls: "portal-badge portal-rail",  url: "https://ireps.gov.in" },
+  ireps:       { label: "IREPS",    cls: "portal-badge portal-rail",  url: "https://ireps.gov.in" },
+  maharashtra: { label: "MH ePROC", cls: "portal-badge portal-state", url: "https://mahatenders.gov.in" },
+  karnataka:   { label: "KA ePROC", cls: "portal-badge portal-state", url: "https://eproc.karnataka.gov.in" },
 };
 
-function getPortalInfo(source: string) {
-  const key = (source || "").toLowerCase();
-  return PORTAL_CONFIG[key] || {
-    label: (source || "GOV").toUpperCase().slice(0, 6),
-    color: "var(--text-tertiary)",
-    bg:    "var(--bg-subtle)",
-    border: "var(--border)",
-    defaultUrl: "https://cppp.gov.in",
-  };
+function getPortal(source: string) {
+  const k = (source || "").toLowerCase();
+  return PORTAL_MAP[k] || { label: (source || "GOV").toUpperCase().slice(0,6), cls: "portal-badge portal-gov", url: "https://cppp.gov.in" };
 }
 
-function ensureAbsoluteUrl(url?: string | null, defaultUrl: string = "https://eprocure.gov.in/eprocure/app"): string {
-  if (!url || typeof url !== "string" || !url.trim()) return defaultUrl;
+function safeUrl(url?: string | null, def = "https://eprocure.gov.in/eprocure/app") {
+  if (!url?.trim()) return def;
   const t = url.trim();
-  if (t.includes("localhost") || t.includes("127.0.0.1") || t.startsWith("/")) return defaultUrl;
-  if (t.startsWith("http://") || t.startsWith("https://")) return t;
-  if (t.startsWith("//")) return `https:${t}`;
+  if (t.includes("localhost") || t.startsWith("/")) return def;
+  if (t.startsWith("http")) return t;
   return `https://${t}`;
 }
 
+/* ─── Status helpers ─────────────────────────────────────────────────────────── */
+function getTenderStatus(t: Tender) {
+  if (!t.submission_deadline) return { label: "Published", cls: "status-published" };
+  const days = differenceInDays(new Date(t.submission_deadline), new Date());
+  if (days < 0)  return { label: "Closed",     cls: "status-closed" };
+  if (days <= 3) return { label: "Open",        cls: "status-open" };
+  return { label: "Open", cls: "status-open" };
+}
+
+/* ─── Sectors ────────────────────────────────────────────────────────────────── */
 const SECTORS = [
-  "All Sectors",
-  "Technology & IT",
-  "Infrastructure & Civil",
-  "Defence & Aerospace",
-  "Railways & Mobility",
-  "Healthcare & Medical",
-  "Energy & Renewables",
-  "Telecom & Networking",
-  "Water & Waste",
+  "All Sectors", "Technology & IT", "Infrastructure & Civil Works",
+  "Defence & Aerospace", "Railways & Mobility", "Healthcare & Medical Equipment",
+  "Energy & Renewables", "Telecom & Networking", "Water & Sanitation",
 ];
 
-/* ── Signal feed items ──────────────────────────────────────────────────────── */
-const SIGNAL_FEED = [
-  { status: "live",  label: "GeM Portal",          detail: "1,420 tenders · 12ms" },
-  { status: "live",  label: "CPPP National",        detail: "2,150 tenders · 18ms" },
-  { status: "live",  label: "Defence (DRDO/HAL)",   detail: "682 tenders · 15ms" },
-  { status: "live",  label: "Indian Railways",      detail: "534 tenders · 20ms" },
-  { status: "live",  label: "36 State/UT Portals",  detail: "4,977 tenders · avg 25ms" },
-];
+const SOURCES = ["All Sources", "GeM", "CPPP", "Defence/DRDO", "IREPS", "State Portals"];
 
-/* ── Stat item component ─────────────────────────────────────────────────────── */
-function StatItem({
-  label, value, sub, accent
-}: { label: string; value: string; sub?: string; accent?: string }) {
+/* ─── KPI strip ──────────────────────────────────────────────────────────────── */
+function KpiStrip({ tenders, urgentCount, totalValueCr, msmeCount }:
+  { tenders: Tender[]; urgentCount: number; totalValueCr: string; msmeCount: number }) {
   return (
-    <div className="stat-block">
-      <div className="stat-label">{label}</div>
-      <div
-        className="stat-value"
-        style={{ color: accent || "var(--text-primary)" }}
-      >
-        {value}
+    <div className="kpi-strip">
+      <div className="kpi-item">
+        <div className="kpi-label">Active Tenders</div>
+        <div className="kpi-value">{tenders.length.toLocaleString("en-IN")}</div>
+        <div className="kpi-delta kpi-delta-up">↑ 142 new today</div>
       </div>
-      {sub && (
-        <div className="text-[10px] mt-0.5" style={{ color: "var(--text-muted)" }}>
-          {sub}
+      <div className="kpi-item">
+        <div className="kpi-label">Pipeline Value</div>
+        <div className="kpi-value">₹{Number(totalValueCr).toLocaleString("en-IN")} Cr</div>
+        <div className="kpi-delta" style={{ color: "var(--text-muted)" }}>Combined est. value</div>
+      </div>
+      <div className="kpi-item">
+        <div className="kpi-label">MSME Eligible</div>
+        <div className="kpi-value" style={{ color: "var(--success)" }}>{msmeCount.toLocaleString("en-IN")}</div>
+        <div className="kpi-delta" style={{ color: "var(--text-muted)" }}>EMD exempt · Udyam Rule 170</div>
+      </div>
+      <div className="kpi-item">
+        <div className="kpi-label">Deadlines Today</div>
+        <div className="kpi-value" style={{ color: urgentCount > 0 ? "var(--warning)" : "var(--text-primary)" }}>
+          {urgentCount}
         </div>
-      )}
+        <div className={`kpi-delta ${urgentCount > 0 ? "kpi-delta-warn" : ""}`}>
+          {urgentCount > 0 ? `${urgentCount} closing ≤72h` : "No urgent deadlines"}
+        </div>
+      </div>
+      <div className="kpi-item">
+        <div className="kpi-label">Portals Online</div>
+        <div className="kpi-value">36</div>
+        <div className="kpi-delta" style={{ color: "var(--success)" }}>● All operational</div>
+      </div>
     </div>
   );
 }
 
-/* ── Main dashboard content ─────────────────────────────────────────────────── */
+/* ─── Tender detail inspector ────────────────────────────────────────────────── */
+function TenderInspector({ tender, onClose }: { tender: Tender; onClose: () => void }) {
+  const router = useRouter();
+  const portal = getPortal(tender.source);
+  const url    = safeUrl(tender.source_url, portal.url);
+  const status = getTenderStatus(tender);
+  const days   = tender.submission_deadline
+    ? differenceInDays(new Date(tender.submission_deadline), new Date())
+    : null;
+  const watchlisted = isWatchlisted(tender.id);
+
+  return (
+    <div className="inspector animate-slide-in-right" style={{ width: 340, flexShrink: 0 }}>
+      <div className="inspector-header">
+        <div className="inspector-title">Tender Details</div>
+        <button className="btn btn-ghost btn-icon" onClick={onClose} style={{ padding: 4 }}>
+          <X style={{ width: 15, height: 15 }} />
+        </button>
+      </div>
+
+      <div className="inspector-body">
+        {/* Tender reference */}
+        <div className="inspector-section">
+          <div className="inspector-section-label">Tender Reference</div>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>
+            {tender.source_tender_id || tender.id}
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", lineHeight: 1.4, marginBottom: 8 }}>
+            {tender.title}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span className={portal.cls}>{portal.label}</span>
+            <span className={`status ${status.cls}`}>
+              <span className="status-dot" />
+              {status.label}
+            </span>
+          </div>
+        </div>
+
+        {/* Key details */}
+        <div className="inspector-section">
+          <div className="inspector-section-label">Procurement Details</div>
+          <div className="inspector-row">
+            <span className="inspector-row-label">Est. Value</span>
+            <span className="inspector-row-value mono" style={{ fontFamily: "var(--font-mono)", fontWeight: 700 }}>
+              ₹{(tender.estimated_cost_lakhs || 0).toLocaleString("en-IN")} Lakhs
+            </span>
+          </div>
+          <div className="inspector-row">
+            <span className="inspector-row-label">EMD</span>
+            <span className="inspector-row-value" style={{ color: tender.msme_eligible ? "var(--success)" : "var(--text-primary)" }}>
+              {tender.msme_eligible ? "Waived (MSME/Udyam)" : "As per document"}
+            </span>
+          </div>
+          <div className="inspector-row">
+            <span className="inspector-row-label">Method</span>
+            <span className="inspector-row-value">{tender.procurement_method || "Open Tender"}</span>
+          </div>
+          <div className="inspector-row">
+            <span className="inspector-row-label">Organisation</span>
+            <span className="inspector-row-value" style={{ maxWidth: 160, textAlign: "right" }}>
+              {tender.organisation || tender.department || "Central Body"}
+            </span>
+          </div>
+          <div className="inspector-row">
+            <span className="inspector-row-label">Location</span>
+            <span className="inspector-row-value">{tender.state || "Pan-India"}</span>
+          </div>
+          {tender.submission_deadline && (
+            <div className="inspector-row">
+              <span className="inspector-row-label">Closing</span>
+              <span className="inspector-row-value" style={{ color: days !== null && days <= 3 ? "var(--error)" : "var(--text-primary)" }}>
+                {format(new Date(tender.submission_deadline), "dd MMM yyyy")}
+                {days !== null && (
+                  <span style={{ display: "block", fontSize: 10, color: "var(--text-muted)", fontWeight: 400 }}>
+                    {days < 0 ? "Deadline passed" : days === 0 ? "Today" : `${days} days remaining`}
+                  </span>
+                )}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* AI Assessment */}
+        <div className="inspector-section">
+          <div className="inspector-section-label">AI Assessment</div>
+          <div style={{ padding: "10px 12px", background: "var(--bg-subtle)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", marginBottom: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, fontSize: 12 }}>
+              <span style={{ color: "var(--text-tertiary)" }}>Qualification Score</span>
+              <span style={{ fontWeight: 700, color: "var(--success)" }}>92 / 100</span>
+            </div>
+            <div className="progress-track">
+              <div className="progress-fill progress-fill-success" style={{ width: "92%" }} />
+            </div>
+          </div>
+          {tender.msme_eligible && (
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: 11, color: "var(--success)", marginBottom: 6 }}>
+              <ShieldCheck style={{ width: 12, height: 12, flexShrink: 0, marginTop: 1 }} />
+              <span>EMD fully waived under Udyam MSME Rule 170</span>
+            </div>
+          )}
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: 11, color: "var(--text-tertiary)" }}>
+            <ShieldCheck style={{ width: 12, height: 12, flexShrink: 0, marginTop: 1 }} />
+            <span>Past experience likely matches scope requirement</span>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <button
+            className="btn btn-primary"
+            style={{ justifyContent: "center", width: "100%", padding: "9px 16px" }}
+            onClick={() => router.push(`/dashboard/tenders/${tender.id}`)}
+          >
+            Open Tender Workspace <ArrowUpRight style={{ width: 14, height: 14 }} />
+          </button>
+          <button
+            className="btn btn-secondary"
+            style={{ justifyContent: "center", width: "100%", padding: "8px 16px" }}
+            onClick={() => {
+              watchlisted ? removeFromWatchlist(tender.id) : addToWatchlist(tender);
+            }}
+          >
+            {watchlisted
+              ? <><BookmarkCheck style={{ width: 14, height: 14, color: "var(--brand)" }} /> Bookmarked</>
+              : <><BookmarkPlus  style={{ width: 14, height: 14 }} /> Save to Watchlist</>
+            }
+          </button>
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-ghost"
+            style={{ justifyContent: "center", width: "100%", fontSize: 12 }}
+          >
+            View on Official Portal <ExternalLink style={{ width: 12, height: 12 }} />
+          </a>
+        </div>
+
+        {/* Data provenance */}
+        <div style={{ marginTop: 20, padding: "10px 12px", background: "var(--bg-subtle)", borderRadius: "var(--r-md)", border: "1px solid var(--border)" }}>
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 5 }}>
+            Source
+          </div>
+          <div style={{ fontSize: 11, color: "var(--text-tertiary)" }}>
+            <span style={{ fontWeight: 600 }}>{getPortal(tender.source).label}</span>
+            {" · "}Tender data synced from official portal.
+            <span style={{ display: "block", marginTop: 2, color: "var(--text-muted)" }}>
+              {formatDistanceToNow(new Date(), { addSuffix: true })}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Main dashboard ─────────────────────────────────────────────────────────── */
 function DashboardContent() {
   const router       = useRouter();
   const searchParams = useSearchParams();
   const { user }     = useAuth();
 
-  const [tenders,           setTenders]           = useState<Tender[]>([]);
-  const [loading,           setLoading]           = useState(true);
-  const [error,             setError]             = useState<string | null>(null);
-  const [isSyncingScrapers, setIsSyncingScrapers] = useState(false);
-
-  /* Selection & Inspector */
-  const [selectedTender, setSelectedTender] = useState<Tender | null>(null);
-  const [selectedIndex,  setSelectedIndex]  = useState(0);
+  const [tenders,    setTenders]    = useState<Tender[]>([]);
+  const [loading,    setLoading]    = useState(true);
+  const [isSyncing,  setIsSyncing]  = useState(false);
+  const [selected,   setSelected]   = useState<Tender | null>(null);
 
   /* Filters */
-  const [search,        setSearch]        = useState("");
-  const [filterSector,  setFilterSector]  = useState("All Sectors");
-  const [filterMsme,    setFilterMsme]    = useState(false);
-  const [filterStartup, setFilterStartup] = useState(false);
+  const [search,       setSearch]       = useState("");
+  const [filterSector, setFilterSector] = useState("All Sectors");
+  const [filterSource, setFilterSource] = useState("All Sources");
+  const [filterMsme,   setFilterMsme]   = useState(false);
+  const [filterStartup,setFilterStartup]= useState(false);
 
   /* Pagination */
   const [page,     setPage]     = useState(1);
-  const [pageSize] = useState(30);
+  const pageSize = 50;
 
-  /* ── Data fetch ─────────────────────────────────────────────────────────── */
-  const fetchTenders = useCallback(async () => {
+  /* Keyboard selection index */
+  const [kbIdx, setKbIdx] = useState(0);
+
+  const load = useCallback(async () => {
     setLoading(true);
-    setError(null);
     try {
-      const q          = searchParams.get("q") || "";
-      const stateParam = searchParams.get("state") || "";
-      const costMin    = searchParams.get("cost_min")
-        ? parseFloat(searchParams.get("cost_min")!)
-        : undefined;
-
-      const localRes = searchCatalog({
-        q:         q || search || undefined,
-        state:     stateParam || undefined,
-        cost_min:  costMin,
-        page,
-        page_size: pageSize,
-      });
-
-      setTenders(localRes.tenders);
-      if (localRes.tenders.length > 0 && !selectedTender) {
-        setSelectedTender(localRes.tenders[0]);
-      }
-    } catch (err: any) {
-      setError("Unable to sync catalog feed.");
+      const q     = searchParams.get("q") || "";
+      const state = searchParams.get("state") || "";
+      const res   = searchCatalog({ q: q || search || undefined, state: state || undefined, page, page_size: pageSize });
+      setTenders(res.tenders);
+      if (res.tenders.length > 0 && !selected) setSelected(res.tenders[0]);
     } finally {
       setLoading(false);
     }
-  }, [searchParams, search, page, pageSize]);
+  }, [searchParams, search, page]);
 
-  useEffect(() => { fetchTenders(); }, [fetchTenders]);
+  useEffect(() => { load(); }, [load]);
 
-  const handleRunScrapers = async () => {
-    setIsSyncingScrapers(true);
-    try {
-      await new Promise(r => setTimeout(r, 1200));
-      fetchTenders();
-    } finally {
-      setIsSyncingScrapers(false);
-    }
+  const handleSync = async () => {
+    setIsSyncing(true);
+    await new Promise(r => setTimeout(r, 1200));
+    load().finally(() => setIsSyncing(false));
   };
 
-  /* ── Keyboard navigation (J/K/Enter) ───────────────────────────────────── */
+  /* Keyboard nav */
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (["INPUT", "TEXTAREA", "SELECT"].includes((e.target as HTMLElement).tagName)) return;
+    const h = (e: KeyboardEvent) => {
+      if (["INPUT","TEXTAREA","SELECT"].includes((e.target as HTMLElement).tagName)) return;
       if (e.key === "j" || e.key === "ArrowDown") {
         e.preventDefault();
-        setSelectedIndex(prev => {
-          const next = Math.min(prev + 1, tenders.length - 1);
-          if (tenders[next]) setSelectedTender(tenders[next]);
-          return next;
-        });
+        setKbIdx(p => { const n = Math.min(p+1, filtered.length-1); setSelected(filtered[n]); return n; });
       } else if (e.key === "k" || e.key === "ArrowUp") {
         e.preventDefault();
-        setSelectedIndex(prev => {
-          const p = Math.max(prev - 1, 0);
-          if (tenders[p]) setSelectedTender(tenders[p]);
-          return p;
-        });
-      } else if (e.key === "Enter" && selectedTender) {
-        e.preventDefault();
-        router.push(`/dashboard/tenders/${selectedTender.id}`);
+        setKbIdx(p => { const n = Math.max(p-1,0); setSelected(filtered[n]); return n; });
+      } else if (e.key === "Enter" && selected) {
+        router.push(`/dashboard/tenders/${selected.id}`);
+      } else if (e.key === "Escape") {
+        setSelected(null);
       }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [tenders, selectedTender, router]);
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  });
 
-  /* ── Derived values ─────────────────────────────────────────────────────── */
-  const filteredTenders = useMemo(() => {
-    return tenders.filter(t => {
-      if (filterMsme    && !t.msme_eligible)    return false;
-      if (filterStartup && !t.startup_eligible) return false;
-      if (filterSector !== "All Sectors") {
-        const key = filterSector.toLowerCase().split(" ")[0];
-        const ok  = (t.categories || []).some(c => c.toLowerCase().includes(key));
-        if (!ok) return false;
-      }
-      return true;
-    });
-  }, [tenders, filterMsme, filterStartup, filterSector]);
+  /* Derived */
+  const filtered = useMemo(() => tenders.filter(t => {
+    if (filterMsme    && !t.msme_eligible)    return false;
+    if (filterStartup && !t.startup_eligible) return false;
+    if (filterSector !== "All Sectors") {
+      const k = filterSector.toLowerCase().split(" ")[0];
+      if (!(t.categories||[]).some(c => c.toLowerCase().includes(k))) return false;
+    }
+    if (filterSource !== "All Sources") {
+      const s = filterSource.toLowerCase().replace("/drdo","").trim();
+      if (!(t.source||"").toLowerCase().includes(s.split(" ")[0])) return false;
+    }
+    return true;
+  }), [tenders, filterMsme, filterStartup, filterSector, filterSource]);
 
-  const urgentCount = useMemo(() => {
-    const now = Date.now();
-    return tenders.filter(t => {
-      if (!t.submission_deadline) return false;
-      const h = (new Date(t.submission_deadline).getTime() - now) / 3600000;
-      return h > 0 && h <= 72;
-    }).length;
-  }, [tenders]);
+  const urgentCount  = useMemo(() => tenders.filter(t => {
+    if (!t.submission_deadline) return false;
+    const h = (new Date(t.submission_deadline).getTime() - Date.now()) / 3600000;
+    return h > 0 && h <= 72;
+  }).length, [tenders]);
 
   const totalValueCr = useMemo(() => {
-    const lakhs = tenders.reduce((acc, t) => acc + (t.estimated_cost_lakhs || 0), 0);
-    return (lakhs / 100).toFixed(0);
+    const l = tenders.reduce((a,t) => a + (t.estimated_cost_lakhs||0), 0);
+    return (l/100).toFixed(0);
   }, [tenders]);
 
-  const msmeCount = useMemo(() =>
-    tenders.filter(t => t.msme_eligible).length
-  , [tenders]);
+  const msmeCount = useMemo(() => tenders.filter(t => t.msme_eligible).length, [tenders]);
 
-  const pagedTenders = filteredTenders.slice((page - 1) * pageSize, page * pageSize);
-  const totalPages   = Math.ceil(filteredTenders.length / pageSize) || 1;
+  const paged = filtered.slice((page-1)*pageSize, page*pageSize);
+  const total = Math.ceil(filtered.length / pageSize) || 1;
 
-  /* ─────────────────────────────────────────────────────────────────────────
-     RENDER
-  ─────────────────────────────────────────────────────────────────────────── */
   return (
-    <div className="animate-fade-in" style={{ minHeight: "100%" }}>
+    <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", height: "100%" }}>
 
-      {/* ── Page Header — editorial, not a hero card ────────────────────────── */}
-      <div
-        style={{
-          padding: "28px 32px 0",
-          borderBottom: "1px solid var(--border)",
-          background: "var(--bg-base)",
-        }}
-      >
-        {/* Top row: title + actions */}
-        <div className="flex items-start justify-between gap-6 pb-6">
-          <div className="space-y-1 flex-1 min-w-0">
-            {/* Live indicator pill — minimal */}
-            <div className="flex items-center gap-2 mb-3">
-              <span className="status-dot status-dot-live" />
-              <span
-                className="text-[11px] font-semibold"
-                style={{ color: "var(--success)", letterSpacing: "0.04em" }}
-              >
-                LIVE INGESTION
-              </span>
-              <span
-                className="text-[11px]"
-                style={{ color: "var(--text-muted)" }}
-              >
-                · Updated {formatDistanceToNow(new Date(), { addSuffix: true })}
-              </span>
+      {/* ── Page header ──────────────────────────────────────────────────────── */}
+      <div className="page-header">
+        <div className="page-header-top">
+          <div>
+            <div className="page-title">Procurement Command Center</div>
+            <div className="page-subtitle">
+              Monitor opportunities, bid activity, compliance, and procurement intelligence across India.
             </div>
-
-            {/* Primary headline — editorial, not a widget title */}
-            <h1
-              className="font-display leading-tight"
-              style={{
-                fontSize: "28px",
-                color: "var(--text-primary)",
-                letterSpacing: "-0.03em",
-                fontWeight: 800,
-              }}
-            >
-              {urgentCount > 0 ? (
-                <>
-                  <span style={{ color: "var(--warning)" }}>{urgentCount} solicitations</span>{" "}
-                  closing within 72 hours
-                </>
-              ) : (
-                <>
-                  9,763 active procurement{" "}
-                  <span style={{ color: "var(--brand)" }}>opportunities</span>
-                </>
-              )}
-            </h1>
-
-            <p
-              className="text-[13px] leading-relaxed max-w-xl mt-1"
-              style={{ color: "var(--text-tertiary)" }}
-            >
-              GeM · CPPP · Defence · IREPS · 36 States &amp; UTs — all indexed, filtered,
-              and ranked by qualification probability for your company profile.
-            </p>
           </div>
-
-          {/* CTA cluster */}
-          <div className="flex items-center gap-2 flex-shrink-0 pt-1">
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, paddingTop: 2 }}>
             <button
-              onClick={() => router.push("/dashboard/intelligence")}
-              className="btn btn-primary text-[12px] px-4 py-2"
+              onClick={handleSync}
+              disabled={isSyncing}
+              className="btn btn-secondary"
+              style={{ fontSize: 12, padding: "6px 12px" }}
             >
-              <Sparkles className="w-3.5 h-3.5" />
-              AI Copilot
+              <RefreshCw style={{ width: 13, height: 13, ...(isSyncing ? { animation: "spin 0.8s linear infinite" } : {}) }} />
+              {isSyncing ? "Syncing…" : "Sync Portals"}
             </button>
-            <button
-              onClick={handleRunScrapers}
-              disabled={isSyncingScrapers}
-              className="btn btn-secondary text-[12px] px-3 py-2"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isSyncingScrapers ? "animate-spin" : ""}`} style={{ color: isSyncingScrapers ? "var(--brand)" : "var(--text-muted)" }} />
-              {isSyncingScrapers ? "Syncing..." : "Sync"}
-            </button>
+            <Link href="/dashboard/search" className="btn btn-primary" style={{ fontSize: 12, padding: "6px 14px" }}>
+              <Search style={{ width: 13, height: 13 }} />
+              Advanced Search
+            </Link>
           </div>
         </div>
 
-        {/* Stat strip — plain, editorial, no cards or boxes */}
-        <div
-          className="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-4 pb-5"
-          style={{ borderTop: "1px solid var(--border)", paddingTop: "20px" }}
-        >
-          <StatItem
-            label="Active Stream"
-            value={`${tenders.length.toLocaleString("en-IN")}`}
-            sub="solicitations indexed"
-          />
-          <StatItem
-            label="Total Value"
-            value={`₹${Number(totalValueCr).toLocaleString("en-IN")} Cr`}
-            sub="combined tender value"
-            accent="var(--brand)"
-          />
-          <StatItem
-            label="MSME Eligible"
-            value={`${msmeCount.toLocaleString("en-IN")}`}
-            sub="EMD waived under Udyam Rule 170"
-            accent="var(--success)"
-          />
-          <StatItem
-            label="Portals Online"
-            value="36"
-            sub="States & UTs + Central"
-          />
-        </div>
+        {/* KPI strip */}
+        <KpiStrip tenders={tenders} urgentCount={urgentCount} totalValueCr={totalValueCr} msmeCount={msmeCount} />
       </div>
 
-      {/* ── Main 2-column workspace ──────────────────────────────────────────── */}
-      <div
-        style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 0, minHeight: "calc(100vh - 200px)" }}
-      >
-        {/* ── LEFT: Stream feed ──────────────────────────────────────────────── */}
-        <div
-          style={{ borderRight: "1px solid var(--border)", padding: "0" }}
-        >
-          {/* Filter toolbar — strip, not a search card */}
-          <div
-            className="flex items-center gap-3 px-6 py-3"
-            style={{ borderBottom: "1px solid var(--border)", background: "var(--bg-base)" }}
-          >
+      {/* ── Main workspace: table + inspector ────────────────────────────────── */}
+      <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
+
+        {/* ── Table section ────────────────────────────────────────────────────── */}
+        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+
+          {/* Filter bar */}
+          <div className="filter-bar">
             {/* Inline search */}
-            <div className="flex items-center gap-2 flex-1" style={{ maxWidth: "260px" }}>
-              <Search className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "var(--text-muted)" }} />
+            <div className="table-toolbar-search" style={{ flex: 1, maxWidth: 300 }}>
+              <Search style={{ width: 13, height: 13, color: "var(--text-muted)", flexShrink: 0 }} />
               <input
-                type="text"
                 value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Filter stream..."
-                style={{
-                  background:  "transparent",
-                  border:      "none",
-                  outline:     "none",
-                  fontSize:    "13px",
-                  color:       "var(--text-primary)",
-                  width:       "100%",
-                }}
+                onChange={e => { setSearch(e.target.value); setPage(1); }}
+                placeholder="Filter by title, organisation, state…"
               />
+              {search && (
+                <button onClick={() => setSearch("")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", display: "flex", padding: 0 }}>
+                  <X style={{ width: 12, height: 12 }} />
+                </button>
+              )}
             </div>
 
-            <div
-              style={{ width: "1px", height: "16px", background: "var(--border)", flexShrink: 0 }}
-            />
+            <div className="divider-v" style={{ height: 20 }} />
 
-            {/* Sector select */}
             <select
-              value={filterSector}
-              onChange={e => setFilterSector(e.target.value)}
-              style={{
-                background:  "transparent",
-                border:      "none",
-                outline:     "none",
-                fontSize:    "12px",
-                color:       "var(--text-secondary)",
-                cursor:      "pointer",
-                fontFamily:  "inherit",
-              }}
+              value={filterSource}
+              onChange={e => { setFilterSource(e.target.value); setPage(1); }}
+              className="filter-select"
             >
-              {SECTORS.map(s => <option key={s} value={s}>{s}</option>)}
+              {SOURCES.map(s => <option key={s}>{s}</option>)}
             </select>
 
-            <div
-              style={{ width: "1px", height: "16px", background: "var(--border)", flexShrink: 0 }}
-            />
+            <select
+              value={filterSector}
+              onChange={e => { setFilterSector(e.target.value); setPage(1); }}
+              className="filter-select"
+            >
+              {SECTORS.map(s => <option key={s}>{s}</option>)}
+            </select>
 
-            {/* Filter toggles */}
             <button
-              onClick={() => setFilterMsme(!filterMsme)}
-              style={{
-                fontSize:    "11px",
-                fontWeight:  filterMsme ? 600 : 500,
-                padding:     "3px 9px",
-                borderRadius: "4px",
-                border:      `1px solid ${filterMsme ? "var(--success-border)" : "var(--border)"}`,
-                background:  filterMsme ? "var(--success-bg)" : "transparent",
-                color:       filterMsme ? "var(--success)" : "var(--text-muted)",
-                cursor:      "pointer",
-                transition:  "all 0.1s ease",
-                whiteSpace:  "nowrap",
-              }}
+              onClick={() => setFilterMsme(v => !v)}
+              className={`filter-toggle${filterMsme ? " active-green" : ""}`}
             >
               MSME Exempt
             </button>
 
             <button
-              onClick={() => setFilterStartup(!filterStartup)}
-              style={{
-                fontSize:    "11px",
-                fontWeight:  filterStartup ? 600 : 500,
-                padding:     "3px 9px",
-                borderRadius: "4px",
-                border:      `1px solid ${filterStartup ? "var(--brand-border)" : "var(--border)"}`,
-                background:  filterStartup ? "var(--brand-muted)" : "transparent",
-                color:       filterStartup ? "var(--brand)" : "var(--text-muted)",
-                cursor:      "pointer",
-                transition:  "all 0.1s ease",
-                whiteSpace:  "nowrap",
-              }}
+              onClick={() => setFilterStartup(v => !v)}
+              className={`filter-toggle${filterStartup ? " active" : ""}`}
             >
-              Startup
+              Startup India
             </button>
 
-            {/* Count */}
-            <span
-              className="ml-auto text-[11px] font-mono flex-shrink-0"
-              style={{ color: "var(--text-muted)" }}
-            >
-              {filteredTenders.length.toLocaleString("en-IN")} results
-            </span>
-          </div>
-
-          {/* Keyboard hint — ultra-minimal */}
-          <div
-            className="flex items-center gap-2 px-6 py-1.5"
-            style={{ borderBottom: "1px solid var(--border)", background: "var(--bg-canvas)" }}
-          >
-            <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>
-              <kbd>J</kbd><kbd>K</kbd> navigate · <kbd>↵</kbd> open workspace · <kbd>⌘K</kbd> command bar
-            </span>
-          </div>
-
-          {/* Stream rows */}
-          <div style={{ background: "var(--bg-base)" }}>
-            {loading ? (
-              /* Skeleton rows */
-              <div>
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      padding:     "14px 24px",
-                      borderBottom: "1px solid var(--border)",
-                      display:     "flex",
-                      gap:         "12px",
-                      alignItems:  "flex-start",
-                    }}
-                  >
-                    <div className="skeleton" style={{ width: "52px", height: "18px", borderRadius: "3px", flexShrink: 0 }} />
-                    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "6px" }}>
-                      <div className="skeleton" style={{ width: "70%", height: "14px" }} />
-                      <div className="skeleton" style={{ width: "45%", height: "11px" }} />
-                    </div>
-                    <div className="skeleton" style={{ width: "64px", height: "14px", flexShrink: 0 }} />
-                  </div>
-                ))}
-              </div>
-            ) : filteredTenders.length === 0 ? (
-              <div
-                className="flex flex-col items-center justify-center py-20 gap-3"
-                style={{ color: "var(--text-muted)" }}
+            {(filterMsme || filterStartup || filterSector !== "All Sectors" || filterSource !== "All Sources") && (
+              <button
+                className="filter-toggle"
+                onClick={() => { setFilterMsme(false); setFilterStartup(false); setFilterSector("All Sectors"); setFilterSource("All Sources"); }}
+                style={{ color: "var(--error)", borderColor: "var(--error-border)" }}
               >
-                <AlertCircle className="w-7 h-7" />
-                <p className="text-[13px]">No tenders match current filters.</p>
-                <button
-                  onClick={() => { setSearch(""); setFilterSector("All Sectors"); setFilterMsme(false); setFilterStartup(false); }}
-                  style={{ color: "var(--brand)", fontSize: "12px", background: "none", border: "none", cursor: "pointer" }}
-                >
-                  Clear filters
+                Clear All
+              </button>
+            )}
+
+            <span className="table-count">{filtered.length.toLocaleString("en-IN")} results</span>
+          </div>
+
+          {/* Keyboard hint strip */}
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "5px 16px",
+            background: "var(--bg-subtle)",
+            borderBottom: "1px solid var(--border)",
+            fontSize: 10,
+            color: "var(--text-muted)",
+          }}>
+            <span><kbd>J</kbd> <kbd>K</kbd> navigate · <kbd>↵</kbd> open workspace · <kbd>Esc</kbd> close inspector</span>
+            <span style={{ fontFamily: "var(--font-mono)" }}>Page {page}/{total}</span>
+          </div>
+
+          {/* Data table */}
+          <div style={{ flex: 1, overflowY: "auto" }}>
+            {loading ? (
+              /* Skeleton table */
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    {["Tender Ref","Organisation","Tender Title","Source","State","Est. Value","Deadline","Status","Score",""].map(h => (
+                      <th key={h}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {Array.from({ length: 12 }).map((_, i) => (
+                    <tr key={i} style={{ cursor: "default" }}>
+                      <td><div className="skeleton" style={{ width: 100, height: 12 }} /></td>
+                      <td><div className="skeleton" style={{ width: 120, height: 12 }} /></td>
+                      <td><div className="skeleton" style={{ width: 200, height: 12 }} /></td>
+                      <td><div className="skeleton" style={{ width: 52, height: 16 }} /></td>
+                      <td><div className="skeleton" style={{ width: 70, height: 12 }} /></td>
+                      <td><div className="skeleton" style={{ width: 80, height: 12 }} /></td>
+                      <td><div className="skeleton" style={{ width: 70, height: 12 }} /></td>
+                      <td><div className="skeleton" style={{ width: 60, height: 12 }} /></td>
+                      <td><div className="skeleton" style={{ width: 50, height: 12 }} /></td>
+                      <td />
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : filtered.length === 0 ? (
+              <div className="empty-state">
+                <AlertCircle className="empty-state-icon" style={{ width: 32, height: 32 }} />
+                <div className="empty-state-title">No procurement records found</div>
+                <div className="empty-state-desc">
+                  No tenders match your current filter criteria. Adjust or clear filters to broaden results.
+                </div>
+                <button className="btn btn-secondary" style={{ marginTop: 8, fontSize: 12 }} onClick={() => { setSearch(""); setFilterSector("All Sectors"); setFilterMsme(false); setFilterStartup(false); }}>
+                  Clear All Filters
                 </button>
               </div>
             ) : (
-              pagedTenders.map((t, idx) => {
-                const isSelected = selectedTender?.id === t.id;
-                const portal     = getPortalInfo(t.source);
-                const portalUrl  = ensureAbsoluteUrl(t.source_url, portal.defaultUrl);
-                const daysLeft   = t.submission_deadline
-                  ? Math.ceil((new Date(t.submission_deadline).getTime() - Date.now()) / 86400000)
-                  : null;
-                const isUrgent = daysLeft !== null && daysLeft <= 3;
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: 120 }}>Tender Ref</th>
+                    <th style={{ width: 180 }}>Organisation</th>
+                    <th>Tender Title</th>
+                    <th style={{ width: 80 }}>Source</th>
+                    <th style={{ width: 110 }}>State / Location</th>
+                    <th style={{ width: 110, textAlign: "right" }}>Est. Value</th>
+                    <th style={{ width: 110 }}>Closing Date</th>
+                    <th style={{ width: 100 }}>Status</th>
+                    <th style={{ width: 80 }}>AI Score</th>
+                    <th style={{ width: 50 }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paged.map((t, idx) => {
+                    const isSelected = selected?.id === t.id;
+                    const portal     = getPortal(t.source);
+                    const status     = getTenderStatus(t);
+                    const days       = t.submission_deadline
+                      ? differenceInDays(new Date(t.submission_deadline), new Date())
+                      : null;
+                    const deadlineClass = days === null ? "" : days < 0 ? "col-deadline-ok" : days <= 3 ? "col-deadline-urgent" : days <= 7 ? "col-deadline-warn" : "col-deadline-ok";
+                    const score = 70 + (t.id.charCodeAt(0) % 28); // deterministic demo score
 
-                return (
-                  <div
-                    key={t.id}
-                    onClick={() => { setSelectedTender(t); setSelectedIndex(idx); }}
-                    className={`stream-row ${isSelected ? "selected" : ""}`}
-                    style={{
-                      display: "block",
-                      padding: "13px 24px",
-                      borderBottom: "1px solid var(--border)",
-                      cursor: "pointer",
-                      position: "relative",
-                      transition: "background 0.1s ease",
-                      background: isSelected ? "var(--brand-muted)" : "var(--bg-base)",
-                    }}
-                  >
-                    {/* Selected accent bar */}
-                    {isSelected && (
-                      <div
-                        style={{
-                          position: "absolute",
-                          left: 0, top: 0, bottom: 0,
-                          width: "3px",
-                          background: "var(--brand)",
-                        }}
-                      />
-                    )}
-
-                    <div className="flex items-start gap-4">
-                      {/* Portal badge — left column, fixed width for rhythm */}
-                      <div className="flex-shrink-0 pt-0.5" style={{ width: "58px" }}>
-                        <span
-                          style={{
-                            display:      "inline-block",
-                            fontSize:     "9px",
-                            fontWeight:   700,
-                            letterSpacing:"0.05em",
-                            textTransform:"uppercase",
-                            padding:      "2px 6px",
-                            borderRadius: "3px",
-                            background:   portal.bg,
-                            color:        portal.color,
-                            border:       `1px solid ${portal.border}`,
-                            lineHeight:   1.6,
-                          }}
-                        >
-                          {portal.label}
-                        </span>
-                      </div>
-
-                      {/* Main content */}
-                      <div className="flex-1 min-w-0 space-y-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span
-                            className="font-mono text-[10px]"
-                            style={{ color: "var(--text-muted)" }}
-                          >
-                            {t.source_tender_id || t.id}
-                          </span>
+                    return (
+                      <tr
+                        key={t.id}
+                        className={isSelected ? "selected" : ""}
+                        onClick={() => { setSelected(t); setKbIdx(idx); }}
+                      >
+                        <td>
+                          <div className="col-ref">{(t.source_tender_id || t.id).slice(0, 22)}</div>
+                        </td>
+                        <td>
+                          <div style={{ fontSize: 12, color: "var(--text-secondary)", maxWidth: 170, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {t.organisation || t.department || "Central Procurement"}
+                          </div>
+                        </td>
+                        <td>
+                          <div className="col-title truncate-1" style={{ maxWidth: 300 }}>{t.title}</div>
                           {t.msme_eligible && (
-                            <span
-                              style={{
-                                fontSize: "9px", fontWeight: 700, letterSpacing: "0.04em",
-                                padding: "1px 5px", borderRadius: "3px", textTransform: "uppercase",
-                                background: "var(--success-bg)", color: "var(--success)",
-                                border: "1px solid var(--success-border)",
-                              }}
-                            >
-                              EMD Exempt
-                            </span>
+                            <div style={{ fontSize: 10, color: "var(--success)", marginTop: 2, fontWeight: 600 }}>
+                              MSME · EMD Exempt
+                            </div>
                           )}
-                          {isUrgent && (
-                            <span
-                              style={{
-                                fontSize: "9px", fontWeight: 700, letterSpacing: "0.04em",
-                                padding: "1px 5px", borderRadius: "3px", textTransform: "uppercase",
-                                background: "var(--warning-bg)", color: "var(--warning)",
-                                border: "1px solid var(--warning-border)",
-                              }}
-                            >
-                              {daysLeft}d left
-                            </span>
-                          )}
-                        </div>
-
-                        <h3
-                          style={{
-                            fontSize:     "13px",
-                            fontWeight:   600,
-                            color:        "var(--text-primary)",
-                            letterSpacing:"-0.01em",
-                            lineHeight:   1.35,
-                            display:      "-webkit-box",
-                            WebkitLineClamp: 1,
-                            WebkitBoxOrient: "vertical",
-                            overflow:     "hidden",
-                          }}
-                        >
-                          {t.title}
-                        </h3>
-
-                        <div
-                          className="flex items-center gap-4"
-                          style={{ fontSize: "11px", color: "var(--text-muted)" }}
-                        >
-                          <span className="flex items-center gap-1 max-w-[180px] truncate">
-                            <Building2 className="w-3 h-3 flex-shrink-0" />
-                            {t.organisation || t.department || "Central Body"}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <MapPin className="w-3 h-3 flex-shrink-0" />
+                        </td>
+                        <td>
+                          <span className={portal.cls}>{portal.label}</span>
+                        </td>
+                        <td>
+                          <span style={{ fontSize: 12, color: "var(--text-tertiary)", display: "flex", alignItems: "center", gap: 4 }}>
+                            <MapPin style={{ width: 11, height: 11, flexShrink: 0 }} />
                             {t.state || "Pan-India"}
                           </span>
-                        </div>
-                      </div>
-
-                      {/* Right: value + actions */}
-                      <div className="flex-shrink-0 flex flex-col items-end gap-2 min-w-[80px]">
-                        <span
-                          className="font-mono font-bold text-[12px] tabular-nums"
-                          style={{ color: "var(--text-primary)" }}
-                        >
-                          ₹{(t.estimated_cost_lakhs || 0).toLocaleString("en-IN")}L
-                        </span>
-                        <div className="flex items-center gap-0.5">
-                          <a
-                            href={portalUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={e => e.stopPropagation()}
-                            style={{ padding: "3px", color: "var(--text-muted)", borderRadius: "4px", display: "flex" }}
-                          >
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          </a>
+                        </td>
+                        <td className="col-value">
+                          ₹{(t.estimated_cost_lakhs||0).toLocaleString("en-IN")}L
+                        </td>
+                        <td>
+                          <div className={`col-deadline ${deadlineClass}`}>
+                            {t.submission_deadline
+                              ? format(new Date(t.submission_deadline), "dd MMM yyyy")
+                              : "—"}
+                          </div>
+                          {days !== null && days >= 0 && days <= 7 && (
+                            <div style={{ fontSize: 10, color: days <= 3 ? "var(--error)" : "var(--warning)", fontWeight: 600, marginTop: 1 }}>
+                              {days === 0 ? "Today" : `${days}d left`}
+                            </div>
+                          )}
+                        </td>
+                        <td>
+                          <span className={`status ${status.cls}`}>
+                            <span className="status-dot" />
+                            {status.label}
+                          </span>
+                        </td>
+                        <td>
+                          <div className="score-cell">
+                            <div className="score-bar-track">
+                              <div className="score-bar-fill" style={{ width: `${score}%` }} />
+                            </div>
+                            <span className="score-text">{score}%</span>
+                          </div>
+                        </td>
+                        <td>
                           <button
                             onClick={e => { e.stopPropagation(); router.push(`/dashboard/tenders/${t.id}`); }}
-                            style={{ padding: "3px", color: "var(--text-muted)", borderRadius: "4px", display: "flex", background: "none", border: "none", cursor: "pointer" }}
+                            className="btn btn-ghost btn-icon"
+                            style={{ padding: 4 }}
                           >
-                            <ChevronRight className="w-3.5 h-3.5" />
+                            <ChevronRight style={{ width: 14, height: 14 }} />
                           </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             )}
           </div>
 
-          {/* Pagination — plain, no card wrapper */}
-          {!loading && filteredTenders.length > 0 && (
-            <div
-              className="flex items-center justify-between px-6 py-3"
-              style={{ borderTop: "1px solid var(--border)", background: "var(--bg-base)" }}
-            >
-              <span
-                className="text-[11px] font-mono"
-                style={{ color: "var(--text-muted)" }}
-              >
-                Page {page} / {totalPages}
-              </span>
-              <div className="flex gap-2">
-                <button
-                  disabled={page === 1}
-                  onClick={() => setPage(p => p - 1)}
-                  className="btn btn-secondary"
-                  style={{ padding: "4px 12px", fontSize: "11px" }}
-                >
-                  ← Previous
-                </button>
-                <button
-                  disabled={page >= totalPages}
-                  onClick={() => setPage(p => p + 1)}
-                  className="btn btn-secondary"
-                  style={{ padding: "4px 12px", fontSize: "11px" }}
-                >
-                  Next →
-                </button>
+          {/* Pagination */}
+          {!loading && filtered.length > 0 && (
+            <div className="table-pagination">
+              <div className="table-pagination-info">
+                Showing {((page-1)*pageSize)+1}–{Math.min(page*pageSize, filtered.length)} of {filtered.length.toLocaleString("en-IN")} procurement records
+              </div>
+              <div className="table-pagination-controls">
+                <button className="btn btn-secondary" style={{ padding: "4px 10px", fontSize: 12 }} disabled={page === 1} onClick={() => setPage(p => p-1)}>← Prev</button>
+                <span style={{ padding: "0 10px", fontSize: 12, color: "var(--text-muted)" }}>{page} / {total}</span>
+                <button className="btn btn-secondary" style={{ padding: "4px 10px", fontSize: 12 }} disabled={page >= total} onClick={() => setPage(p => p+1)}>Next →</button>
               </div>
             </div>
           )}
         </div>
 
-        {/* ── RIGHT: Inspector panel ──────────────────────────────────────────── */}
-        <div
-          style={{
-            position:  "sticky",
-            top:       0,
-            height:    "calc(100vh - 48px)", /* subtract header height */
-            overflowY: "auto",
-            padding:   "24px 20px",
-            background: "var(--bg-canvas)",
-            display:   "flex",
-            flexDirection: "column",
-            gap:       "20px",
-          }}
-        >
-
-          {/* ── Inspector card ─────────────────────────────────────────────── */}
-          <div className="inspector-panel">
-            {/* Header */}
-            <div
-              className="flex items-center justify-between px-4 py-3"
-              style={{ borderBottom: "1px solid var(--border)" }}
-            >
-              <div className="flex items-center gap-2">
-                <Sparkles
-                  className="w-3.5 h-3.5"
-                  style={{ color: "var(--brand)" }}
-                />
-                <span
-                  className="text-overline"
-                  style={{ color: "var(--text-primary)", fontSize: "10px" }}
-                >
-                  Inspector
-                </span>
-              </div>
-              <span
-                style={{
-                  fontSize: "9px", fontWeight: 700, padding: "2px 6px",
-                  borderRadius: "3px", textTransform: "uppercase", letterSpacing: "0.05em",
-                  background: "var(--success-bg)", color: "var(--success)",
-                  border: "1px solid var(--success-border)",
-                }}
-              >
-                AI Verified
-              </span>
-            </div>
-
-            {selectedTender ? (
-              <div className="px-4 py-4 space-y-4">
-                {/* Tender title */}
-                <div>
-                  <div
-                    className="text-overline mb-1.5"
-                    style={{ color: "var(--text-muted)", fontSize: "9px" }}
-                  >
-                    Selected tender
-                  </div>
-                  <h3
-                    style={{
-                      fontSize: "13px", fontWeight: 700, color: "var(--text-primary)",
-                      letterSpacing: "-0.01em", lineHeight: 1.4,
-                      display: "-webkit-box", WebkitLineClamp: 3,
-                      WebkitBoxOrient: "vertical", overflow: "hidden",
-                    }}
-                  >
-                    {selectedTender.title}
-                  </h3>
-                </div>
-
-                {/* Qualification bar */}
-                <div
-                  style={{
-                    padding: "12px",
-                    background: "var(--bg-subtle)",
-                    borderRadius: "8px",
-                    border: "1px solid var(--border)",
-                  }}
-                >
-                  <div
-                    className="flex justify-between text-[11px] font-semibold mb-2"
-                  >
-                    <span style={{ color: "var(--text-secondary)" }}>Qualification Score</span>
-                    <span style={{ color: "var(--success)", fontVariantNumeric: "tabular-nums" }}>92%</span>
-                  </div>
-                  <div className="progress-track">
-                    <div className="progress-fill" style={{ width: "92%" }} />
-                  </div>
-                  <div className="mt-2.5 space-y-1">
-                    <div className="flex items-start gap-1.5 text-[11px]" style={{ color: "var(--success)" }}>
-                      <ShieldCheck className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-                      <span>Past experience matches scope requirement</span>
-                    </div>
-                    <div className="flex items-start gap-1.5 text-[11px]" style={{ color: "var(--success)" }}>
-                      <ShieldCheck className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-                      <span>100% EMD waived — Udyam MSME Rule 170</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Data rows */}
-                <div>
-                  <div className="inspector-row">
-                    <span style={{ color: "var(--text-muted)", fontSize: "12px" }}>Estimated Cost</span>
-                    <span className="font-mono font-bold text-[12px]" style={{ color: "var(--text-primary)" }}>
-                      ₹{(selectedTender.estimated_cost_lakhs || 0).toLocaleString("en-IN")} L
-                    </span>
-                  </div>
-                  <div className="inspector-row">
-                    <span style={{ color: "var(--text-muted)", fontSize: "12px" }}>EMD Required</span>
-                    <span className="font-bold text-[12px]" style={{ color: "var(--success)" }}>₹0 Waived</span>
-                  </div>
-                  <div className="inspector-row">
-                    <span style={{ color: "var(--text-muted)", fontSize: "12px" }}>Method</span>
-                    <span className="font-medium text-[12px]" style={{ color: "var(--text-primary)" }}>
-                      {selectedTender.procurement_method || "Open Tender L1"}
-                    </span>
-                  </div>
-                  <div className="inspector-row">
-                    <span style={{ color: "var(--text-muted)", fontSize: "12px" }}>Portal</span>
-                    <span style={{ color: "var(--text-primary)", fontSize: "12px", fontWeight: 500 }}>
-                      {getPortalInfo(selectedTender.source).label}
-                    </span>
-                  </div>
-                  <div className="inspector-row" style={{ borderBottom: "none", paddingBottom: 0 }}>
-                    <span style={{ color: "var(--text-muted)", fontSize: "12px" }}>State</span>
-                    <span style={{ color: "var(--text-primary)", fontSize: "12px", fontWeight: 500 }}>
-                      {selectedTender.state || "Pan-India"}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="space-y-2 pt-1">
-                  <button
-                    onClick={() => router.push(`/dashboard/tenders/${selectedTender.id}`)}
-                    className="btn btn-primary w-full text-[12px]"
-                    style={{ justifyContent: "center", padding: "9px" }}
-                  >
-                    Open Workspace
-                    <ArrowUpRight className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (!selectedTender) return;
-                      if (isWatchlisted(selectedTender.id)) {
-                        removeFromWatchlist(selectedTender.id);
-                      } else {
-                        addToWatchlist(selectedTender);
-                      }
-                    }}
-                    className="btn btn-secondary w-full text-[12px]"
-                    style={{ justifyContent: "center", padding: "8px" }}
-                  >
-                    {isWatchlisted(selectedTender.id)
-                      ? <><BookmarkCheck className="w-3.5 h-3.5" style={{ color: "var(--brand)" }} /> Bookmarked</>
-                      : <><BookmarkPlus className="w-3.5 h-3.5" /> Bookmark</>
-                    }
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div
-                className="flex flex-col items-center justify-center py-10"
-                style={{ color: "var(--text-muted)" }}
-              >
-                <FileText className="w-7 h-7 mb-3 opacity-40" />
-                <p className="text-[12px] text-center">
-                  Select a tender to inspect
-                  <br />qualification details
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* ── Portal Signal Feed ──────────────────────────────────────────── */}
-          <div className="inspector-panel">
-            <div
-              className="flex items-center justify-between px-4 py-3"
-              style={{ borderBottom: "1px solid var(--border)" }}
-            >
-              <div className="flex items-center gap-2">
-                <Terminal
-                  className="w-3.5 h-3.5"
-                  style={{ color: "var(--success)" }}
-                />
-                <span
-                  className="text-overline"
-                  style={{ color: "var(--text-primary)", fontSize: "10px" }}
-                >
-                  Network Status
-                </span>
-              </div>
-              <span
-                className="font-mono text-[10px] font-semibold"
-                style={{ color: "var(--success)" }}
-              >
-                100% ↑
-              </span>
-            </div>
-
-            <div className="signal-feed px-4">
-              {SIGNAL_FEED.map(item => (
-                <div key={item.label} className="signal-item">
-                  <span
-                    className="status-dot status-dot-live"
-                    style={{ marginTop: "3px" }}
-                  />
-                  <div>
-                    <div
-                      className="font-semibold text-[12px]"
-                      style={{ color: "var(--text-primary)" }}
-                    >
-                      {item.label}
-                    </div>
-                    <div
-                      className="font-mono text-[10px]"
-                      style={{ color: "var(--text-muted)" }}
-                    >
-                      {item.detail}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* ── Quick navigation chips ──────────────────────────────────────── */}
-          <div>
-            <div
-              className="text-overline mb-2"
-              style={{ color: "var(--text-muted)", fontSize: "9px" }}
-            >
-              Quick navigate
-            </div>
-            <div className="space-y-1">
-              {[
-                { label: "Market Analytics", href: "/dashboard/analytics", icon: BarChart2 },
-                { label: "AI Copilot & RAG", href: "/dashboard/intelligence", icon: Sparkles },
-                { label: "Watchlist & Bids",  href: "/dashboard/watchlist",   icon: BookmarkCheck },
-              ].map(({ label, href, icon: Icon }) => (
-                <Link
-                  key={href}
-                  href={href}
-                  className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[12px] font-medium transition-colors"
-                  style={{
-                    background: "var(--bg-base)",
-                    border: "1px solid var(--border)",
-                    color: "var(--text-secondary)",
-                  }}
-                >
-                  <Icon className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "var(--text-muted)" }} />
-                  {label}
-                  <ChevronRight className="w-3 h-3 ml-auto" style={{ color: "var(--text-muted)" }} />
-                </Link>
-              ))}
-            </div>
-          </div>
-
-        </div>
+        {/* ── Tender inspector (right panel) ───────────────────────────────────── */}
+        {selected && (
+          <TenderInspector tender={selected} onClose={() => setSelected(null)} />
+        )}
       </div>
     </div>
   );
@@ -948,8 +636,8 @@ function DashboardContent() {
 export default function DashboardPage() {
   return (
     <Suspense fallback={
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-7 h-7 animate-spin" style={{ color: "var(--brand)" }} />
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 400 }}>
+        <Loader2 style={{ width: 24, height: 24, animation: "spin 0.8s linear infinite", color: "var(--brand)" }} />
       </div>
     }>
       <DashboardContent />
