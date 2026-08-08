@@ -6,7 +6,8 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, Search, BarChart3, BookmarkCheck,
   Bell, Settings, Zap, Building2, Shield, LogOut, Radio,
-  Command, ChevronDown, CheckCircle2, Sliders, Layers, Sparkles
+  Command, ChevronDown, CheckCircle2, Sliders, Layers, Sparkles,
+  Sun, Moon
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { fetchRealtimeNotifications } from "@/lib/notifications-store";
@@ -42,8 +43,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [isCommandOpen, setIsCommandOpen] = useState(false);
   const [workspace, setWorkspace] = useState("Enterprise India Procurement");
+  const [theme, setTheme] = useState<"light" | "dark">("light");
 
   const isGuestPath = pathname === "/dashboard/search" || pathname.startsWith("/dashboard/tenders/");
+
+  useEffect(() => {
+    const saved = typeof window !== "undefined" ? localStorage.getItem("tenderos-theme") as "light" | "dark" | null : null;
+    if (saved) {
+      setTheme(saved);
+      if (saved === "dark") {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const next = theme === "light" ? "dark" : "light";
+    setTheme(next);
+    localStorage.setItem("tenderos-theme", next);
+    if (next === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  };
 
   // Load dynamic unread notification count
   async function syncNotifications() {
@@ -235,6 +260,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <span className="w-1.5 h-1.5 rounded-full bg-green-600 animate-pulse" />
               Live Ingestion Active (9,763 Tenders)
             </span>
+
+            {/* Theme Toggle Button */}
+            <button
+              onClick={toggleTheme}
+              title={`Switch to ${theme === "light" ? "Dark" : "Light"} Mode`}
+              aria-label="Toggle Theme"
+              className="p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors flex items-center gap-1.5 text-xs font-medium border border-slate-200"
+            >
+              {theme === "light" ? (
+                <>
+                  <Moon className="w-4 h-4 text-slate-600" />
+                  <span className="hidden sm:inline">Dark</span>
+                </>
+              ) : (
+                <>
+                  <Sun className="w-4 h-4 text-amber-400" />
+                  <span className="hidden sm:inline text-slate-200">Light</span>
+                </>
+              )}
+            </button>
 
             <Link href="/dashboard/notifications" className="relative p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors">
               <Bell className="w-4 h-4" />
