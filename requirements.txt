@@ -22,7 +22,7 @@ opensearch-py[async]==2.6.0
 passlib[bcrypt]==1.7.4
 pdfplumber==0.11.0
 prometheus-fastapi-instrumentator>=8.0.2
-pydantic-settings==2.3.0
+pydantic-settings==2.14.2
 pydantic>=2.9.0
 pymupdf==1.24.4
 pytesseract==0.3.10
