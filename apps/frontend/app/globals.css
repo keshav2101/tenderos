@@ -1508,3 +1508,75 @@ kbd {
   filter: brightness(0.96);
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   TenderOS — Landing Page Art Direction Utilities v2
+   Scene-based visual narrative. Editorial composition.
+═══════════════════════════════════════════════════════════════════════════ */
+
+@keyframes ticker-scroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.ticker-track { display: flex; animation: ticker-scroll 42s linear infinite; width: max-content; }
+.ticker-track:hover { animation-play-state: paused; }
+
+@keyframes console-scroll {
+  0%   { transform: translateY(0); }
+  100% { transform: translateY(-50%); }
+}
+.console-track { animation: console-scroll 30s linear infinite; }
+.console-track:hover { animation-play-state: paused; }
+
+@keyframes draw-line {
+  from { stroke-dashoffset: 600; opacity: 0; }
+  10%  { opacity: 1; }
+  to   { stroke-dashoffset: 0; opacity: 1; }
+}
+.svg-draw { stroke-dasharray: 600; stroke-dashoffset: 600; animation: draw-line 2.4s ease-out forwards; }
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: fade-up 0.6s ease-out forwards; }
+.fade-up-1 { animation: fade-up 0.6s 0.1s ease-out both; }
+.fade-up-2 { animation: fade-up 0.6s 0.25s ease-out both; }
+.fade-up-3 { animation: fade-up 0.6s 0.4s ease-out both; }
+
+@keyframes live-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.25; }
+}
+.live-dot { animation: live-blink 2s ease-in-out infinite; }
+
+.dossier {
+  background: #fefefe;
+  border: 1px solid #dde3ed;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 6px 18px rgba(0,0,0,0.07);
+  position: relative;
+  overflow: hidden;
+}
+.dossier::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 27px, rgba(0,0,0,0.013) 27px, rgba(0,0,0,0.013) 28px);
+  pointer-events: none;
+}
+
+.editorial-hero {
+  font-size: clamp(48px, 7vw, 96px);
+  font-weight: 800;
+  line-height: 1.0;
+  letter-spacing: -0.03em;
+  color: #111827;
+}
+
+.pipeline-stage { cursor: pointer; transition: all 0.18s ease; }
+.pipeline-stage.active .stage-label { color: #1d4ed8; font-weight: 700; }
+.pipeline-stage.active .stage-num {
+  background: #1d4ed8 !important;
+  color: #fff !important;
+  border-color: #1d4ed8 !important;
+}
+
