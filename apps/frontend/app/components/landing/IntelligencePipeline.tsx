@@ -93,34 +93,34 @@ export default function IntelligencePipeline() {
   }) + " IST";
 
   return (
-    <div className="bg-white border border-[#e2e8f0] rounded-2xl p-6 shadow-sm" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
-      <div className="mb-6">
+    <div className="bg-white border border-[#e2e8f0] rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col justify-between min-w-0" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
+      <div className="mb-4">
         <h3 className="text-base font-bold text-[#111827]">AI Processing Pipeline</h3>
       </div>
 
-      <div className="grid lg:grid-cols-[240px_1fr] gap-6">
+      <div className="grid md:grid-cols-[200px_1fr] gap-5 min-w-0">
         {/* Left Vertical Selector */}
-        <div className="space-y-1.5 border-r border-[#f1f5f9] pr-4">
+        <div className="space-y-1 pr-2 border-r border-[#f1f5f9] hidden md:block">
           {STAGES.map((s, idx) => {
             const isActive = idx === activeStage;
             return (
               <button
                 key={s.id}
                 onClick={() => setActiveStage(idx)}
-                className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all text-left ${
+                className={`w-full flex items-center gap-2.5 p-2.5 rounded-xl transition-all text-left ${
                   isActive
-                    ? "bg-[#1d4ed8] text-white shadow-sm font-semibold"
+                    ? "bg-[#1d4ed8] text-white shadow-xs font-semibold"
                     : "hover:bg-[#f8fafc] text-[#475569]"
                 }`}
               >
-                <span className={`text-xs font-mono font-bold w-6 text-center ${isActive ? "text-white" : "text-[#9ca3af]"}`}>
+                <span className={`text-[11px] font-mono font-bold w-5 text-center flex-shrink-0 ${isActive ? "text-white" : "text-[#9ca3af]"}`}>
                   {s.id}
                 </span>
-                <div className="min-w-0">
-                  <div className={`text-xs font-bold truncate ${isActive ? "text-white" : "text-[#111827]"}`}>
+                <div className="min-w-0 flex-1">
+                  <div className={`text-[11px] font-bold truncate ${isActive ? "text-white" : "text-[#111827]"}`}>
                     {s.name}
                   </div>
-                  <div className={`text-[10px] truncate ${isActive ? "text-blue-100" : "text-[#9ca3af]"}`}>
+                  <div className={`text-[9px] truncate ${isActive ? "text-blue-100" : "text-[#9ca3af]"}`}>
                     {s.tagline}
                   </div>
                 </div>
@@ -129,93 +129,77 @@ export default function IntelligencePipeline() {
           })}
         </div>
 
+        {/* Mobile Horizontal Selector */}
+        <div className="flex md:hidden items-center gap-1.5 overflow-x-auto pb-2">
+          {STAGES.map((s, idx) => (
+            <button
+              key={s.id}
+              onClick={() => setActiveStage(idx)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap flex-shrink-0 ${
+                idx === activeStage ? "bg-[#1d4ed8] text-white" : "bg-[#f1f5f9] text-[#475569]"
+              }`}
+            >
+              {s.id} {s.name}
+            </button>
+          ))}
+        </div>
+
         {/* Right Active Panel */}
-        <div className="flex flex-col justify-between space-y-6">
+        <div className="flex flex-col justify-between space-y-4 min-w-0">
           <div>
             {/* Header */}
-            <div className="flex flex-wrap items-center justify-between gap-4 pb-4 mb-4 border-b border-[#f1f5f9]">
+            <div className="flex flex-wrap items-center justify-between gap-2 pb-3 mb-3 border-b border-[#f1f5f9]">
               <div>
                 <div className="text-[10px] font-mono text-[#9ca3af] font-bold">STAGE {stage.id} OF 07</div>
-                <h4 className="text-sm font-extrabold text-[#111827] mt-0.5">{stage.name}</h4>
+                <h4 className="text-xs font-extrabold text-[#111827] mt-0.5">{stage.name}</h4>
               </div>
-              <div className="flex items-center gap-3 text-xs">
-                <span className="flex items-center gap-1 text-[#059669] font-mono font-bold bg-[#ecfdf5] px-2 py-0.5 rounded text-[10px]">
+              <div className="flex items-center gap-2 text-xs">
+                <span className="flex items-center gap-1 text-[#059669] font-mono font-bold bg-[#ecfdf5] px-1.5 py-0.5 rounded text-[9px]">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#10b981] animate-pulse" /> LIVE
                 </span>
-                <span className="text-[10px] font-mono text-[#9ca3af]">Updated {nowTime}</span>
-                <RefreshCw className="w-3 h-3 text-[#9ca3af] cursor-pointer hover:text-[#111827]" />
+                <span className="text-[9px] font-mono text-[#9ca3af] truncate">Updated {nowTime}</span>
               </div>
             </div>
 
-            {/* Stage Content Grid */}
-            <div className="grid md:grid-cols-[1fr_180px] gap-6">
-              <div className="space-y-5">
-                <div>
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-[#9ca3af] mb-1">Stage Objective</div>
-                  <p className="text-xs text-[#374151] leading-relaxed">{stage.objective}</p>
-                </div>
+            {/* Objective */}
+            <div className="mb-4">
+              <div className="text-[9px] font-bold uppercase tracking-wider text-[#9ca3af] mb-1">Stage Objective</div>
+              <p className="text-[11px] text-[#374151] leading-relaxed">{stage.objective}</p>
+            </div>
 
-                <div>
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-[#9ca3af] mb-3">Automated Checks & Verifications</div>
-                  <div className="space-y-2">
-                    {stage.checks.map((chk, i) => (
-                      <div key={i} className="flex items-center justify-between p-2.5 rounded-lg border border-[#f1f5f9] bg-[#f8fafc] text-xs">
-                        <div className="flex items-center gap-2 min-w-0">
-                          {chk.status === "WARNING" ? (
-                            <AlertCircle className="w-3.5 h-3.5 text-[#b45309] flex-shrink-0" />
-                          ) : (
-                            <CheckCircle2 className="w-3.5 h-3.5 text-[#059669] flex-shrink-0" />
-                          )}
-                          <span className="font-medium text-[#111827] truncate">{chk.label}</span>
-                        </div>
-                        <span className={`text-[9px] font-bold font-mono px-2 py-0.5 rounded flex-shrink-0 ml-2 ${chk.badge}`}>
-                          {chk.status}
-                        </span>
-                      </div>
-                    ))}
+            {/* Checks */}
+            <div className="space-y-2 mb-4">
+              <div className="text-[9px] font-bold uppercase tracking-wider text-[#9ca3af]">Automated Checks & Verifications</div>
+              {stage.checks.map((chk, i) => (
+                <div key={i} className="flex items-center justify-between gap-2 p-2 rounded-lg border border-[#f1f5f9] bg-[#f8fafc] text-[11px]">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    {chk.status === "WARNING" ? (
+                      <AlertCircle className="w-3.5 h-3.5 text-[#b45309] flex-shrink-0" />
+                    ) : (
+                      <CheckCircle2 className="w-3.5 h-3.5 text-[#059669] flex-shrink-0" />
+                    )}
+                    <span className="font-medium text-[#111827] truncate">{chk.label}</span>
                   </div>
+                  <span className={`text-[9px] font-bold font-mono px-1.5 py-0.5 rounded flex-shrink-0 whitespace-nowrap ${chk.badge}`}>
+                    {chk.status}
+                  </span>
                 </div>
+              ))}
+            </div>
 
-                {/* Progress bar */}
-                <div className="pt-2">
-                  <div className="flex justify-between text-xs mb-1.5">
-                    <span className="font-semibold text-[#374151]">Pipeline Progress</span>
-                    <span className="font-mono text-[#9ca3af]">4 of 7 stages complete &middot; <strong className="text-[#111827]">57%</strong></span>
-                  </div>
-                  <div className="w-full h-2 bg-[#e2e8f0] rounded-full overflow-hidden">
-                    <div className="h-full bg-[#1d4ed8] rounded-full" style={{ width: "57%" }} />
-                  </div>
-                </div>
+            {/* Progress bar */}
+            <div className="pt-1">
+              <div className="flex justify-between text-[11px] mb-1">
+                <span className="font-semibold text-[#374151]">Pipeline Progress</span>
+                <span className="font-mono text-[#9ca3af]">4 of 7 complete &middot; <strong className="text-[#111827]">57%</strong></span>
               </div>
-
-              {/* Analysis Metrics Box (Right Side) */}
-              <div className="p-4 rounded-xl bg-[#f8fafc] border border-[#f1f5f9] space-y-3 text-xs">
-                <div className="text-[10px] font-bold text-[#9ca3af] uppercase tracking-wider mb-2">Analysis Metrics</div>
-                <div className="flex justify-between">
-                  <span className="text-[#6b7280]">Match Score</span>
-                  <span className="font-mono font-bold text-[#111827]">94 <span className="text-[9px] text-[#9ca3af]">/100</span></span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[#6b7280]">Win Probability</span>
-                  <span className="font-mono font-bold text-[#059669]">81%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[#6b7280]">EMD Status</span>
-                  <span className="font-mono font-bold text-[#059669]">WAIVED</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[#6b7280]">Preparation Time</span>
-                  <span className="font-mono text-[#111827]">4 hrs</span>
-                </div>
-                <div className="flex justify-between pt-1 border-t border-[#e2e8f0]">
-                  <span className="text-[#6b7280]">L1 Price (Est.)</span>
-                  <span className="font-mono font-bold text-[#111827]">₹36.71 Cr</span>
-                </div>
+              <div className="w-full h-1.5 bg-[#e2e8f0] rounded-full overflow-hidden">
+                <div className="h-full bg-[#1d4ed8] rounded-full" style={{ width: "57%" }} />
               </div>
             </div>
           </div>
 
-          <div className="pt-4 border-t border-[#f1f5f9] flex justify-end">
+          <div className="pt-3 border-t border-[#f1f5f9] flex justify-end">
             <Link href="/dashboard" className="text-xs font-semibold text-[#1d4ed8] hover:underline flex items-center gap-1">
               View Full Pipeline <ArrowRight className="w-3.5 h-3.5" />
             </Link>

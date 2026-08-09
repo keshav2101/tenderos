@@ -3,18 +3,8 @@ import { useState, useCallback } from "react";
 import { Copy, Check } from "lucide-react";
 
 const ENDPOINTS = [
-  {
-    method: "GET",
-    path: "/api/v1/tenders",
-    label: "List Tenders",
-    defaultLimit: "10",
-  },
-  {
-    method: "GET",
-    path: "/api/v1/search",
-    label: "Search Tenders",
-    defaultLimit: "10",
-  },
+  { method: "GET", path: "/api/v1/tenders", label: "List Tenders" },
+  { method: "GET", path: "/api/v1/search", label: "Search Tenders" },
 ];
 
 const API_HOST = process.env.NEXT_PUBLIC_API_URL || "https://tenderos-production.up.railway.app";
@@ -82,89 +72,88 @@ export default function APIArtifact() {
   const currentJson = JSON.stringify(result?.body || DEFAULT_JSON, null, 2);
 
   return (
-    <div className="bg-white border border-[#e2e8f0] rounded-2xl p-6 shadow-sm" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
-      <div className="mb-4">
-        <h3 className="text-base font-bold text-[#111827]">Live API Console</h3>
-      </div>
+    <div className="bg-white border border-[#e2e8f0] rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col justify-between min-w-0" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
+      <div>
+        <div className="mb-3">
+          <h3 className="text-base font-bold text-[#111827]">Live API Console</h3>
+        </div>
 
-      {/* Endpoint Pills */}
-      <div className="flex items-center gap-2 mb-4 text-xs font-mono">
-        {ENDPOINTS.map((e, i) => (
-          <button
-            key={e.path}
-            onClick={() => setSelectedIdx(i)}
-            className={`px-3 py-1.5 rounded-lg border transition-colors ${
-              i === selectedIdx
-                ? "border-[#1d4ed8] bg-[#eff6ff] text-[#1d4ed8] font-bold"
-                : "border-[#e2e8f0] text-[#6b7280] hover:bg-[#f8fafc]"
-            }`}
-          >
-            {e.method} {e.path}
-          </button>
-        ))}
-        <span className="text-xs text-[#9ca3af] font-sans ml-auto cursor-pointer hover:underline">Test Endpoint</span>
-      </div>
-
-      {/* Parameters */}
-      <div className="space-y-3 mb-4 text-xs">
-        <div className="text-[10px] font-bold text-[#9ca3af] uppercase tracking-wider">Parameters</div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-[11px] text-[#6b7280] mb-1">Portal</label>
-            <select
-              value={selectedPortal}
-              onChange={e => setSelectedPortal(e.target.value)}
-              className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-lg px-2.5 py-1.5 text-xs text-[#111827] outline-none"
+        {/* Endpoint Pills */}
+        <div className="flex items-center gap-2 mb-3 text-xs font-mono min-w-0 overflow-x-auto pb-1">
+          {ENDPOINTS.map((e, i) => (
+            <button
+              key={e.path}
+              onClick={() => setSelectedIdx(i)}
+              className={`px-2.5 py-1 rounded-lg border transition-colors whitespace-nowrap ${
+                i === selectedIdx
+                  ? "border-[#1d4ed8] bg-[#eff6ff] text-[#1d4ed8] font-bold"
+                  : "border-[#e2e8f0] text-[#6b7280] hover:bg-[#f8fafc]"
+              }`}
             >
-              <option value="All Portals">All Portals</option>
-              <option value="GeM">GeM</option>
-              <option value="CPPP">CPPP</option>
-              <option value="IREPS">IREPS</option>
-            </select>
-          </div>
+              {e.method} {e.path}
+            </button>
+          ))}
+          <span className="text-[11px] text-[#9ca3af] font-sans ml-auto cursor-pointer hover:underline whitespace-nowrap">Test Endpoint</span>
+        </div>
 
-          <div>
-            <label className="block text-[11px] text-[#6b7280] mb-1">Limit</label>
-            <input
-              type="text"
-              value={limit}
-              onChange={e => setLimit(e.target.value)}
-              className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-lg px-2.5 py-1.5 text-xs text-[#111827] outline-none font-mono"
-            />
+        {/* Parameters */}
+        <div className="space-y-2 mb-3 text-xs">
+          <div className="text-[9px] font-bold text-[#9ca3af] uppercase tracking-wider">Parameters</div>
+          <div className="grid grid-cols-2 gap-2.5">
+            <div>
+              <label className="block text-[10px] text-[#6b7280] mb-0.5">Portal</label>
+              <select
+                value={selectedPortal}
+                onChange={e => setSelectedPortal(e.target.value)}
+                className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-lg px-2 py-1 text-xs text-[#111827] outline-none"
+              >
+                <option value="All Portals">All Portals</option>
+                <option value="GeM">GeM</option>
+                <option value="CPPP">CPPP</option>
+                <option value="IREPS">IREPS</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[10px] text-[#6b7280] mb-0.5">Limit</label>
+              <input
+                type="text"
+                value={limit}
+                onChange={e => setLimit(e.target.value)}
+                className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-lg px-2 py-1 text-xs text-[#111827] outline-none font-mono"
+              />
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Execute Request Button */}
-      <button
-        onClick={execute}
-        disabled={loading}
-        className="w-full bg-[#1d4ed8] hover:bg-[#1e40af] text-white text-xs font-bold py-2.5 rounded-lg transition-colors mb-5 disabled:opacity-50"
-      >
-        {loading ? "Executing Request…" : "Execute Request"}
-      </button>
+        {/* Execute Request Button */}
+        <button
+          onClick={execute}
+          disabled={loading}
+          className="w-full bg-[#1d4ed8] hover:bg-[#1e40af] text-white text-xs font-bold py-2 rounded-lg transition-colors mb-3 disabled:opacity-50 shadow-xs"
+        >
+          {loading ? "Executing Request…" : "Execute Request"}
+        </button>
+      </div>
 
       {/* Dark Code Terminal Window */}
       <div className="bg-[#0b1329] border border-[#1e293b] rounded-xl overflow-hidden text-xs font-mono">
-        {/* Terminal Header */}
-        <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#1e293b] bg-[#080d1a] text-[11px] text-[#94a3b8]">
-          <div className="flex items-center gap-3">
-            <span className="text-[#64748b] cursor-pointer">Request</span>
+        <div className="flex items-center justify-between px-3 py-2 border-b border-[#1e293b] bg-[#080d1a] text-[10px] text-[#94a3b8]">
+          <div className="flex items-center gap-2">
+            <span className="text-[#64748b]">Request</span>
             <span className="text-[#60a5fa] font-bold border-b border-[#60a5fa] pb-0.5">Response</span>
           </div>
-          <div className="flex items-center gap-3 text-[10px]">
+          <div className="flex items-center gap-2 text-[9px]">
             <span className="text-[#4ade80] font-bold">Status: {result?.status || 200} OK</span>
             <span className="text-[#64748b]">Time: {result?.latencyMs || 96}ms</span>
             <span className="text-[#64748b]">Results: {(result?.resultsCount || 1840).toLocaleString("en-IN")}</span>
-            <button onClick={copyToClipboard} className="flex items-center gap-1 text-[#94a3b8] hover:text-white transition-colors ml-2">
+            <button onClick={copyToClipboard} className="flex items-center gap-1 text-[#94a3b8] hover:text-white transition-colors ml-1">
               {copied ? <Check className="w-3 h-3 text-[#4ade80]" /> : <Copy className="w-3 h-3" />}
-              <span>{copied ? "Copied" : "Copy"}</span>
             </button>
           </div>
         </div>
 
-        {/* Code Content */}
-        <pre className="p-4 text-[11px] text-[#4ade80] leading-relaxed overflow-x-auto max-h-[220px]">
+        <pre className="p-3 text-[11px] text-[#4ade80] leading-relaxed overflow-auto max-h-[170px]">
           {currentJson}
         </pre>
       </div>
