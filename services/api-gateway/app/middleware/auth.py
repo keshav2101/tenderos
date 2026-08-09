@@ -40,8 +40,8 @@ PUBLIC_PATHS = {
     # those routes use POST/DELETE methods which are handled separately below.
     "/api/v1/tenders",
     "/api/v1/search",
-    # Homepage analytics overview (powers the stats widgets on the landing page)
-    "/api/v1/analytics/overview",
+    # Homepage analytics overview & sources (powers the stats widgets on the landing page)
+    "/api/v1/analytics",
     # AI Copilot chat for guest users
     "/api/v1/chat",
     "/api/v1/copilot",

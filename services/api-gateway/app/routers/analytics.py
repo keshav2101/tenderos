@@ -34,6 +34,8 @@ async def get_overview():
             return res
     except Exception:
         pass
+    except BaseException:
+        pass
 
     catalog = _get_catalog_data()
     total_count = len(catalog) if catalog else 9763
