@@ -1,13 +1,17 @@
 "use client";
+import type { Tender } from "@/types/procurement";
 
-const CHECKS = [
-  { label: "Category Match", status: "PASS", value: "AI / Data Analytics", code: "§3.1" },
-  { label: "Annual Turnover (₹50 Cr avg)", status: "PASS", value: "₹72.4 Cr — 3yr avg ✔", code: "§5.2" },
-  { label: "Prior Experience (5 yrs min)", status: "PASS", value: "8.2 years ✔", code: "§5.3" },
-  { label: "EMD (₹18.4 L)", status: "EXEMPT", value: "Udyam No. UP-32-0041882", code: "GFR 170" },
-  { label: "ISO 27001 Certification", status: "WARN", value: "Not in profile ⚠", code: "§6.1" },
-  { label: "Make in India Class", status: "PASS", value: "Class-I Local Supplier", code: "OM 2017" },
-];
+function fmt(date?: string) {
+  if (!date) return "—";
+  return new Date(date).toLocaleDateString("en-IN", {
+    day: "2-digit", month: "short", year: "numeric",
+  });
+}
+function fmtCr(lakhs?: number) {
+  if (!lakhs) return "—";
+  const cr = lakhs / 100;
+  return `₹${cr.toFixed(1)} Cr`;
+}
 
 function ScoreArc({ score }: { score: number }) {
   const r = 38;
@@ -30,98 +34,165 @@ function ScoreArc({ score }: { score: number }) {
   );
 }
 
-export default function HeroArtifact() {
+function Skeleton({ w = "w-full", h = "h-3" }: { w?: string; h?: string }) {
+  return <div className={`${w} ${h} bg-[#e5e7eb] rounded animate-pulse`} />;
+}
+
+interface Props {
+  tender: Tender | null;
+  isLoading: boolean;
+}
+
+export default function HeroArtifact({ tender, isLoading }: Props) {
+  const now = new Date().toLocaleString("en-IN", {
+    day: "2-digit", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata",
+  }) + " IST";
+
+  if (isLoading) {
+    return (
+      <div className="dossier rounded-2xl" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
+        <div className="px-6 pt-5 pb-4 border-b border-[#e5e7eb] bg-[#f8fafc] rounded-t-2xl">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 space-y-2">
+              <Skeleton w="w-32" h="h-2" />
+              <Skeleton w="w-3/4" h="h-4" />
+              <Skeleton w="w-1/2" h="h-3" />
+            </div>
+            <div className="w-24 h-24 rounded-full bg-[#e5e7eb] animate-pulse flex-shrink-0" />
+          </div>
+        </div>
+        <div className="px-6 py-3 border-b border-[#f3f4f6] grid grid-cols-4 gap-4">
+          {[1,2,3,4].map(i => <div key={i} className="space-y-1.5"><Skeleton w="w-12" h="h-2" /><Skeleton w="w-16" h="h-3" /></div>)}
+        </div>
+        <div className="px-6 py-4 space-y-3">
+          <Skeleton w="w-24" h="h-2" />
+          {[1,2,3,4,5,6].map(i => <div key={i} className="flex justify-between"><Skeleton w="w-1/3" h="h-3" /><Skeleton w="w-1/4" h="h-3" /></div>)}
+        </div>
+        <div className="mx-6 mb-4 rounded-lg bg-[#f1f5f9] h-10 animate-pulse" />
+        <div className="px-6 pb-5 pt-1 border-t border-[#f3f4f6]">
+          <div className="grid grid-cols-4 gap-6">
+            {[1,2,3,4].map(i => <div key={i} className="text-center space-y-1"><Skeleton w="w-12 mx-auto" h="h-5" /><Skeleton w="w-10 mx-auto" h="h-2" /></div>)}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!tender) {
+    return (
+      <div className="dossier rounded-2xl flex items-center justify-center min-h-[300px]" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
+        <div className="text-center p-8">
+          <div className="w-8 h-8 rounded-full border-2 border-[#e5e7eb] border-t-[#1d4ed8] animate-spin mx-auto mb-4" />
+          <p className="text-sm text-[#6b7280]">Analyzing latest procurement opportunity…</p>
+          <p className="text-[10px] text-[#9ca3af] mt-2 font-mono">Connecting to TenderOS intelligence network</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Derive display values from real tender
+  const valueCr = fmtCr(tender.estimated_cost_lakhs);
+  const deadline = fmt(tender.submission_deadline);
+  const refId = tender.tender_id || tender.id?.slice(0, 12).toUpperCase();
+  const portal = tender.source || "CPPP";
+  const ministry = tender.ministry || "Government of India";
+  const dept = tender.department || ministry;
+
+  // These eligibility fields require auth; show neutral state for public view
+  const CHECKS = [
+    { label: "Category", status: "INFO", value: tender.categories?.[0] || "General Procurement", code: "§3.1" },
+    { label: "Est. Contract Value", status: "INFO", value: valueCr, code: "§2.1" },
+    { label: "Bid Deadline", status: tender.submission_deadline ? "INFO" : "WARN", value: deadline, code: "NIT" },
+    { label: "MSME Eligible", status: tender.msme_eligible ? "PASS" : "INFO", value: tender.msme_eligible ? "Yes — EMD waiver applicable" : "Standard EMD required", code: "GFR 170" },
+    { label: "Portal Source", status: "INFO", value: portal, code: "§1.1" },
+    { label: "Status", status: "PASS", value: tender.status?.toUpperCase() ?? "ACTIVE", code: "§4.0" },
+  ];
+
   return (
     <div className="dossier rounded-2xl" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
-      {/* Document Header */}
+      {/* Header */}
       <div className="px-6 pt-5 pb-4 border-b border-[#e5e7eb] bg-[#f8fafc] rounded-t-2xl">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#9ca3af] font-mono">
-                AI BID ASSESSMENT
-              </span>
+              <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#9ca3af] font-mono">AI BID ASSESSMENT</span>
               <span className="text-[10px] font-mono text-[#d1d5db]">·</span>
-              <span className="text-[10px] font-mono text-[#d1d5db]">REF/MF/2026/AID-04812</span>
+              <span className="text-[10px] font-mono text-[#d1d5db] truncate">{refId}</span>
             </div>
-            <h3 className="text-sm font-bold text-[#111827] leading-snug">
-              AI-based Fraud Detection System — Government of India
-            </h3>
-            <p className="text-xs text-[#6b7280] mt-1">Ministry of Finance · Dept. of Revenue · CPPP</p>
+            <h3 className="text-sm font-bold text-[#111827] leading-snug line-clamp-2">{tender.title}</h3>
+            <p className="text-xs text-[#6b7280] mt-1 truncate">{dept} · {portal}</p>
           </div>
-          <ScoreArc score={94} />
+          <ScoreArc score={tender.msme_eligible ? 91 : 78} />
         </div>
       </div>
 
-      {/* Tender metadata row */}
+      {/* Metadata row */}
       <div className="px-6 py-3 border-b border-[#f3f4f6] grid grid-cols-4 gap-4">
         {[
-          { label: "Est. Value", value: "₹42.8 Cr" },
-          { label: "Bid Deadline", value: "28 Aug 2026" },
-          { label: "Portal", value: "CPPP / GeM" },
-          { label: "NIT No.", value: "04812/2026" },
+          { label: "Est. Value", value: valueCr },
+          { label: "Bid Deadline", value: deadline },
+          { label: "Portal", value: portal },
+          { label: "State", value: tender.state || "Pan-India" },
         ].map(m => (
           <div key={m.label}>
             <div className="text-[9px] font-bold uppercase tracking-wide text-[#9ca3af]">{m.label}</div>
-            <div className="text-xs font-semibold text-[#374151] mt-0.5">{m.value}</div>
+            <div className="text-xs font-semibold text-[#374151] mt-0.5 truncate">{m.value}</div>
           </div>
         ))}
       </div>
 
-      {/* Compliance checks */}
+      {/* Checks */}
       <div className="px-6 py-4">
-        <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#9ca3af] mb-3">Eligibility Analysis · GFR 2017</div>
-        <div className="space-y-2">
+        <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#9ca3af] mb-3">Tender Intelligence · GFR 2017</div>
+        <div className="space-y-2.5">
           {CHECKS.map(c => (
             <div key={c.label} className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2.5 min-w-0 flex-1">
                 <span className={`text-[9px] font-bold font-mono flex-shrink-0 px-2 py-0.5 rounded ${
                   c.status === "PASS"   ? "bg-[#f0fdf4] text-[#15803d]" :
-                  c.status === "EXEMPT" ? "bg-[#eff6ff] text-[#1d4ed8]" :
-                  "bg-[#fffbeb] text-[#b45309]"
+                  c.status === "WARN"   ? "bg-[#fffbeb] text-[#b45309]" :
+                  "bg-[#f1f5f9] text-[#64748b]"
                 }`}>{c.status}</span>
                 <span className="text-xs text-[#374151] truncate">{c.label}</span>
               </div>
               <div className="flex items-center gap-2.5 flex-shrink-0">
-                <span className="text-[9px] font-mono text-[#c5cdd8] w-14 text-right">{c.code}</span>
-                <span className={`text-xs font-medium text-right min-w-[120px] ${
-                  c.status === "PASS"   ? "text-[#15803d]" :
-                  c.status === "EXEMPT" ? "text-[#1d4ed8]" :
-                  "text-[#b45309]"
-                }`}>{c.value}</span>
+                <span className="text-[9px] font-mono text-[#c5cdd8] w-12 text-right">{c.code}</span>
+                <span className="text-xs font-medium text-[#374151] text-right min-w-[100px] truncate">{c.value}</span>
               </div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* AI Recommendation */}
-      <div className="mx-6 mb-4 rounded-lg border border-[#bbf7d0] bg-[#f0fdf4] px-4 py-3 flex items-center justify-between gap-3">
+      {/* Recommendation */}
+      <div className="mx-6 mb-4 rounded-lg border border-[#bfdbfe] bg-[#eff6ff] px-4 py-3 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <span className="text-[9px] font-bold text-[#15803d] uppercase tracking-wider">AI Recommendation</span>
+          <span className="text-[9px] font-bold text-[#1d4ed8] uppercase tracking-wider">TenderOS Intelligence</span>
           <span className="text-[9px] text-[#d1d5db] font-mono">·</span>
-          <span className="text-xs font-bold text-[#14532d]">BID — High confidence</span>
+          <span className="text-xs font-bold text-[#1e3a8a]">
+            {tender.msme_eligible ? "EMD Exemption Available · Review Eligibility" : "Review full NIT requirements"}
+          </span>
         </div>
-        <span className="text-xs font-bold text-[#15803d]">Win probability: 81%</span>
       </div>
 
-      {/* Bottom stats */}
+      {/* Footer stats */}
       <div className="px-6 pb-5 pt-1 border-t border-[#f3f4f6] flex items-center justify-between gap-4">
-        <div className="grid grid-cols-4 gap-6">
+        <div className="grid grid-cols-4 gap-5">
           {[
-            { label: "Win Prob.", value: "81%" },
-            { label: "Prep Time", value: "4 hrs" },
-            { label: "EMD", value: "WAIVED" },
-            { label: "L1 Price", value: "₹36.7 Cr" },
+            { label: "Value", value: valueCr },
+            { label: "Deadline", value: tender.submission_deadline ? fmt(tender.submission_deadline).split(" ")[0] + " " + fmt(tender.submission_deadline).split(" ")[1] : "—" },
+            { label: "MSME", value: tender.msme_eligible ? "ELIGIBLE" : "STANDARD" },
+            { label: "Source", value: portal },
           ].map(s => (
             <div key={s.label} className="text-center">
-              <div className="text-base font-extrabold text-[#111827]">{s.value}</div>
+              <div className="text-sm font-extrabold text-[#111827] truncate">{s.value}</div>
               <div className="text-[9px] text-[#9ca3af] uppercase tracking-wide mt-0.5">{s.label}</div>
             </div>
           ))}
         </div>
         <div className="text-right flex-shrink-0">
-          <div className="text-[9px] font-mono text-[#c5cdd8]">09 Aug 2026 · 04:14 IST</div>
+          <div className="text-[9px] font-mono text-[#c5cdd8]">{now}</div>
           <div className="text-[9px] font-mono text-[#c5cdd8]">TenderOS AI · Layer 7</div>
         </div>
       </div>

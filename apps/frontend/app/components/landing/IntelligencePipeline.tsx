@@ -1,297 +1,245 @@
 "use client";
 import { useState } from "react";
+import {
+  FileText, Cpu, Eye, ShieldCheck, AlertTriangle, BarChart2, CheckCircle2, ChevronRight
+} from "lucide-react";
 
+// Stage definition configuration (UI architectural structure, no static target business numbers)
 const STAGES = [
   {
-    id: 0, num: "01", label: "RAW NIT RECEIVED", sub: "Government tender document",
-    artifact: {
-      title: "Notice Inviting Tender", ref: "CPPP/MF/2026/NIT-04812",
-      lines: [
-        { label: "Document type", value: "NIT · PDF · 42 pages" },
-        { label: "Language", value: "English / Hindi" },
-        { label: "Source portal", value: "Central Public Procurement Portal" },
-        { label: "Published", value: "09 Aug 2026, 00:14 IST" },
-        { label: "Status", value: "Received — queued for extraction" },
-      ],
-      meta: [
-        { k: "Ministry", v: "Ministry of Finance" },
-        { k: "Dept.", v: "Department of Revenue" },
-        { k: "File size", v: "4.2 MB" },
-        { k: "Hash", v: "SHA256:a3f9..." },
-      ],
-    },
+    id: "01",
+    name: "RAW NIT INGESTION",
+    tagline: "PDF & OCR Parsing",
+    icon: FileText,
+    summary: "Automated ingestion, OCR, and document layout parsing for multi-page NIT tender documents across scanned & digital PDFs.",
+    checks: [
+      { label: "OCR & Document Hierarchy Extraction", status: "PASS" },
+      { label: "BOQ Schedule Identification", status: "PASS" },
+      { label: "Corrigendum & Addendum Linking", status: "PASS" },
+    ],
+    accent: "#3b82f6",
   },
   {
-    id: 1, num: "02", label: "AI EXTRACTION", sub: "847 clauses parsed across 42 pages",
-    artifact: {
-      title: "Extraction Report", ref: "EXT-04812-A",
-      lines: [
-        { label: "Clauses extracted", value: "847" },
-        { label: "Tables parsed", value: "14" },
-        { label: "Annexures", value: "6" },
-        { label: "Confidence", value: "98.4%" },
-        { label: "Processing time", value: "1.8 seconds" },
-      ],
-      meta: [
-        { k: "Model", v: "TenderOS-NER v3.2" },
-        { k: "Language", v: "Hindi + English" },
-        { k: "Pages", v: "42" },
-        { k: "Tokens", v: "82,440" },
-      ],
-    },
+    id: "02",
+    name: "CLAUSE EXTRACTION",
+    tagline: "NLP Clause Classification",
+    icon: Cpu,
+    summary: "Deep NLP scanning identifies critical clauses, technical specifications, and legal conditions from procurement notices.",
+    checks: [
+      { label: "Turnover & Net Worth Criteria", status: "PASS" },
+      { label: "EMD & Security Deposit Clause", status: "PASS" },
+      { label: "Delivery Timeline & Penalty Terms", status: "PASS" },
+    ],
+    accent: "#1d4ed8",
   },
   {
-    id: 2, num: "03", label: "UNDERSTANDING", sub: "Mapped to procurement ontology",
-    artifact: {
-      title: "Ontology Mapping", ref: "ONT-04812-B",
-      lines: [
-        { label: "Category", value: "IT · AI/ML · Data Analytics" },
-        { label: "Procurement type", value: "Works & Services" },
-        { label: "Funding", value: "Central Government (Finance)" },
-        { label: "Bid type", value: "Single-stage two-envelope" },
-        { label: "Evaluation", value: "QCBS (70:30)" },
-      ],
-      meta: [
-        { k: "NIC Code", v: "6202" },
-        { k: "GFR Rule", v: "173(i)" },
-        { k: "Category", v: "IT Services" },
-        { k: "Portal", v: "CPPP" },
-      ],
-    },
+    id: "03",
+    name: "SEMANTIC UNDERSTANDING",
+    tagline: "Entity & Domain Vectorization",
+    icon: Eye,
+    summary: "Vector embeddings map complex technical requirements to standard industry taxonomy and capability vectors.",
+    checks: [
+      { label: "CPV / GeM Category Mapping", status: "PASS" },
+      { label: "Scope of Work Entity Parsing", status: "PASS" },
+      { label: "OEM Authorization Rules", status: "PASS" },
+    ],
+    accent: "#6366f1",
   },
   {
-    id: 3, num: "04", label: "ELIGIBILITY CHECK", sub: "Cross-referenced against your profile",
-    artifact: {
-      title: "Eligibility Matrix", ref: "ELG-04812-C",
-      lines: [
-        { label: "Turnover criterion", value: "PASS — ₹72.4 Cr vs ₹50 Cr req." },
-        { label: "Experience criterion", value: "PASS — 8.2 yr vs 5 yr req." },
-        { label: "EMD requirement", value: "EXEMPT — Udyam Rule 170" },
-        { label: "Make in India", value: "PASS — Class-I Local Supplier" },
-        { label: "Overall eligibility", value: "ELIGIBLE — 94% match score" },
-      ],
-      meta: [
-        { k: "Match score", v: "94 / 100" },
-        { k: "EMD", v: "WAIVED" },
-        { k: "MII class", v: "Class-I" },
-        { k: "MSME benefit", v: "15% price preference" },
-      ],
-    },
+    id: "04",
+    name: "ELIGIBILITY MATCHING",
+    tagline: "Digital Twin Verification",
+    icon: ShieldCheck,
+    summary: "Automated cross-referencing of tender requirements against your company's credentials, certificates, and financials.",
+    checks: [
+      { label: "Turnover Compliance Verification", status: "PASS" },
+      { label: "Prior Work Experience Validation", status: "PASS" },
+      { label: "Udyam MSME Exemption Check", status: "EXEMPT" },
+    ],
+    accent: "#15803d",
   },
   {
-    id: 4, num: "05", label: "RISK ANALYSIS", sub: "3 risks identified",
-    artifact: {
-      title: "Risk Register", ref: "RSK-04812-D",
-      lines: [
-        { label: "ISO 27001", value: "HIGH — Not in current profile" },
-        { label: "Deadline risk", value: "MED — 19 days remaining" },
-        { label: "Locality clause", value: "LOW — Office presence required" },
-        { label: "Performance bond", value: "LOW — PBG 10% of contract value" },
-        { label: "Overall risk", value: "MEDIUM — manageable with action" },
-      ],
-      meta: [
-        { k: "Critical risks", v: "1 (ISO 27001)" },
-        { k: "PBG value", v: "~₹4.28 Cr" },
-        { k: "Days left", v: "19" },
-        { k: "Action items", v: "3 outstanding" },
-      ],
-    },
+    id: "05",
+    name: "RISK ANALYSIS",
+    tagline: "Contractual & Commercial Risks",
+    icon: AlertTriangle,
+    summary: "Flags unusual liquid damages clauses, onerous payment terms, or restrictive eligibility criteria.",
+    checks: [
+      { label: "Arbitration & Jurisdiction Review", status: "PASS" },
+      { label: "Payment Milestone Vulnerability", status: "WARN" },
+      { label: "Price Escalation Clause Scan", status: "PASS" },
+    ],
+    accent: "#b45309",
   },
   {
-    id: 5, num: "06", label: "MARKET INTELLIGENCE", sub: "L1 price discovery & competitor data",
-    artifact: {
-      title: "Market Analysis", ref: "MKT-04812-E",
-      lines: [
-        { label: "Avg. L1 discount", value: "14.2% below estimate" },
-        { label: "Estimated L1 price", value: "₹36.7 Cr" },
-        { label: "Known competitors", value: "TCS, Wipro, Infosys (GOI)" },
-        { label: "Ministry win history", value: "2 wins in MoF (2023–25)" },
-        { label: "Bid cycle pattern", value: "Typically Aug–Sep each year" },
-      ],
-      meta: [
-        { k: "Data points", v: "284 similar tenders" },
-        { k: "Period", v: "FY 2021–2026" },
-        { k: "L1 range", v: "₹34.2 – 38.8 Cr" },
-        { k: "Win rate (GoI)", v: "34% in IT services" },
-      ],
-    },
+    id: "06",
+    name: "MARKET INTELLIGENCE",
+    tagline: "Historical Bid Analytics",
+    icon: BarChart2,
+    summary: "Analyzes 5 years of historical L1 prices, buyer tendering patterns, and competitor win rates for accurate estimation.",
+    checks: [
+      { label: "Historical L1 Price Discovery", status: "PASS" },
+      { label: "Competitor Participation Density", status: "PASS" },
+      { label: "Buyer Payment Timeliness Index", status: "PASS" },
+    ],
+    accent: "#0284c7",
   },
   {
-    id: 6, num: "07", label: "BID DECISION", sub: "81% win probability · Recommend BID",
-    artifact: {
-      title: "Bid Recommendation", ref: "DEC-04812-F",
-      lines: [
-        { label: "Match score", value: "94 / 100" },
-        { label: "Win probability", value: "81%" },
-        { label: "Estimated bid price", value: "₹36.2 – 38.8 Cr" },
-        { label: "Preparation time", value: "4 hours" },
-        { label: "Final decision", value: "BID — High confidence" },
-      ],
-      meta: [
-        { k: "Decision", v: "BID" },
-        { k: "Confidence", v: "HIGH" },
-        { k: "Risk level", v: "MEDIUM" },
-        { k: "Deadline", v: "28 Aug 2026" },
-      ],
-    },
+    id: "07",
+    name: "BID DECISION ENGINE",
+    tagline: "Go / No-Go Determination",
+    icon: CheckCircle2,
+    summary: "Generates final strategic decision report with probability score, pricing recommendations, and automated proposal outlines.",
+    checks: [
+      { label: "QCBS Score Optimization", status: "PASS" },
+      { label: "Win Probability Assessment", status: "PASS" },
+      { label: "Automated Draft Proposal Structure", status: "PASS" },
+    ],
+    accent: "#16a34a",
   },
 ];
 
-function valueColor(v: string) {
-  if (v.startsWith("PASS") || v.startsWith("ELIGIBLE")) return "text-[#15803d]";
-  if (v.startsWith("EXEMPT") || v.startsWith("BID")) return "text-[#1d4ed8]";
-  if (v.startsWith("HIGH")) return "text-[#b91c1c]";
-  if (v.startsWith("MED")) return "text-[#b45309]";
-  if (v.startsWith("LOW")) return "text-[#15803d]";
-  return "text-[#374151]";
-}
-
 export default function IntelligencePipeline() {
-  const [active, setActive] = useState(3);
-  const stage = STAGES[active];
+  const [activeStage, setActiveStage] = useState(3);
+  const stage = STAGES[activeStage];
+  const Icon = stage.icon;
+
+  const timestamp = new Date().toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+    timeZone: "Asia/Kolkata",
+  }) + " IST";
 
   return (
-    <div className="flex min-h-[600px]">
-      {/* ── Left: stage navigation list ─────────────────────────── */}
-      <div className="w-[300px] flex-shrink-0 border-r border-[#e5e7eb] bg-white">
-        <div className="relative py-3">
-          {/* Vertical connector line */}
-          <div className="absolute left-[36px] top-[40px] bottom-[40px] w-px bg-[#e5e7eb]" />
-          {STAGES.map((s) => (
-            <div
-              key={s.id}
-              onClick={() => setActive(s.id)}
-              className={`pipeline-stage flex items-center gap-3 px-5 py-3 cursor-pointer transition-colors ${
-                active === s.id
-                  ? "active bg-[#f0f5ff] border-r-2 border-[#1d4ed8]"
-                  : "hover:bg-[#f9fafb]"
-              }`}
-            >
-              <span className={`stage-num w-8 h-8 rounded-full border text-[11px] font-bold flex items-center justify-center flex-shrink-0 font-mono z-10 transition-all ${
-                active === s.id
-                  ? "bg-[#1d4ed8] text-white border-[#1d4ed8]"
-                  : s.id < active
-                  ? "bg-[#f0fdf4] text-[#15803d] border-[#bbf7d0]"
-                  : "bg-white text-[#9ca3af] border-[#e5e7eb]"
-              }`}>{s.num}</span>
-              <div className="min-w-0 flex-1">
-                <div className={`stage-label text-xs font-bold tracking-wide transition-all ${
-                  active === s.id ? "text-[#1d4ed8]" : "text-[#374151]"
-                }`}>{s.label}</div>
-                <div className="text-[10px] text-[#9ca3af] leading-snug mt-0.5">{s.sub}</div>
-              </div>
-              {s.id < active && <span className="text-[#15803d] text-xs flex-shrink-0 font-bold">✓</span>}
-            </div>
-          ))}
+    <div className="grid lg:grid-cols-[300px_1fr] bg-white rounded-2xl overflow-hidden" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
+
+      {/* Stage Selector Column */}
+      <div className="border-r border-[#e5e7eb] bg-[#f8fafc] p-4 flex flex-col justify-between">
+        <div>
+          <div className="px-3 py-2 mb-2 flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#9ca3af] font-mono">
+              PROCESSING LAYERS
+            </span>
+            <span className="text-[10px] font-mono text-[#1d4ed8] font-bold">7 STAGES</span>
+          </div>
+
+          <div className="space-y-1">
+            {STAGES.map((s, idx) => {
+              const StageIcon = s.icon;
+              const isActive = idx === activeStage;
+
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => setActiveStage(idx)}
+                  className={`w-full flex items-center justify-between p-3 rounded-xl transition-all text-left ${
+                    isActive
+                      ? "bg-white shadow-sm border border-[#e5e7eb] text-[#111827]"
+                      : "hover:bg-[#f1f5f9] text-[#6b7280]"
+                  }`}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span
+                      className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold font-mono ${
+                        isActive
+                          ? "bg-[#eff6ff] text-[#1d4ed8]"
+                          : "bg-[#e2e8f0] text-[#475569]"
+                      }`}
+                    >
+                      {s.id}
+                    </span>
+                    <div className="min-w-0">
+                      <div className={`text-xs font-bold truncate ${isActive ? "text-[#111827]" : "text-[#374151]"}`}>
+                        {s.name}
+                      </div>
+                      <div className="text-[10px] text-[#9ca3af] truncate">{s.tagline}</div>
+                    </div>
+                  </div>
+                  {isActive && <ChevronRight className="w-4 h-4 text-[#1d4ed8] flex-shrink-0" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="p-3 mt-4 border-t border-[#e2e8f0] bg-white rounded-xl">
+          <div className="text-[9px] font-bold uppercase tracking-wider text-[#9ca3af] mb-1 font-mono">PIPELINE STATUS</div>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-[#15803d] flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-[#22c55e] animate-pulse" />
+              OPERATIONAL
+            </span>
+            <span className="text-[10px] font-mono text-[#9ca3af]">{timestamp}</span>
+          </div>
         </div>
       </div>
 
-      {/* ── Right: active stage artifact ─────────────────────────── */}
-      <div className="flex-1 bg-[#f8fafc] p-8 flex flex-col gap-6">
-        {/* Header */}
-        <div className="flex items-start justify-between">
-          <div>
-            <div className="text-[9px] font-mono font-bold uppercase tracking-[0.15em] text-[#9ca3af] mb-1">
-              TenderOS AI Pipeline · Stage {active + 1} of {STAGES.length}
-            </div>
-            <h3 className="text-xl font-bold text-[#111827]">{stage.artifact.title}</h3>
-            <p className="text-sm text-[#6b7280] mt-1">
-              {stage.label.charAt(0) + stage.label.slice(1).toLowerCase()} — {stage.sub}
-            </p>
-          </div>
-          <div className="text-right">
-            <div className="text-[10px] font-mono text-[#c5cdd8]">{stage.artifact.ref}</div>
-            <div className="text-[10px] font-mono text-[#c5cdd8] mt-0.5">09 Aug 2026 · 04:14 IST</div>
-          </div>
-        </div>
-
-        {/* Main content: two-column */}
-        <div className="grid grid-cols-2 gap-5 flex-1">
-          {/* Left: eligibility lines */}
-          <div className="dossier rounded-xl h-full">
-            <div className="px-5 py-3 border-b border-[#e5e7eb] bg-[#f8fafc]">
-              <div className="text-[9px] font-mono font-bold uppercase tracking-widest text-[#9ca3af]">Analysis Output</div>
-            </div>
-            <div className="px-5 py-5 space-y-4">
-              {stage.artifact.lines.map((l) => (
-                <div key={l.label} className="flex items-start justify-between gap-6">
-                  <span className="text-sm text-[#6b7280] flex-shrink-0">{l.label}</span>
-                  <span className={`text-sm font-semibold text-right ${valueColor(l.value)}`}>{l.value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Right: metadata + progress */}
-          <div className="flex flex-col gap-5">
-            {/* Metadata card */}
-            <div className="dossier rounded-xl">
-              <div className="px-5 py-3 border-b border-[#e5e7eb] bg-[#f8fafc]">
-                <div className="text-[9px] font-mono font-bold uppercase tracking-widest text-[#9ca3af]">Stage Parameters</div>
+      {/* Main Analysis Output Panel */}
+      <div className="p-8 xl:p-12 bg-white flex flex-col justify-between">
+        <div>
+          {/* Header */}
+          <div className="flex flex-wrap items-center justify-between gap-4 pb-6 mb-8 border-b border-[#f1f5f9]">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-[#f0f5ff] border border-[#bfdbfe] flex items-center justify-center">
+                <Icon className="w-6 h-6 text-[#1d4ed8]" />
               </div>
-              <div className="px-5 py-4 grid grid-cols-2 gap-x-6 gap-y-3">
-                {stage.artifact.meta.map((m) => (
-                  <div key={m.k}>
-                    <div className="text-[9px] font-bold uppercase tracking-wide text-[#9ca3af]">{m.k}</div>
-                    <div className="text-sm font-semibold text-[#111827] mt-0.5">{m.v}</div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-[#f1f5f9] text-[#475569]">
+                    STAGE {stage.id} OF 07
+                  </span>
+                  <span className="text-xs font-mono text-[#9ca3af]">{stage.tagline}</span>
+                </div>
+                <h3 className="text-xl font-extrabold text-[#111827] mt-1">{stage.name}</h3>
+              </div>
+            </div>
+
+            <div className="text-right">
+              <div className="text-[10px] font-mono text-[#9ca3af]">ANALYSIS MODE</div>
+              <div className="text-xs font-bold text-[#1d4ed8] font-mono">LIVE AI EXECUTION</div>
+            </div>
+          </div>
+
+          {/* Body content */}
+          <div className="space-y-8">
+            <div>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-[#9ca3af] mb-2 font-mono">STAGE OBJECTIVE</h4>
+              <p className="text-base text-[#374151] leading-relaxed max-w-2xl">{stage.summary}</p>
+            </div>
+
+            {/* Checks list */}
+            <div>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-[#9ca3af] mb-4 font-mono">AUTOMATED CHECKS & VERIFICATIONS</h4>
+              <div className="grid md:grid-cols-3 gap-4">
+                {stage.checks.map((check, i) => (
+                  <div key={i} className="p-4 rounded-xl border border-[#e5e7eb] bg-[#f8fafc]">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className={`text-[9px] font-bold font-mono px-2 py-0.5 rounded ${
+                        check.status === "PASS" ? "bg-[#f0fdf4] text-[#15803d]" :
+                        check.status === "EXEMPT" ? "bg-[#eff6ff] text-[#1d4ed8]" :
+                        "bg-[#fffbeb] text-[#b45309]"
+                      }`}>
+                        {check.status}
+                      </span>
+                      <span className="text-[9px] font-mono text-[#9ca3af]">RULE #{i+1}</span>
+                    </div>
+                    <p className="text-xs font-semibold text-[#111827]">{check.label}</p>
                   </div>
                 ))}
               </div>
             </div>
-
-            {/* Pipeline progress */}
-            <div className="dossier rounded-xl flex-1">
-              <div className="px-5 py-3 border-b border-[#e5e7eb] bg-[#f8fafc]">
-                <div className="text-[9px] font-mono font-bold uppercase tracking-widest text-[#9ca3af]">Pipeline Progress</div>
-              </div>
-              <div className="px-5 py-4">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs text-[#6b7280]">{active + 1} of {STAGES.length} stages complete</span>
-                  <span className="text-xs font-bold text-[#1d4ed8]">{Math.round(((active + 1) / STAGES.length) * 100)}%</span>
-                </div>
-                <div className="w-full h-1.5 bg-[#f1f5f9] rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-[#1d4ed8] rounded-full transition-all duration-500"
-                    style={{ width: `${((active + 1) / STAGES.length) * 100}%` }}
-                  />
-                </div>
-                <div className="mt-5 space-y-2">
-                  {STAGES.map((s) => (
-                    <div key={s.id} className="flex items-center gap-2">
-                      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                        s.id < active ? "bg-[#15803d]" : s.id === active ? "bg-[#1d4ed8]" : "bg-[#e5e7eb]"
-                      }`} />
-                      <span className={`text-[10px] ${
-                        s.id === active ? "font-bold text-[#1d4ed8]" :
-                        s.id < active ? "text-[#15803d]" : "text-[#9ca3af]"
-                      }`}>{s.label}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between pt-2 border-t border-[#e5e7eb]">
-          <div className="text-[10px] font-mono text-[#c5cdd8]">
-            NIT CPPP/MF/2026/NIT-04812 · TenderOS AI Processing Pipeline · Layer {active + 1}
-          </div>
+        {/* Footer info bar */}
+        <div className="pt-8 mt-8 border-t border-[#f1f5f9] flex flex-wrap items-center justify-between text-xs text-[#6b7280] gap-4">
           <div className="flex items-center gap-2">
-            {active > 0 && (
-              <button onClick={() => setActive(active - 1)}
-                className="text-xs text-[#374151] border border-[#e5e7eb] px-3 py-1 rounded-md hover:border-[#1d4ed8] hover:text-[#1d4ed8] transition-colors">
-                ← Prev
-              </button>
-            )}
-            {active < STAGES.length - 1 && (
-              <button onClick={() => setActive(active + 1)}
-                className="text-xs font-semibold text-white bg-[#1d4ed8] px-3 py-1 rounded-md hover:bg-[#1e40af] transition-colors">
-                Next →
-              </button>
-            )}
+            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            <span>Layer output verified by GFR 2017 & Procurement Rules</span>
           </div>
+          <span className="font-mono text-[#9ca3af]">TenderOS Core Engine &middot; Real-time AI Pipeline</span>
         </div>
       </div>
     </div>

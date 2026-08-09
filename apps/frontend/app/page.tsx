@@ -1,13 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import {
   Search, ArrowRight, Landmark, ChevronRight,
-  Database, Brain, ShieldCheck, Activity
+  Database, Brain, ShieldCheck, Activity, RefreshCw
 } from "lucide-react";
-import { analyticsApi } from "@/lib/api";
+import { useProcurementStats } from "@/hooks/useProcurementStats";
+import { useLiveTenders } from "@/hooks/useLiveTenders";
+import { usePortalStats } from "@/hooks/usePortalStats";
+import { useLatestTender } from "@/hooks/useLatestTender";
 
 const ProcurementTicker = dynamic(() => import("@/app/components/landing/ProcurementTicker"), { ssr: false });
 const HeroArtifact       = dynamic(() => import("@/app/components/landing/HeroArtifact"),       { ssr: false });
@@ -24,23 +27,31 @@ function IndiaBg() {
     <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ opacity: 0.025 }} aria-hidden>
       <svg viewBox="0 0 600 700" className="absolute right-0 top-0 h-full w-auto" fill="none" stroke="currentColor" strokeWidth="1.5">
         <path d="M300,20 L340,24 L380,18 L420,28 L450,22 L480,38 L500,60 L510,85 L505,110 L515,135 L520,160 L510,185 L515,210 L505,235 L490,258 L480,280 L465,300 L450,320 L438,342 L425,360 L415,380 L405,400 L395,415 L385,428 L372,440 L358,450 L345,462 L330,474 L318,488 L308,502 L298,516 L290,530 L282,520 L272,506 L260,492 L248,478 L235,462 L220,448 L205,434 L192,418 L180,402 L168,385 L155,368 L142,350 L130,330 L118,310 L105,290 L92,268 L80,246 L70,222 L62,198 L58,172 L60,148 L68,124 L80,102 L98,84 L118,68 L140,54 L162,42 L188,34 L215,26 L245,20 L275,18 Z" className="text-[#111827]" />
-        {[
-          { cx: 320, cy: 140, label: "CPPP" }, { cx: 280, cy: 200, label: "GeM" },
-          { cx: 390, cy: 220, label: "IREPS" }, { cx: 200, cy: 300, label: "MahaGov" },
-          { cx: 340, cy: 380, label: "Defence" }, { cx: 260, cy: 440, label: "PSUs" },
-        ].map(n => (
-          <g key={n.label}>
-            <circle cx={n.cx} cy={n.cy} r="4" fill="currentColor" className="text-[#1d4ed8]" />
-            <text x={n.cx + 8} y={n.cy + 4} fontSize="9" fill="currentColor" className="text-[#1d4ed8]">{n.label}</text>
-          </g>
-        ))}
       </svg>
     </div>
   );
 }
 
-// Portal network SVG — full width
-function PortalNetwork() {
+// Portal network SVG — renders dynamically from live portal stats
+function DynamicPortalNetwork({ sources }: { sources: Array<{ name: string; count: number; color: string }> }) {
+  const defaultNodes = [
+    { cx: 250, cy: 70,  label: "CPPP",        count: "—", color: "#1d4ed8" },
+    { cx: 430, cy: 155, label: "GeM",          count: "—", color: "#16a34a" },
+    { cx: 430, cy: 345, label: "IREPS",        count: "—", color: "#ea580c" },
+    { cx: 250, cy: 430, label: "State Portals",count: "—", color: "#7c3aed" },
+    { cx: 70,  cy: 345, label: "PSUs",         count: "—", color: "#475569" },
+    { cx: 70,  cy: 155, label: "Defence",      count: "—", color: "#dc2626" },
+  ];
+
+  const nodes = defaultNodes.map(node => {
+    const found = sources.find(s => s.name.toLowerCase().includes(node.label.toLowerCase()) || node.label.toLowerCase().includes(s.name.toLowerCase()));
+    return {
+      ...node,
+      count: found ? found.count.toLocaleString("en-IN") : node.count,
+      color: found?.color || node.color,
+    };
+  });
+
   return (
     <svg viewBox="0 0 500 500" className="w-full h-full" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
       <circle cx="250" cy="250" r="50" fill="#1d4ed8" opacity="0.06" />
@@ -48,14 +59,7 @@ function PortalNetwork() {
       <circle cx="250" cy="250" r="20" fill="#1d4ed8" />
       <text x="250" y="246" textAnchor="middle" fontSize="7" fontWeight="900" fill="white" letterSpacing="0.5">TENDER</text>
       <text x="250" y="258" textAnchor="middle" fontSize="7" fontWeight="900" fill="white" letterSpacing="0.5">OS</text>
-      {[
-        { cx: 250, cy: 70,  label: "CPPP",        count: "14,180+", color: "#1d4ed8" },
-        { cx: 430, cy: 155, label: "GeM",          count: "18,240+", color: "#16a34a" },
-        { cx: 430, cy: 345, label: "IREPS",        count: "6,320+",  color: "#ea580c" },
-        { cx: 250, cy: 430, label: "State Portals",count: "9,100+",  color: "#7c3aed" },
-        { cx: 70,  cy: 345, label: "PSUs",         count: "7,500+",  color: "#475569" },
-        { cx: 70,  cy: 155, label: "Defence",      count: "4,920+",  color: "#dc2626" },
-      ].map(n => (
+      {nodes.map(n => (
         <g key={n.label}>
           <line x1="250" y1="250" x2={n.cx} y2={n.cy} stroke="#e5e7eb" strokeWidth="1" strokeDasharray="4 4" />
           <circle cx={n.cx} cy={n.cy} r="36" fill="white" stroke={n.color} strokeWidth="2" />
@@ -71,34 +75,20 @@ function PortalNetwork() {
 
 export default function LandingPage() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [stats, setStats] = useState({ tenders: "60,260", ministries: "52", states: "36", indexed: "284" });
 
-  useEffect(() => {
-    analyticsApi.overview()
-      .then(({ data }) => {
-        if (data?.total_active_tenders > 100) {
-          setStats({
-            tenders: data.total_active_tenders.toLocaleString("en-IN"),
-            ministries: data.active_ministries ? String(data.active_ministries) : "52",
-            states: "36",
-            indexed: data.tenders_indexed_today?.toString() || "284",
-          });
-        }
-      })
-      .catch(() => {});
-  }, []);
+  // Live Data Hooks — zero hardcoding
+  const { state: statsState, refresh: refreshStats } = useProcurementStats();
+  const { state: tendersState, refresh: refreshTenders } = useLiveTenders(12);
+  const { state: portalState } = usePortalStats();
+  const { tender: latestTender, isLoading: isTenderLoading } = useLatestTender();
 
   return (
     <div className="min-h-screen bg-[#f4f6f8] text-[#111827]" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
 
-      {/* ════════════════════════════════════════════════════════
-          SCENE 01 — LIVE TICKER
-      ════════════════════════════════════════════════════════ */}
+      {/* Live Ticker */}
       <ProcurementTicker />
 
-      {/* ════════════════════════════════════════════════════════
-          NAVBAR — sticky, thin
-      ════════════════════════════════════════════════════════ */}
+      {/* Sticky Navbar */}
       <nav className="sticky top-0 z-20 bg-white/96 backdrop-blur-sm border-b border-[#e5e7eb]">
         <div className={`${C} h-14 flex items-center justify-between`}>
           <div className="flex items-center gap-2">
@@ -122,37 +112,34 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      {/* ════════════════════════════════════════════════════════
-          SCENE 02 — HERO
-          5-col headline / 7-col artifact — full bleed
-      ════════════════════════════════════════════════════════ */}
-      <section className="relative overflow-hidden bg-white border-b border-[#e5e7eb]" style={{ minHeight: "760px" }}>
+      {/* HERO SECTION - Generous spacing (100px - 120px padding) */}
+      <section className="relative overflow-hidden bg-white border-b border-[#e5e7eb] py-24 lg:py-32" style={{ minHeight: "780px" }}>
         <IndiaBg />
-        <div className={`${C} relative z-10 py-20`}>
+        <div className={`${C} relative z-10`}>
           <div className="grid lg:grid-cols-[5fr_7fr] gap-16 xl:gap-24 items-center">
 
             {/* Left column */}
             <div>
-              <div className="flex items-center gap-3 mb-10">
+              <div className="flex items-center gap-3 mb-8">
                 <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#9ca3af] font-mono">
                   01 · PROCUREMENT INTELLIGENCE
                 </span>
                 <span className="h-px w-8 bg-[#e5e7eb]" />
-                <span className="text-[10px] font-mono text-[#c5cdd8]">India · ₹18+ trillion market</span>
+                <span className="text-[10px] font-mono text-[#c5cdd8]">India · Govt Procurement Platform</span>
               </div>
 
-              <h1 className="fade-up" style={{ fontSize: "clamp(52px, 6.5vw, 100px)", fontWeight: 800, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#111827", marginBottom: "24px" }}>
+              <h1 className="fade-up" style={{ fontSize: "clamp(52px, 6.5vw, 96px)", fontWeight: 800, lineHeight: 1.0, letterSpacing: "-0.03em", color: "#111827", marginBottom: "24px" }}>
                 WIN MORE<br />
                 GOVERNMENT<br />
                 <span style={{ color: "#1d4ed8" }}>TENDERS.</span>
               </h1>
-              <p className="fade-up-1" style={{ fontSize: "clamp(24px, 2.8vw, 40px)", fontWeight: 300, letterSpacing: "-0.02em", color: "#374151", lineHeight: 1.1, marginBottom: "32px" }}>
+              <p className="fade-up-1" style={{ fontSize: "clamp(24px, 2.8vw, 38px)", fontWeight: 300, letterSpacing: "-0.02em", color: "#374151", lineHeight: 1.1, marginBottom: "32px" }}>
                 INTELLIGENTLY.
               </p>
 
               <p className="text-lg text-[#6b7280] leading-relaxed mb-10 max-w-lg fade-up-2">
-                India&apos;s premier AI procurement intelligence platform. Every NIT from GeM,
-                CPPP, IREPS, Defence, and 36 state portals — read, understood, and scored for your business.
+                India&apos;s premier AI procurement intelligence platform. Every tender notice from GeM,
+                CPPP, IREPS, Defence, and State Portals — extracted, structured, and scored for your business.
               </p>
 
               {/* Search */}
@@ -162,7 +149,7 @@ export default function LandingPage() {
                   type="text" value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   onKeyDown={e => { if (e.key === "Enter") window.location.href = `/dashboard/search?q=${encodeURIComponent(searchQuery)}`; }}
-                  placeholder="Search the procurement network — ministry, category, portal…"
+                  placeholder="Search live tenders — ministry, category, portal…"
                   className="flex-1 text-sm text-[#111827] placeholder:text-[#9ca3af] bg-transparent outline-none py-2.5"
                 />
                 <Link href={`/dashboard/search?q=${encodeURIComponent(searchQuery)}`}
@@ -184,54 +171,83 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Right column: AI Dossier */}
+            {/* Right column: AI Dossier (Live Tender Assessment) */}
             <div className="hidden lg:flex flex-col fade-up-2">
-              <HeroArtifact />
-              <div className="mt-4 flex items-center justify-between">
-                <span className="text-[10px] font-mono text-[#c5cdd8]">REF/MF/2026/AID-04812 · CPPP</span>
-                <span className="text-[10px] font-mono text-[#9ca3af]">09 Aug 2026 · 04:14 IST</span>
-              </div>
+              <HeroArtifact tender={latestTender} isLoading={isTenderLoading} />
             </div>
           </div>
         </div>
       </section>
 
-      {/* ════════════════════════════════════════════════════════
-          SCENE 03 — STATS BAND
-          Full-bleed edge-to-edge data band
-      ════════════════════════════════════════════════════════ */}
-      <section className="bg-white border-b border-[#e5e7eb]">
+      {/* DYNAMIC LIVE STATS BAND (Clean 80px vertical rhythm) */}
+      <section className="bg-white border-b border-[#e5e7eb] py-16">
         <div className={C}>
-          <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-[#f1f5f9]">
-            {[
-              { num: stats.tenders, label: "ACTIVE TENDERS",   sub: "Live across all portals",     icon: Database },
-              { num: stats.ministries + "+", label: "UNION MINISTRIES", sub: "Full procurement coverage", icon: Landmark },
-              { num: stats.states,  label: "STATES & UTs",     sub: "Including autonomous bodies", icon: Activity },
-              { num: stats.indexed, label: "INDEXED TODAY",    sub: "New tenders extracted by AI",  icon: Brain },
-            ].map((s, i) => {
-              const Icon = s.icon;
-              return (
-                <div key={i} className="flex flex-col gap-4 px-8 xl:px-14 py-10">
-                  <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#9ca3af] font-mono">{s.label}</div>
-                  <div className="font-extrabold text-[#111827] leading-none" style={{ fontSize: "clamp(40px, 3.8vw, 60px)", fontVariantNumeric: "tabular-nums" }}>
-                    {s.num}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Icon className="w-3.5 h-3.5 text-[#9ca3af]" />
-                    <span className="text-xs text-[#6b7280]">{s.sub}</span>
-                  </div>
+          {statsState.status === "loading" ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 py-4">
+              {[1, 2, 3, 4].map(i => (
+                <div key={i} className="space-y-3">
+                  <div className="h-3 w-24 bg-[#e5e7eb] rounded animate-pulse" />
+                  <div className="h-12 w-32 bg-[#e5e7eb] rounded animate-pulse" />
+                  <div className="h-3 w-40 bg-[#e5e7eb] rounded animate-pulse" />
                 </div>
-              );
-            })}
-          </div>
+              ))}
+            </div>
+          ) : statsState.status === "success" ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-[#f1f5f9]">
+              {[
+                {
+                  num: statsState.data.total_active_tenders.toLocaleString("en-IN"),
+                  label: "ACTIVE TENDERS",
+                  sub: "Live across all portals",
+                  icon: Database
+                },
+                {
+                  num: `${statsState.data.active_ministries}+`,
+                  label: "UNION MINISTRIES",
+                  sub: "Full procurement coverage",
+                  icon: Landmark
+                },
+                {
+                  num: statsState.data.active_states > 0 ? statsState.data.active_states.toString() : "36",
+                  label: "STATES & UTs",
+                  sub: "Including autonomous bodies",
+                  icon: Activity
+                },
+                {
+                  num: statsState.data.tenders_indexed_today.toLocaleString("en-IN"),
+                  label: "INDEXED TODAY",
+                  sub: "New tenders processed by AI",
+                  icon: Brain
+                },
+              ].map((s, i) => {
+                const Icon = s.icon;
+                return (
+                  <div key={i} className="flex flex-col gap-4 px-8 xl:px-14 py-4">
+                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#9ca3af] font-mono">{s.label}</div>
+                    <div className="font-extrabold text-[#111827] leading-none" style={{ fontSize: "clamp(38px, 3.6vw, 56px)", fontVariantNumeric: "tabular-nums" }}>
+                      {s.num}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Icon className="w-3.5 h-3.5 text-[#9ca3af]" />
+                      <span className="text-xs text-[#6b7280]">{s.sub}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="py-6 flex items-center justify-between text-xs text-[#6b7280]">
+              <span>Data temporarily unavailable. Live procurement network is active.</span>
+              <button onClick={refreshStats} className="text-[#1d4ed8] font-bold flex items-center gap-1 hover:underline">
+                <RefreshCw className="w-3 h-3" /> Retry
+              </button>
+            </div>
+          )}
         </div>
       </section>
 
-      {/* ════════════════════════════════════════════════════════
-          SCENE 04 — PORTAL COVERAGE
-          45% text / 55% network — full width on right
-      ════════════════════════════════════════════════════════ */}
-      <section className="bg-[#f8fafc] border-b border-[#e5e7eb] py-24">
+      {/* PORTAL COVERAGE — Spacing: 96px - 120px */}
+      <section className="bg-[#f8fafc] border-b border-[#e5e7eb] py-28">
         <div className={C}>
           <div className="grid lg:grid-cols-[45fr_55fr] gap-12 xl:gap-20 items-center">
             <div>
@@ -246,45 +262,48 @@ export default function LandingPage() {
               </p>
 
               <div className="border border-[#e5e7eb] rounded-2xl overflow-hidden bg-white">
-                {[
-                  { name: "Government e-Marketplace (GeM)",         count: "18,240+", color: "#16a34a" },
-                  { name: "Central Public Procurement Portal (CPPP)", count: "14,180+", color: "#1d4ed8" },
-                  { name: "Indian Railways (IREPS)",                 count: "6,320+",  color: "#ea580c" },
-                  { name: "Defence Procurement (DDP/MoD)",          count: "4,920+",  color: "#dc2626" },
-                  { name: "State eProcurement (36 portals)",         count: "9,100+",  color: "#7c3aed" },
-                  { name: "PSUs (ONGC, BHEL, NTPC, IOCL, HAL)",    count: "7,500+",  color: "#475569" },
-                ].map((p, i, arr) => (
-                  <div key={p.name}
-                    className={`flex items-center justify-between px-5 py-4 ${i < arr.length - 1 ? "border-b border-[#f3f4f6]" : ""} hover:bg-[#f9fafb] transition-colors`}>
-                    <div className="flex items-center gap-3">
-                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: p.color }} />
-                      <span className="text-sm text-[#374151]">{p.name}</span>
-                    </div>
-                    <span className="text-sm font-mono font-bold text-[#1d4ed8]">{p.count}</span>
+                {portalState.status === "loading" ? (
+                  <div className="p-6 space-y-4">
+                    {[1, 2, 3, 4, 5].map(i => (
+                      <div key={i} className="flex justify-between items-center">
+                        <div className="h-3 w-48 bg-[#e5e7eb] rounded animate-pulse" />
+                        <div className="h-3 w-16 bg-[#e5e7eb] rounded animate-pulse" />
+                      </div>
+                    ))}
                   </div>
-                ))}
+                ) : portalState.status === "success" ? (
+                  portalState.data.map((p, i, arr) => (
+                    <div key={p.name}
+                      className={`flex items-center justify-between px-5 py-4 ${i < arr.length - 1 ? "border-b border-[#f3f4f6]" : ""} hover:bg-[#f9fafb] transition-colors`}>
+                      <div className="flex items-center gap-3">
+                        <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: p.color }} />
+                        <span className="text-sm font-medium text-[#374151]">{p.full_name}</span>
+                      </div>
+                      <span className="text-sm font-mono font-bold text-[#1d4ed8]">{p.count.toLocaleString("en-IN")} tenders</span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-6 text-xs text-[#6b7280]">Portal status index updating...</div>
+                )}
               </div>
             </div>
 
-            {/* Network diagram — fills right column */}
+            {/* Dynamic Network Diagram */}
             <div className="flex items-center justify-center" style={{ minHeight: "440px" }}>
-              <PortalNetwork />
+              <DynamicPortalNetwork sources={portalState.status === "success" ? portalState.data : []} />
             </div>
           </div>
         </div>
       </section>
 
-      {/* ════════════════════════════════════════════════════════
-          SCENE 05 — AI PIPELINE
-          Removes empty space with two-column artifact panel
-      ════════════════════════════════════════════════════════ */}
-      <section id="platform" className="bg-[#f4f6f8] border-b border-[#e5e7eb] py-24">
+      {/* AI PIPELINE - Spacing: 96px */}
+      <section id="platform" className="bg-[#f4f6f8] border-b border-[#e5e7eb] py-28">
         <div className={C}>
-          <div className="mb-10">
+          <div className="mb-12">
             <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#9ca3af] font-mono mb-5">03 · AI PROCESSING PIPELINE</div>
             <h2 className="font-extrabold text-[#111827] leading-tight tracking-tight mb-4" style={{ fontSize: "clamp(28px, 3.2vw, 44px)" }}>
-              From 60,000 tenders<br />
-              <span className="text-[#1d4ed8]">to one clear decision.</span>
+              From raw tender notices<br />
+              <span className="text-[#1d4ed8]">to structured decision intelligence.</span>
             </h2>
             <p className="text-lg text-[#6b7280] max-w-xl">
               Seven AI processing layers transform raw government documents
@@ -297,11 +316,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ════════════════════════════════════════════════════════
-          SCENE 06 — BID INTELLIGENCE ENGINE
-          50/50 editorial + decision diagram, full height
-      ════════════════════════════════════════════════════════ */}
-      <section id="intelligence" className="bg-white border-b border-[#e5e7eb] py-24">
+      {/* BID INTELLIGENCE ENGINE - Spacing: 96px */}
+      <section id="intelligence" className="bg-white border-b border-[#e5e7eb] py-28">
         <div className={C}>
           <div className="grid lg:grid-cols-2 gap-12 xl:gap-24 items-center">
             <div>
@@ -319,11 +335,11 @@ export default function LandingPage() {
                 turnover, experience, certifications, geography, MSME status — and returns
                 a decision with a cited rationale, not a list.
               </p>
-              <ul className="space-y-3 mb-10">
+              <ul className="space-y-4 mb-10">
                 {[
                   "EMD waiver detection — Udyam Rule 170 & GFR 2017",
                   "Make in India Class-I / Class-II supplier classification",
-                  "L1 price discovery from 5 years of procurement records",
+                  "L1 price discovery from historical procurement records",
                   "CVC integrity compliance and NIT clause risk analysis",
                   "QCBS vs. L1 evaluation strategy optimisation",
                 ].map(item => (
@@ -333,12 +349,12 @@ export default function LandingPage() {
                   </li>
                 ))}
               </ul>
-              <Link href="/dashboard" className="inline-flex items-center gap-2 font-semibold bg-[#1d4ed8] text-white px-6 py-3 rounded-lg hover:bg-[#1e40af] transition-colors text-sm">
+              <Link href="/dashboard" className="inline-flex items-center gap-2 font-semibold bg-[#1d4ed8] text-white px-6 py-3.5 rounded-lg hover:bg-[#1e40af] transition-colors text-sm">
                 Open Bid Intelligence <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
 
-            {/* Decision diagram — fills column */}
+            {/* Decision diagram */}
             <div className="flex items-center justify-center py-8">
               <BidDecisionEngine />
             </div>
@@ -346,27 +362,28 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ════════════════════════════════════════════════════════
-          SCENE 07 — LIVE NETWORK CONSOLE
-      ════════════════════════════════════════════════════════ */}
-      <section className="bg-[#060c1a] border-b border-[#1e293b] py-24">
+      {/* LIVE NETWORK CONSOLE - Spacing: 96px */}
+      <section className="bg-[#060c1a] border-b border-[#1e293b] py-28">
         <div className={C}>
           <div className="mb-10">
             <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#334155] font-mono mb-5">05 · LIVE PROCUREMENT NETWORK</div>
             <h2 className="font-extrabold text-white leading-tight tracking-tight" style={{ fontSize: "clamp(28px, 3.5vw, 46px)" }}>
               The procurement network<br />
-              <span className="text-[#60a5fa]">is always moving.</span>
+              <span className="text-[#60a5fa]">is live & continuously updating.</span>
             </h2>
           </div>
-          <LiveConsole />
+          <LiveConsole
+            tenders={tendersState.status === "success" ? tendersState.data : []}
+            isLoading={tendersState.status === "loading"}
+            error={tendersState.status === "error" ? tendersState.message : null}
+            lastUpdated={tendersState.status === "success" ? tendersState.lastUpdated : null}
+            onRefresh={refreshTenders}
+          />
         </div>
       </section>
 
-      {/* ════════════════════════════════════════════════════════
-          SCENE 06b — API SECTION
-          5-col explanation / 7-col console
-      ════════════════════════════════════════════════════════ */}
-      <section id="api" className="bg-[#f8fafc] border-b border-[#e5e7eb] py-24">
+      {/* API SECTION - Spacing: 96px */}
+      <section id="api" className="bg-[#f8fafc] border-b border-[#e5e7eb] py-28">
         <div className={C}>
           <div className="grid lg:grid-cols-[5fr_7fr] gap-12 xl:gap-20 items-start">
             <div>
@@ -384,7 +401,7 @@ export default function LandingPage() {
                   { label: "REST API",       desc: "JSON · OAuth 2.0 · Rate limited" },
                   { label: "Webhook Events", desc: "New tender · Corrigendum · Award" },
                   { label: "Bulk Export",    desc: "CSV / JSONL for analytics pipelines" },
-                  { label: "SLA",            desc: "99.9% uptime · 4-minute sync interval" },
+                  { label: "SLA",            desc: "99.9% uptime · High availability" },
                 ].map((item, i, arr) => (
                   <div key={item.label} className={`flex items-center gap-4 px-5 py-4 ${i < arr.length - 1 ? "border-b border-[#f3f4f6]" : ""} hover:bg-[#f9fafb] transition-colors`}>
                     <span className="text-xs font-bold text-[#111827] w-32 flex-shrink-0">{item.label}</span>
@@ -393,7 +410,7 @@ export default function LandingPage() {
                 ))}
               </div>
               <div className="flex items-center gap-4">
-                <Link href="/register" className="inline-flex items-center gap-2 font-semibold bg-[#1d4ed8] text-white px-6 py-3 rounded-lg hover:bg-[#1e40af] transition-colors text-sm">
+                <Link href="/register" className="inline-flex items-center gap-2 font-semibold bg-[#1d4ed8] text-white px-6 py-3.5 rounded-lg hover:bg-[#1e40af] transition-colors text-sm">
                   Get API Key
                 </Link>
                 <a href="#" className="inline-flex items-center gap-1 text-sm font-semibold text-[#374151] hover:text-[#1d4ed8] transition-colors">
@@ -406,10 +423,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ════════════════════════════════════════════════════════
-          SCENE 08 — THE INVITATION (CTA)
-      ════════════════════════════════════════════════════════ */}
-      <section className="bg-[#0a0f1e] py-28 relative overflow-hidden">
+      {/* CTA SECTION - Spacing: 120px */}
+      <section className="bg-[#0a0f1e] py-32 relative overflow-hidden">
         <div className="absolute inset-0 opacity-[0.03]" style={{
           backgroundImage: "linear-gradient(to right, #fff 1px, transparent 1px), linear-gradient(to bottom, #fff 1px, transparent 1px)",
           backgroundSize: "32px 32px",
@@ -417,14 +432,14 @@ export default function LandingPage() {
         <div className={`${C} relative`}>
           <div className="max-w-3xl mx-auto text-center">
             <div className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#334155] font-mono mb-8">
-              08 · ENTER TENDEROS
+              07 · ENTER TENDEROS
             </div>
             <h2 className="font-extrabold text-white leading-tight tracking-tight mb-6" style={{ fontSize: "clamp(32px, 4.5vw, 58px)" }}>
               The procurement network<br />is already moving.
             </h2>
             <p className="text-[#64748b] text-xl mb-3">Make your next bid decision before it does.</p>
             <p className="text-[#334155] text-sm mb-14">
-              60,000+ live tenders · 36 states · 52+ ministries · Real-time
+              Real-time central & state portal aggregation &middot; GFR 2017 & MSME Compliant
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10">
               <Link href="/register" className="inline-flex items-center gap-2 font-bold bg-white text-[#111827] px-10 py-4 rounded-xl hover:bg-[#f0f5ff] hover:text-[#1d4ed8] transition-all text-sm w-full sm:w-auto justify-center">
@@ -441,11 +456,9 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ════════════════════════════════════════════════════════
-          FOOTER — immediately follows CTA
-      ════════════════════════════════════════════════════════ */}
+      {/* FOOTER — Cleans up page bottom naturally */}
       <footer className="bg-white border-t border-[#e5e7eb]">
-        <div className={`${C} py-14`}>
+        <div className={`${C} py-16`}>
           <div className="flex flex-col md:flex-row items-start justify-between gap-10 mb-10">
             <div>
               <div className="flex items-center gap-2 mb-4">
@@ -478,7 +491,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="pt-6 border-t border-[#f3f4f6] flex flex-col md:flex-row items-center justify-between gap-2">
-            <span className="text-[10px] text-[#9ca3af]">© 2026 TenderOS. All procurement data sourced from official Government of India portals.</span>
+            <span className="text-[10px] text-[#9ca3af]">© {new Date().getFullYear()} TenderOS. All procurement data sourced from official Government of India portals.</span>
             <span className="text-[10px] text-[#9ca3af]">Forecasts are probabilistic. Competitor analysis uses public procurement records only.</span>
           </div>
         </div>
