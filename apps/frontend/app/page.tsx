@@ -4,8 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import {
-  Search, ArrowRight, Landmark, ChevronRight,
-  Database, Brain, ShieldCheck, Activity, RefreshCw,
+  Search, ArrowRight, Landmark,
+  Database, Brain, Activity, RefreshCw,
   Code, Webhook, FileText, Layers, Phone, Mail, Clock
 } from "lucide-react";
 import { useProcurementStats } from "@/hooks/useProcurementStats";
@@ -13,16 +13,18 @@ import { useLiveTenders } from "@/hooks/useLiveTenders";
 import { usePortalStats } from "@/hooks/usePortalStats";
 import { useLatestTender } from "@/hooks/useLatestTender";
 
-const ProcurementTicker   = dynamic(() => import("@/app/components/landing/ProcurementTicker"),   { ssr: false });
-const LiveNetworkStatus    = dynamic(() => import("@/app/components/landing/LiveNetworkStatus"),    { ssr: false });
-const HeroArtifact         = dynamic(() => import("@/app/components/landing/HeroArtifact"),         { ssr: false });
-const IntelligencePipeline = dynamic(() => import("@/app/components/landing/IntelligencePipeline"), { ssr: false });
-const BidDecisionEngine    = dynamic(() => import("@/app/components/landing/BidDecisionEngine"),    { ssr: false });
-const LiveConsole          = dynamic(() => import("@/app/components/landing/LiveConsole"),           { ssr: false });
-const APIArtifact          = dynamic(() => import("@/app/components/landing/APIArtifact"),           { ssr: false });
+const ProcurementTicker      = dynamic(() => import("@/app/components/landing/ProcurementTicker"),      { ssr: false });
+const LiveNetworkStatus       = dynamic(() => import("@/app/components/landing/LiveNetworkStatus"),       { ssr: false });
+const HeroArtifact            = dynamic(() => import("@/app/components/landing/HeroArtifact"),            { ssr: false });
+const ProcurementNetworkGraph = dynamic(() => import("@/app/components/landing/ProcurementNetworkGraph"), { ssr: false });
+const DigitalTwinDiagram      = dynamic(() => import("@/app/components/landing/DigitalTwinDiagram"),      { ssr: false });
+const IntelligencePipeline    = dynamic(() => import("@/app/components/landing/IntelligencePipeline"),   { ssr: false });
+const IndiaCoverageMap        = dynamic(() => import("@/app/components/landing/IndiaCoverageMap"),        { ssr: false });
+const LiveConsole             = dynamic(() => import("@/app/components/landing/LiveConsole"),              { ssr: false });
+const APIArtifact             = dynamic(() => import("@/app/components/landing/APIArtifact"),              { ssr: false });
 
-// ── Outer Container with strict min-w-0 & max-w-[1360px] ───────────────────
-const C = "mx-auto w-full max-w-[1360px] px-4 sm:px-6 lg:px-8 xl:px-10 min-w-0";
+// ── Fluid Responsive Width Container ─────────────────────────────────────
+const C = "w-[min(100%-2.5rem,1440px)] mx-auto min-w-0";
 
 export default function LandingPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -49,8 +51,7 @@ export default function LandingPage() {
             <span className="font-extrabold text-base text-[#111827] tracking-tight">TenderOS</span>
           </div>
 
-          {/* Nav links */}
-          <div className="hidden xl:flex items-center gap-6 text-xs font-semibold text-[#475569]">
+          <div className="hidden xl:flex items-center gap-7 text-xs font-semibold text-[#475569]">
             <a href="#platform" className="hover:text-[#111827] transition-colors">Platform</a>
             <a href="#solutions" className="hover:text-[#111827] transition-colors">Solutions</a>
             <a href="#resources" className="hover:text-[#111827] transition-colors">Resources</a>
@@ -59,7 +60,6 @@ export default function LandingPage() {
             <a href="#pricing" className="hover:text-[#111827] transition-colors">Pricing</a>
           </div>
 
-          {/* Action buttons */}
           <div className="flex items-center gap-3 flex-shrink-0">
             <Link href="/login" className="text-xs font-semibold text-[#374151] hover:text-[#111827] px-3 py-1.5 transition-colors whitespace-nowrap">Sign in</Link>
             <Link href="/register" className="text-xs font-semibold bg-[#1d4ed8] text-white px-4 py-2 rounded-lg hover:bg-[#1e40af] transition-colors whitespace-nowrap shadow-xs">
@@ -69,8 +69,8 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      {/* HERO SECTION */}
-      <section className="bg-white border-b border-[#e2e8f0] py-10 lg:py-14">
+      {/* 1. HERO SECTION */}
+      <section className="bg-white border-b border-[#e2e8f0] py-12 lg:py-16">
         <div className={C}>
           <div className="grid grid-cols-1 xl:grid-cols-[1.1fr_0.9fr] gap-8 lg:gap-12 items-center min-w-0">
 
@@ -126,36 +126,12 @@ export default function LandingPage() {
                 ))}
               </div>
 
-              {/* Single Live Status Indicator Line */}
               <div className="pt-1">
                 <LiveNetworkStatus />
               </div>
-
-              {/* 4 Stat Pills */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
-                {[
-                  { icon: Landmark, num: "36", label: "Portals" },
-                  { icon: Database, num: "52+", label: "Ministries" },
-                  { icon: Activity, num: "36", label: "States & UTs" },
-                  { icon: Brain, num: "Live", label: "Network" },
-                ].map(p => {
-                  const Icon = p.icon;
-                  return (
-                    <div key={p.label} className="p-2.5 rounded-xl border border-[#e2e8f0] bg-[#f8fafc] flex items-center gap-2 min-w-0">
-                      <div className="w-7 h-7 rounded-lg bg-[#eff6ff] border border-[#bfdbfe] flex items-center justify-center flex-shrink-0">
-                        <Icon className="w-3.5 h-3.5 text-[#1d4ed8]" />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-xs font-bold text-[#111827]">{p.num}</div>
-                        <div className="text-[10px] text-[#6b7280] font-medium truncate">{p.label}</div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
             </div>
 
-            {/* Right Hero Card */}
+            {/* Right Hero Visual */}
             <div className="w-full min-w-0">
               <HeroArtifact tender={latestTender} isLoading={isTenderLoading} />
             </div>
@@ -164,7 +140,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* STATS BAND — Live Procurement Intelligence */}
+      {/* 2. STATS BAND — Live Procurement Intelligence */}
       <section className="bg-white border-b border-[#e2e8f0] py-8">
         <div className={C}>
           {statsState.status === "loading" ? (
@@ -234,95 +210,63 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* MIDDLE SECTION 1: Procurement Network Coverage + AI Processing Pipeline */}
-      <section className="py-8 border-b border-[#e2e8f0]">
+      {/* 3. PROCUREMENT NETWORK GRAPHIC */}
+      <section className="py-12 border-b border-[#e2e8f0]">
         <div className={C}>
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-stretch min-w-0">
-
-            {/* Left Card: Procurement Network Coverage */}
-            <div className="bg-white border border-[#e2e8f0] rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col justify-between min-w-0">
-              <div>
-                <h3 className="text-base font-bold text-[#111827] mb-4">Procurement Network Coverage</h3>
-                <div className="space-y-2.5 mb-5">
-                  {[
-                    { name: "Government e-Marketplace (GeM)", count: "18,240+", icon: "bg-[#16a34a]" },
-                    { name: "Central Public Procurement Portal (CPPP)", count: "14,180+", icon: "bg-[#1d4ed8]" },
-                    { name: "Indian Railways E-Procurement (IREPS)", count: "6,320+", icon: "bg-[#ea580c]" },
-                    { name: "Defence Procurement Portal (DDP/MoD)", count: "4,920+", icon: "bg-[#dc2626]" },
-                    { name: "State eProcurement (36 Portals)", count: "9,100+", icon: "bg-[#7c3aed]" },
-                    { name: "PSUs (ONGC, BHEL, NTPC, IOCL, HAL)", count: "7,500+", icon: "bg-[#475569]" },
-                  ].map(p => (
-                    <div key={p.name} className="flex items-center justify-between p-2.5 rounded-xl border border-[#f1f5f9] hover:bg-[#f8fafc] transition-colors text-xs min-w-0 gap-2">
-                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${p.icon}`} />
-                        <span className="font-semibold text-[#374151] truncate">{p.name}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
-                        <span className="font-mono font-bold text-[#111827]">{p.count}</span>
-                        <span className="text-[9px] font-mono font-bold text-[#059669] bg-[#ecfdf5] px-1.5 py-0.5 rounded border border-[#a7f3d0]">● Live</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="pt-3 border-t border-[#f1f5f9]">
-                <Link href="/dashboard" className="text-xs font-semibold text-[#1d4ed8] hover:underline inline-flex items-center gap-1">
-                  View All 36+ Portals <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
-              </div>
-            </div>
-
-            {/* Right Card: AI Processing Pipeline */}
-            <div className="min-w-0">
-              <IntelligencePipeline />
-            </div>
-
-          </div>
+          <ProcurementNetworkGraph />
         </div>
       </section>
 
-      {/* MIDDLE SECTION 2: Bid Intelligence Engine + Live Procurement Network */}
-      <section className="py-8 border-b border-[#e2e8f0]">
+      {/* 4. DIGITAL TWIN DIAGRAM */}
+      <section className="py-12 border-b border-[#e2e8f0]">
         <div className={C}>
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-stretch min-w-0">
-
-            {/* Left Card: Bid Intelligence Engine */}
-            <div className="min-w-0">
-              <BidDecisionEngine />
-            </div>
-
-            {/* Right Card: Live Procurement Network */}
-            <div className="flex flex-col justify-between min-w-0">
-              <div className="mb-2 flex items-center justify-between px-1">
-                <h3 className="text-base font-bold text-[#111827]">Live Procurement Network</h3>
-                <Link href="/dashboard" className="text-xs font-semibold text-[#1d4ed8] hover:underline flex items-center gap-1">
-                  View All Tenders <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
-              </div>
-              <LiveConsole
-                tenders={tendersState.status === "success" ? tendersState.data : []}
-                isLoading={tendersState.status === "loading"}
-                error={tendersState.status === "error" ? tendersState.message : null}
-                lastUpdated={tendersState.status === "success" ? tendersState.lastUpdated : null}
-                onRefresh={refreshTenders}
-              />
-            </div>
-
-          </div>
+          <DigitalTwinDiagram />
         </div>
       </section>
 
-      {/* MIDDLE SECTION 3: API Access & Developer Tools + Live API Console */}
-      <section id="developers" className="py-8 border-b border-[#e2e8f0]">
+      {/* 5. AI PROCESSING PIPELINE */}
+      <section className="py-12 border-b border-[#e2e8f0]">
+        <div className={C}>
+          <IntelligencePipeline />
+        </div>
+      </section>
+
+      {/* 6. INDIA COVERAGE MAP */}
+      <section className="py-12 border-b border-[#e2e8f0]">
+        <div className={C}>
+          <IndiaCoverageMap />
+        </div>
+      </section>
+
+      {/* 7. LIVE PROCUREMENT NETWORK TABLE */}
+      <section className="py-12 border-b border-[#e2e8f0]">
+        <div className={C}>
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-extrabold text-[#111827] tracking-tight">Live Procurement Network</h2>
+              <p className="text-xs text-[#6b7280] mt-0.5">Real-time stream of verified government tenders published across India.</p>
+            </div>
+            <Link href="/dashboard" className="text-xs font-semibold text-[#1d4ed8] hover:underline flex items-center gap-1">
+              View All Tenders <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+          <LiveConsole
+            tenders={tendersState.status === "success" ? tendersState.data : []}
+            isLoading={tendersState.status === "loading"}
+            error={tendersState.status === "error" ? tendersState.message : null}
+            lastUpdated={tendersState.status === "success" ? tendersState.lastUpdated : null}
+            onRefresh={refreshTenders}
+          />
+        </div>
+      </section>
+
+      {/* 8. DEVELOPER API SECTION */}
+      <section id="developers" className="py-12 border-b border-[#e2e8f0]">
         <div className={C}>
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-stretch min-w-0">
-
-            {/* Left Card: API Access & Developer Tools */}
-            <div className="bg-white border border-[#e2e8f0] rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col justify-between min-w-0">
+            <div className="bg-white border border-[#e2e8f0] rounded-2xl p-6 shadow-xs flex flex-col justify-between min-w-0">
               <div>
-                <h3 className="text-base font-bold text-[#111827] mb-4">API Access & Developer Tools</h3>
-
+                <h3 className="text-base font-bold text-[#111827] mb-4">API Access &amp; Developer Tools</h3>
                 <div className="grid sm:grid-cols-2 gap-3 mb-5">
                   {[
                     { icon: Code, title: "REST API", desc: "Real-time access to tender data and analytics" },
@@ -343,7 +287,6 @@ export default function LandingPage() {
                   })}
                 </div>
               </div>
-
               <div className="pt-2">
                 <Link href="/register" className="w-full inline-flex items-center justify-center gap-2 font-semibold bg-[#1d4ed8] text-white px-5 py-2.5 rounded-lg hover:bg-[#1e40af] transition-colors text-xs shadow-xs">
                   View API Documentation <ArrowRight className="w-3.5 h-3.5" />
@@ -351,38 +294,36 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Right Card: Live API Console */}
             <div className="min-w-0">
               <APIArtifact />
             </div>
-
           </div>
         </div>
       </section>
 
-      {/* CTA BANNER */}
-      <section className="py-8 border-b border-[#bfdbfe] bg-[#f0f9ff]">
+      {/* 9. CTA BANNER */}
+      <section className="py-12 border-b border-[#bfdbfe] bg-[#f0f9ff]">
         <div className={C}>
-          <div className="bg-[#dbeafe] border border-[#bfdbfe] rounded-2xl p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6 min-w-0">
+          <div className="bg-[#dbeafe] border border-[#bfdbfe] rounded-3xl p-8 flex flex-col md:flex-row items-center justify-between gap-6 min-w-0">
             <div className="flex items-center gap-4 min-w-0">
-              <div className="w-11 h-11 rounded-xl bg-[#1d4ed8] text-white flex items-center justify-center flex-shrink-0 shadow-xs">
-                <Landmark className="w-5 h-5" />
+              <div className="w-12 h-12 rounded-2xl bg-[#1d4ed8] text-white flex items-center justify-center flex-shrink-0 shadow-xs">
+                <Landmark className="w-6 h-6" />
               </div>
               <div className="min-w-0">
-                <h3 className="text-lg sm:text-xl font-extrabold text-[#111827] tracking-tight mb-1">
+                <h3 className="text-xl sm:text-2xl font-extrabold text-[#111827] tracking-tight mb-1">
                   Ready to transform your procurement?
                 </h3>
-                <p className="text-xs text-[#475569]">
+                <p className="text-xs sm:text-sm text-[#475569]">
                   Join 1000+ organizations already using TenderOS for smarter procurement decisions.
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-3 flex-shrink-0">
-              <Link href="/register" className="bg-[#1d4ed8] hover:bg-[#1e40af] text-white text-xs font-bold px-5 py-2.5 rounded-lg transition-colors whitespace-nowrap shadow-xs">
+              <Link href="/register" className="bg-[#1d4ed8] hover:bg-[#1e40af] text-white text-xs font-bold px-5 py-3 rounded-xl transition-colors whitespace-nowrap shadow-xs">
                 Request Demo
               </Link>
-              <Link href="/dashboard" className="border border-[#bfdbfe] bg-white hover:bg-[#f8fafc] text-[#1d4ed8] text-xs font-bold px-5 py-2.5 rounded-lg transition-colors whitespace-nowrap">
+              <Link href="/dashboard" className="border border-[#bfdbfe] bg-white hover:bg-[#f8fafc] text-[#1d4ed8] text-xs font-bold px-5 py-3 rounded-xl transition-colors whitespace-nowrap">
                 Start Free Trial
               </Link>
             </div>
@@ -390,7 +331,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* FOOTER */}
+      {/* 10. FOOTER */}
       <footer id="company" className="bg-[#0b1329] text-white border-t border-[#1e293b]">
         <div className={`${C} py-12 lg:py-16`}>
           <div className="grid grid-cols-2 md:grid-cols-6 gap-8 mb-12">
@@ -405,7 +346,6 @@ export default function LandingPage() {
                 India&apos;s most advanced AI-powered procurement intelligence platform.
               </p>
 
-              {/* Social icons */}
               <div className="flex items-center gap-3 text-[#64748b] text-xs">
                 <a href="#" className="w-7 h-7 rounded-md bg-[#1e293b] flex items-center justify-center hover:text-white transition-colors">in</a>
                 <a href="#" className="w-7 h-7 rounded-md bg-[#1e293b] flex items-center justify-center hover:text-white transition-colors">x</a>
@@ -429,7 +369,6 @@ export default function LandingPage() {
               </div>
             ))}
 
-            {/* Support column */}
             <div>
               <h4 className="text-xs font-bold text-white mb-3 uppercase tracking-wider">Support</h4>
               <ul className="space-y-2.5 text-xs text-[#94a3b8]">
