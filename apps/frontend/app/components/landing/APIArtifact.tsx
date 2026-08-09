@@ -72,10 +72,10 @@ export default function APIArtifact() {
   const currentJson = JSON.stringify(result?.body || DEFAULT_JSON, null, 2);
 
   return (
-    <div className="bg-white border border-[#e2e8f0] rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col justify-between min-w-0" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
+    <div className="bg-[#0f172a]/95 border border-[#1e293b] rounded-2xl p-5 sm:p-6 shadow-xl flex flex-col justify-between min-w-0" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
       <div>
         <div className="mb-3">
-          <h3 className="text-base font-bold text-[#111827]">Live API Console</h3>
+          <h3 className="text-base font-bold text-white">Live API Console</h3>
         </div>
 
         {/* Endpoint Pills */}
@@ -86,26 +86,26 @@ export default function APIArtifact() {
               onClick={() => setSelectedIdx(i)}
               className={`px-2.5 py-1 rounded-lg border transition-colors whitespace-nowrap ${
                 i === selectedIdx
-                  ? "border-[#1d4ed8] bg-[#eff6ff] text-[#1d4ed8] font-bold"
-                  : "border-[#e2e8f0] text-[#6b7280] hover:bg-[#f8fafc]"
+                  ? "border-[#2563eb] bg-[#1e1b4b] text-[#60a5fa] font-bold shadow-[0_0_10px_rgba(37,99,235,0.4)]"
+                  : "border-[#1e293b] text-[#94a3b8] hover:bg-[#1e293b]"
               }`}
             >
               {e.method} {e.path}
             </button>
           ))}
-          <span className="text-[11px] text-[#9ca3af] font-sans ml-auto cursor-pointer hover:underline whitespace-nowrap">Test Endpoint</span>
+          <span className="text-[11px] text-[#64748b] font-sans ml-auto cursor-pointer hover:text-white whitespace-nowrap">Test Endpoint</span>
         </div>
 
         {/* Parameters */}
         <div className="space-y-2 mb-3 text-xs">
-          <div className="text-[9px] font-bold text-[#9ca3af] uppercase tracking-wider">Parameters</div>
+          <div className="text-[9px] font-bold text-[#64748b] uppercase tracking-wider">PARAMETERS</div>
           <div className="grid grid-cols-2 gap-2.5">
             <div>
-              <label className="block text-[10px] text-[#6b7280] mb-0.5">Portal</label>
+              <label className="block text-[10px] text-[#94a3b8] mb-0.5">Portal</label>
               <select
                 value={selectedPortal}
                 onChange={e => setSelectedPortal(e.target.value)}
-                className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-lg px-2 py-1 text-xs text-[#111827] outline-none"
+                className="w-full bg-[#080d1a] border border-[#1e293b] rounded-lg px-2 py-1 text-xs text-white outline-none"
               >
                 <option value="All Portals">All Portals</option>
                 <option value="GeM">GeM</option>
@@ -115,12 +115,12 @@ export default function APIArtifact() {
             </div>
 
             <div>
-              <label className="block text-[10px] text-[#6b7280] mb-0.5">Limit</label>
+              <label className="block text-[10px] text-[#94a3b8] mb-0.5">Limit</label>
               <input
                 type="text"
                 value={limit}
                 onChange={e => setLimit(e.target.value)}
-                className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-lg px-2 py-1 text-xs text-[#111827] outline-none font-mono"
+                className="w-full bg-[#080d1a] border border-[#1e293b] rounded-lg px-2 py-1 text-xs text-white outline-none font-mono"
               />
             </div>
           </div>
@@ -130,15 +130,15 @@ export default function APIArtifact() {
         <button
           onClick={execute}
           disabled={loading}
-          className="w-full bg-[#1d4ed8] hover:bg-[#1e40af] text-white text-xs font-bold py-2 rounded-lg transition-colors mb-3 disabled:opacity-50 shadow-xs"
+          className="w-full bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-xs font-bold py-2 rounded-lg transition-colors mb-3 disabled:opacity-50 shadow-[0_0_15px_rgba(37,99,235,0.4)]"
         >
           {loading ? "Executing Request…" : "Execute Request"}
         </button>
       </div>
 
       {/* Dark Code Terminal Window */}
-      <div className="bg-[#0b1329] border border-[#1e293b] rounded-xl overflow-hidden text-xs font-mono">
-        <div className="flex items-center justify-between px-3 py-2 border-b border-[#1e293b] bg-[#080d1a] text-[10px] text-[#94a3b8]">
+      <div className="bg-[#080d1a] border border-[#1e293b] rounded-xl overflow-hidden text-xs font-mono">
+        <div className="flex items-center justify-between px-3 py-2 border-b border-[#1e293b] bg-[#050811] text-[10px] text-[#94a3b8]">
           <div className="flex items-center gap-2">
             <span className="text-[#64748b]">Request</span>
             <span className="text-[#60a5fa] font-bold border-b border-[#60a5fa] pb-0.5">Response</span>
@@ -149,6 +149,7 @@ export default function APIArtifact() {
             <span className="text-[#64748b]">Results: {(result?.resultsCount || 1840).toLocaleString("en-IN")}</span>
             <button onClick={copyToClipboard} className="flex items-center gap-1 text-[#94a3b8] hover:text-white transition-colors ml-1">
               {copied ? <Check className="w-3 h-3 text-[#4ade80]" /> : <Copy className="w-3 h-3" />}
+              <span>Copy</span>
             </button>
           </div>
         </div>

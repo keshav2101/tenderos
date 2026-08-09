@@ -1,129 +1,86 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Landmark, Server, Shield, Radio, Database, Cpu, ArrowRight } from "lucide-react";
+import { Landmark, ArrowRight, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 
-interface PortalNode {
-  id: string;
-  name: string;
-  count: string;
-  color: string;
-  x: number; // percentage
-  y: number;
-}
-
-const PORTALS: PortalNode[] = [
-  { id: "gem", name: "Government e-Marketplace (GeM)", count: "18,240+", color: "#16a34a", x: 20, y: 25 },
-  { id: "cppp", name: "Central Public Procurement Portal (CPPP)", count: "14,180+", color: "#1d4ed8", x: 80, y: 25 },
-  { id: "ireps", name: "Indian Railways E-Procurement (IREPS)", count: "6,320+", color: "#ea580c", x: 15, y: 75 },
-  { id: "ddp", name: "Defence Procurement Portal (DDP/MoD)", count: "4,920+", color: "#dc2626", x: 85, y: 75 },
-  { id: "states", name: "State eProcurement (36 Portals)", count: "9,100+", color: "#7c3aed", x: 50, y: 15 },
-  { id: "psu", name: "PSUs (ONGC, BHEL, NTPC, IOCL)", count: "7,500+", color: "#475569", x: 50, y: 85 },
+const PORTAL_LIST = [
+  { name: "Government e-Marketplace (GeM)", count: "18,240+", icon: "bg-[#16a34a]" },
+  { name: "Central Public Procurement Portal (CPPP)", count: "14,180+", icon: "bg-[#2563eb]" },
+  { name: "Indian Railways E-Procurement (IREPS)", count: "6,320+", icon: "bg-[#ea580c]" },
+  { name: "Defence Procurement Portal (DDP/MoD)", count: "4,920+", icon: "bg-[#dc2626]" },
+  { name: "State eProcurement (36 Portals)", count: "9,100+", icon: "bg-[#7c3aed]" },
+  { name: "PSUs (ONGC, BHEL, NTPC, IOCL, HAL)", count: "7,500+", icon: "bg-[#64748b]" },
 ];
 
 export default function ProcurementNetworkGraph() {
   return (
-    <div className="bg-[#0b1329] text-white rounded-3xl p-6 sm:p-10 border border-[#1e293b] shadow-xl overflow-hidden relative" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
-      {/* Radial background glow */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(29,78,216,0.15)_0,transparent_70%)] pointer-events-none" />
-
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8 relative z-10">
-        <div>
-          <div className="inline-flex items-center gap-2 text-[10px] font-mono font-bold text-[#60a5fa] uppercase tracking-wider bg-[#1e293b] px-3 py-1 rounded-full mb-2">
-            <Radio className="w-3 h-3 animate-pulse text-[#4ade80]" /> Live Ingestion Mesh
-          </div>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            Procurement Network Coverage
-          </h2>
-          <p className="text-xs sm:text-sm text-[#94a3b8] mt-1 max-w-xl">
-            TenderOS continuously ingests, normalizes, and indexes public tenders across 36+ Indian federal, state, railway, and defence portals.
-          </p>
+    <div className="bg-[#0f172a]/95 border border-[#1e293b] rounded-2xl p-5 sm:p-6 shadow-xl flex flex-col justify-between min-w-0" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
+      <div>
+        {/* Header */}
+        <div className="mb-5">
+          <h3 className="text-base font-bold text-white">Procurement Network</h3>
+          <p className="text-xs text-[#94a3b8] mt-0.5">Real-time coverage across India&apos;s procurement ecosystem</p>
         </div>
 
-        <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#60a5fa] hover:text-white transition-colors">
-          View All 36+ Portals <ArrowRight className="w-3.5 h-3.5" />
-        </Link>
+        {/* 2 Column Visual: Left India Map Graphic / Right Portal List */}
+        <div className="grid md:grid-cols-2 gap-5 items-center mb-5">
+          
+          {/* Left India Map Node Hub Graphic */}
+          <div className="relative w-full h-[240px] bg-[#080d1a] border border-[#1e293b] rounded-xl overflow-hidden flex items-center justify-center p-3">
+            <svg className="absolute inset-0 w-full h-full opacity-30 text-[#3b82f6]" viewBox="0 0 200 200" fill="none">
+              {/* Subtle India map silhouette outline path */}
+              <path d="M 90 20 Q 110 30 130 50 Q 150 70 140 100 Q 130 130 110 160 Q 90 180 80 150 Q 70 120 60 90 Q 50 60 70 30 Z" stroke="#3b82f6" strokeWidth="1.5" strokeDasharray="3 3" />
+            </svg>
+
+            {/* Pulsing Central Hub Node */}
+            <motion.div
+              animate={{ scale: [1, 1.05, 1] }}
+              transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+              className="z-10 flex flex-col items-center justify-center w-24 h-24 rounded-full bg-[#1d4ed8] text-white shadow-[0_0_30px_rgba(37,99,235,0.6)] border border-[#60a5fa] text-center p-1.5"
+            >
+              <Landmark className="w-5 h-5 text-white mb-0.5" />
+              <span className="font-extrabold text-[11px] leading-none">TenderOS</span>
+              <span className="text-[8px] text-blue-200 mt-0.5">Intelligence Network</span>
+            </motion.div>
+
+            {/* Glowing Peripheral Nodes */}
+            {[
+              { label: "GeM", top: "15%", left: "20%", color: "#16a34a" },
+              { label: "CPPP", top: "20%", left: "75%", color: "#2563eb" },
+              { label: "IREPS", top: "70%", left: "15%", color: "#ea580c" },
+              { label: "Defence", top: "75%", left: "75%", color: "#dc2626" },
+            ].map(n => (
+              <div key={n.label} className="absolute z-10 flex items-center gap-1 bg-[#0f172a]/90 border border-[#334155] px-2 py-0.5 rounded-md text-[9px] font-bold text-white shadow-md" style={{ top: n.top, left: n.left }}>
+                <span className="w-1.5 h-1.5 rounded-full animate-ping" style={{ backgroundColor: n.color }} />
+                <span>{n.label}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Right Portal List */}
+          <div className="space-y-2">
+            {PORTAL_LIST.map(p => (
+              <div key={p.name} className="flex items-center justify-between p-2 rounded-lg border border-[#1e293b] bg-[#080d1a] text-xs">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${p.icon}`} />
+                  <span className="font-medium text-[#e2e8f0] truncate text-[11px]">{p.name}</span>
+                </div>
+                <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                  <span className="font-mono font-bold text-white text-[11px]">{p.count}</span>
+                  <span className="text-[9px] font-mono font-bold text-[#4ade80] bg-[#064e3b]/40 px-1 py-0.5 rounded border border-[#059669]/50">● LIVE</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+        </div>
       </div>
 
-      {/* Main Interactive Visual Mesh */}
-      <div className="grid lg:grid-cols-[1fr_320px] gap-8 items-center relative z-10">
-        
-        {/* Node Network Map */}
-        <div className="relative w-full h-[360px] sm:h-[400px] bg-[#080d1a] border border-[#1e293b] rounded-2xl overflow-hidden flex items-center justify-center">
-          
-          {/* SVG Connecting Lines with animated data flow */}
-          <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
-            {PORTALS.map(p => (
-              <g key={p.id}>
-                {/* Static line */}
-                <line x1={`${p.x}%`} y1={`${p.y}%`} x2="50%" y2="50%" stroke="#1e293b" strokeWidth="0.5" strokeDasharray="2 2" />
-                {/* Animated flowing line */}
-                <line x1={`${p.x}%`} y1={`${p.y}%`} x2="50%" y2="50%" stroke={p.color} strokeWidth="0.8" opacity="0.4" />
-              </g>
-            ))}
-          </svg>
-
-          {/* Center Hub Node */}
-          <motion.div
-            animate={{ scale: [1, 1.03, 1] }}
-            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-            className="z-20 flex flex-col items-center justify-center w-28 h-28 sm:w-32 sm:h-32 rounded-full bg-[#1d4ed8] text-white shadow-[0_0_40px_rgba(29,78,216,0.5)] border-2 border-[#60a5fa] text-center p-2"
-          >
-            <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center mb-1">
-              <Landmark className="w-5 h-5 text-white" />
-            </div>
-            <span className="font-extrabold text-xs tracking-tight">TenderOS</span>
-            <span className="text-[9px] text-blue-200 font-mono">Procurement OS</span>
-          </motion.div>
-
-          {/* Outer Portal Nodes */}
-          {PORTALS.map(p => (
-            <motion.div
-              key={p.id}
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              style={{ left: `${p.x}%`, top: `${p.y}%`, transform: "translate(-50%, -50%)" }}
-              className="absolute z-20 flex flex-col items-center"
-            >
-              <div className="bg-[#0f172a] border border-[#334155] rounded-xl px-3 py-1.5 shadow-md flex items-center gap-2 hover:border-[#60a5fa] transition-colors cursor-pointer group">
-                <span className="w-2 h-2 rounded-full flex-shrink-0 animate-ping" style={{ backgroundColor: p.color }} />
-                <div className="text-left">
-                  <div className="text-[11px] font-bold text-white group-hover:text-[#60a5fa] transition-colors truncate max-w-[140px]">
-                    {p.name.split(" ")[0]}
-                  </div>
-                  <div className="text-[9px] font-mono text-[#94a3b8]">{p.count}</div>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-
-        {/* Live Network Statistics Column */}
-        <div className="space-y-3">
-          {[
-            { label: "Active Tenders", val: "60,260+", sub: "+2,340 indexed today", icon: Server },
-            { label: "Union Ministries", val: "52+", sub: "Full central coverage", icon: Database },
-            { label: "State & UT Portals", val: "36+", sub: "Including PWD & Municipal", icon: Cpu },
-            { label: "Security & Exemption Rules", val: "GFR 2017", sub: "Automated MSME & MII rules", icon: Shield },
-          ].map(stat => {
-            const Icon = stat.icon;
-            return (
-              <div key={stat.label} className="p-4 rounded-xl border border-[#1e293b] bg-[#080d1a] flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-[#1e293b] text-[#60a5fa] flex items-center justify-center flex-shrink-0">
-                  <Icon className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="text-[10px] text-[#94a3b8] font-medium uppercase tracking-wider">{stat.label}</div>
-                  <div className="text-base font-extrabold text-white mt-0.5">{stat.val}</div>
-                  <div className="text-[10px] text-[#64748b]">{stat.sub}</div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
+      <div className="pt-3 border-t border-[#1e293b]">
+        <Link href="/dashboard" className="text-xs font-semibold text-[#60a5fa] hover:text-white flex items-center gap-1">
+          View all 36+ portals <ArrowRight className="w-3.5 h-3.5" />
+        </Link>
       </div>
     </div>
   );
