@@ -15,13 +15,13 @@ export default function LiveNetworkStatus() {
         }
       })
       .catch(() => {
-        if (!cancelled) setStatus("live"); // default to live operational mode
+        if (!cancelled) setStatus("live");
       });
     return () => { cancelled = true; };
   }, []);
 
   const color = status === "live" ? "bg-emerald-500" : status === "syncing" ? "bg-blue-500" : "bg-amber-500";
-  const label = status === "live"
+  const statusText = status === "live"
     ? "The procurement network is live & continuously updating."
     : status === "syncing"
     ? "The procurement network is syncing."
@@ -30,7 +30,10 @@ export default function LiveNetworkStatus() {
   return (
     <div className="inline-flex items-center gap-2 whitespace-nowrap text-xs font-medium text-[#374151]">
       <span className={`w-2 h-2 rounded-full flex-shrink-0 ${color} animate-pulse`} />
-      <span className="whitespace-nowrap truncate">{label}</span>
+      <span className="font-mono font-bold uppercase text-[10px] text-[#059669]">LIVE</span>
+      <span className="hidden sm:inline whitespace-nowrap text-[#475569] text-xs">
+        {statusText}
+      </span>
     </div>
   );
 }

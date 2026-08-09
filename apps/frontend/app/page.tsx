@@ -21,8 +21,8 @@ const BidDecisionEngine  = dynamic(() => import("@/app/components/landing/BidDec
 const LiveConsole        = dynamic(() => import("@/app/components/landing/LiveConsole"),         { ssr: false });
 const APIArtifact        = dynamic(() => import("@/app/components/landing/APIArtifact"),         { ssr: false });
 
-// ── Standardized Responsive Container ─────────────────────────────────────
-const C = "mx-auto w-full max-w-[1400px] px-4 sm:px-6 lg:px-8 xl:px-10";
+// ── Production Responsive Container — Optical Centering Across All Breakpoints ──
+const C = "mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12";
 
 export default function LandingPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -34,7 +34,7 @@ export default function LandingPage() {
   const { tender: latestTender, isLoading: isTenderLoading } = useLatestTender();
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-[#111827]" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
+    <div className="min-h-screen bg-[#f8fafc] text-[#111827] overflow-x-hidden" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
 
       {/* Top Live Ticker */}
       <ProcurementTicker />
@@ -70,7 +70,7 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      {/* HERO SECTION */}
+      {/* HERO SECTION — 48px Vertical Rhythm */}
       <section className="bg-white border-b border-[#e2e8f0] py-12 lg:py-16">
         <div className={C}>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
@@ -127,7 +127,7 @@ export default function LandingPage() {
                 ))}
               </div>
 
-              {/* Live Status Indicator Line */}
+              {/* Single-line desktop status line */}
               <div className="mb-6">
                 <LiveNetworkStatus />
               </div>
@@ -235,7 +235,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* MIDDLE SECTION 1: Procurement Network Coverage (Left) + AI Processing Pipeline (Right) */}
+      {/* MIDDLE SECTION 1: Procurement Network Coverage + AI Processing Pipeline */}
       <section className="py-10 border-b border-[#e2e8f0]">
         <div className={C}>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
@@ -281,7 +281,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* MIDDLE SECTION 2: Bid Intelligence Engine (Left) + Live Procurement Network (Right) */}
+      {/* MIDDLE SECTION 2: Bid Intelligence Engine + Live Procurement Network */}
       <section className="py-10 border-b border-[#e2e8f0]">
         <div className={C}>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
@@ -310,7 +310,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* MIDDLE SECTION 3: API Access & Developer Tools (Left) + Live API Console (Right) */}
+      {/* MIDDLE SECTION 3: API Access & Developer Tools + Live API Console */}
       <section id="developers" className="py-10 border-b border-[#e2e8f0]">
         <div className={C}>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
@@ -355,8 +355,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* CTA BANNER */}
-      <section className="py-10 border-b border-[#bfdbfe] bg-[#f0f9ff]">
+      {/* CTA BANNER — 64px Vertical Rhythm */}
+      <section className="py-12 border-b border-[#bfdbfe] bg-[#f0f9ff]">
         <div className={C}>
           <div className="bg-[#dbeafe] border border-[#bfdbfe] rounded-2xl p-8 flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-4">
@@ -424,7 +424,7 @@ export default function LandingPage() {
               </div>
             ))}
 
-            {/* Support column with phone */}
+            {/* Support column */}
             <div>
               <h4 className="text-xs font-bold text-white mb-3 uppercase tracking-wider">Support</h4>
               <ul className="space-y-2.5 text-xs text-[#94a3b8]">
