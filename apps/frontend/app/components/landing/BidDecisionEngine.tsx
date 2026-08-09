@@ -1,120 +1,93 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { ArrowRight, Check } from "lucide-react";
 
 export default function BidDecisionEngine() {
-  const ref = useRef<SVGSVGElement>(null);
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) setVisible(true); },
-      { threshold: 0.2 }
-    );
-    if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, []);
-
-  const lc = visible ? "svg-draw" : "";
-
   return (
-    <svg
-      ref={ref}
-      viewBox="0 0 560 640"
-      className="w-full"
-      style={{ fontFamily: "Inter, system-ui, sans-serif", maxHeight: "640px" }}
-    >
-      {/* ── COMPANY PROFILE ── */}
-      <rect x="160" y="12" width="240" height="52" rx="6" fill="#f0f5ff" stroke="#bfdbfe" strokeWidth="1.5" />
-      <text x="280" y="32" textAnchor="middle" fontSize="10" fontWeight="800" fill="#1e40af" letterSpacing="1.5">COMPANY DIGITAL TWIN</text>
-      <text x="280" y="50" textAnchor="middle" fontSize="8.5" fill="#6b7280">Udyam · GST · PAN · CIN · DSC · ISO</text>
+    <div className="bg-white border border-[#e2e8f0] rounded-2xl p-6 sm:p-8 shadow-sm" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
+      <div className="mb-6">
+        <h3 className="text-base font-bold text-[#111827]">Bid Intelligence Engine</h3>
+      </div>
 
-      {/* down */}
-      <line x1="280" y1="64" x2="280" y2="90" stroke="#e5e7eb" strokeWidth="1" className={lc} />
-      {/* horizontal spread */}
-      <line x1="60" y1="90" x2="500" y2="90" stroke="#e5e7eb" strokeWidth="1" className={lc} />
-      {[60, 170, 280, 390, 500].map((x, i) => (
-        <line key={i} x1={x} y1="90" x2={x} y2="112" stroke="#e5e7eb" strokeWidth="1" className={lc} />
-      ))}
+      <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-8 items-center">
+        {/* Left Text Column */}
+        <div className="space-y-4">
+          <div className="text-sm font-extrabold text-[#111827] leading-snug">
+            Not a list of tenders.<br />
+            A procurement decision engine.
+          </div>
 
-      {/* Attribute boxes */}
-      {[
-        { x: 18,  label: "Turnover",      sub: "₹72.4 Cr" },
-        { x: 124, label: "Experience",    sub: "8.2 yrs" },
-        { x: 232, label: "Certs",         sub: "ISO/EMD" },
-        { x: 340, label: "Geography",     sub: "Pan-India" },
-        { x: 456, label: "MSME",          sub: "Class-I" },
-      ].map(item => (
-        <g key={item.label}>
-          <rect x={item.x} y="112" width="86" height="38" rx="4" fill="#f8fafc" stroke="#e5e7eb" strokeWidth="1" />
-          <text x={item.x + 43} y="126" textAnchor="middle" fontSize="8.5" fontWeight="700" fill="#374151">{item.label}</text>
-          <text x={item.x + 43} y="142" textAnchor="middle" fontSize="7.5" fill="#9ca3af">{item.sub}</text>
-        </g>
-      ))}
+          <p className="text-xs text-[#6b7280] leading-relaxed">
+            Our AI cross-references your Company Digital Twin against every tender requirement and provides a decision with a cited rationale.
+          </p>
 
-      {/* converge */}
-      {[61, 167, 275, 383, 499].map((x, i) => (
-        <line key={i} x1={x} y1="150" x2={x} y2="172" stroke="#e5e7eb" strokeWidth="1" className={lc} />
-      ))}
-      <line x1="61" y1="172" x2="499" y2="172" stroke="#e5e7eb" strokeWidth="1" className={lc} />
-      <line x1="280" y1="172" x2="280" y2="196" stroke="#e5e7eb" strokeWidth="1" className={lc} />
+          <ul className="space-y-2 text-xs text-[#374151] pt-1">
+            {[
+              "Eligibility & compliance automation",
+              "EMD waiver detection (GFR 2017, MSME rules)",
+              "Make in India classification",
+              "Price intelligence & L1 discovery",
+              "Risk scoring & clause analysis",
+              "QCBS vs L1 strategy optimization",
+            ].map(item => (
+              <li key={item} className="flex items-center gap-2">
+                <Check className="w-3.5 h-3.5 text-[#1d4ed8] flex-shrink-0" />
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
 
-      {/* ── TENDER REQUIREMENTS ── */}
-      <rect x="140" y="196" width="280" height="52" rx="5" fill="#f8fafc" stroke="#e5e7eb" strokeWidth="1.5" />
-      <text x="280" y="216" textAnchor="middle" fontSize="10" fontWeight="700" fill="#374151" letterSpacing="1">TENDER REQUIREMENTS</text>
-      <text x="280" y="234" textAnchor="middle" fontSize="8" fill="#9ca3af">NIT · BOQ · Qualification · GFR · CVC</text>
-      <text x="280" y="247" textAnchor="middle" fontSize="7.5" fill="#c5cdd8">₹42.8 Cr · QCBS 70:30 · Single envelope</text>
+          <div className="pt-2">
+            <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#1d4ed8] hover:underline">
+              How it works <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        </div>
 
-      {/* dashed down */}
-      <line x1="280" y1="248" x2="280" y2="278" stroke="#1d4ed8" strokeWidth="1.5" strokeDasharray="5 3" className={lc} />
+        {/* Right Flowchart Diagram */}
+        <div className="bg-[#f8fafc] border border-[#e2e8f0] rounded-xl p-5 space-y-3 text-center">
+          {/* Box 1 */}
+          <div className="bg-white border border-[#bfdbfe] rounded-lg p-2.5 shadow-2xs">
+            <div className="text-[10px] font-bold text-[#1d4ed8] uppercase tracking-wider">YOUR DIGITAL TWIN</div>
+            <div className="text-[9px] text-[#6b7280] mt-0.5">Udyam &middot; GST &middot; PAN &middot; Financials &middot; Experience</div>
+          </div>
 
-      {/* ── AI ANALYSIS ── */}
-      <rect x="140" y="278" width="280" height="52" rx="5" fill="#eff6ff" stroke="#93c5fd" strokeWidth="2" />
-      <text x="280" y="299" textAnchor="middle" fontSize="11" fontWeight="800" fill="#1d4ed8" letterSpacing="1.5">AI ANALYSIS ENGINE</text>
-      <text x="280" y="318" textAnchor="middle" fontSize="8" fill="#60a5fa">Eligibility · Risk · Market Intel · L1 Price</text>
+          <div className="text-[#9ca3af] text-xs leading-none">&darr;</div>
 
-      {/* three outputs */}
-      <line x1="280" y1="330" x2="280" y2="352" stroke="#e5e7eb" strokeWidth="1" className={lc} />
-      <line x1="100" y1="352" x2="460" y2="352" stroke="#e5e7eb" strokeWidth="1" className={lc} />
-      {[100, 280, 460].map((x, i) => (
-        <line key={i} x1={x} y1="352" x2={x} y2="376" stroke="#e5e7eb" strokeWidth="1" className={lc} />
-      ))}
+          {/* Box 2 */}
+          <div className="bg-white border border-[#e2e8f0] rounded-lg py-2 px-3 text-xs font-semibold text-[#374151] shadow-2xs">
+            Tender Requirements
+          </div>
 
-      {/* Output cards */}
-      {[
-        { x: 24,  bg: "#f0fdf4", border: "#86efac", label: "ELIGIBLE",     sub: "94% match score",  badge: "PASS",   bc: "#15803d" },
-        { x: 206, bg: "#fffbeb", border: "#fde68a", label: "RISK",          sub: "1 HIGH · 2 MED",  badge: "MED",    bc: "#b45309" },
-        { x: 386, bg: "#eff6ff", border: "#bfdbfe", label: "OPPORTUNITY",   sub: "81% win prob.",   badge: "HIGH",   bc: "#1d4ed8" },
-      ].map(o => (
-        <g key={o.label}>
-          <rect x={o.x} y="376" width="148" height="52" rx="5" fill={o.bg} stroke={o.border} strokeWidth="1.5" />
-          <text x={o.x + 74} y="395" textAnchor="middle" fontSize="9.5" fontWeight="800" fill="#374151">{o.label}</text>
-          <text x={o.x + 74} y="412" textAnchor="middle" fontSize="8" fill="#6b7280">{o.sub}</text>
-          <rect x={o.x + 54} y="420" width="40" height="14" rx="3" fill={o.bc} opacity="0.12" />
-          <text x={o.x + 74} y="430" textAnchor="middle" fontSize="7" fontWeight="700" fill={o.bc}>{o.badge}</text>
-        </g>
-      ))}
+          <div className="text-[#9ca3af] text-xs leading-none">&darr;</div>
 
-      {/* converge to decision */}
-      {[98, 280, 460].map((x, i) => (
-        <line key={i} x1={x} y1="428" x2={x} y2="450" stroke="#e5e7eb" strokeWidth="1" className={lc} />
-      ))}
-      <line x1="98" y1="450" x2="460" y2="450" stroke="#e5e7eb" strokeWidth="1" className={lc} />
-      <line x1="280" y1="450" x2="280" y2="474" stroke="#1d4ed8" strokeWidth="2" className={lc} />
+          {/* Box 3 */}
+          <div className="bg-[#eff6ff] border border-[#bfdbfe] rounded-lg py-2 px-3 text-xs font-bold text-[#1d4ed8] shadow-2xs">
+            AI Analysis Engine
+          </div>
 
-      {/* ── FINAL DECISION ── */}
-      <rect x="158" y="474" width="244" height="66" rx="8" fill="#1d4ed8" />
-      <text x="280" y="498" textAnchor="middle" fontSize="14" fontWeight="900" fill="white" letterSpacing="3">BID</text>
-      <text x="280" y="518" textAnchor="middle" fontSize="9" fill="#bfdbfe">Win Probability: 81%</text>
-      <text x="280" y="533" textAnchor="middle" fontSize="8" fill="#93c5fd">High confidence · 4 hr preparation</text>
+          <div className="text-[#9ca3af] text-xs leading-none">&darr;</div>
 
-      {/* NO BID branch */}
-      <rect x="456" y="482" width="82" height="50" rx="5" fill="#f8fafc" stroke="#e5e7eb" strokeWidth="1.5" />
-      <text x="497" y="505" textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#9ca3af">NO</text>
-      <text x="497" y="521" textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#9ca3af">BID</text>
-      <line x1="402" y1="507" x2="456" y2="507" stroke="#e5e7eb" strokeWidth="1" strokeDasharray="4 3" className={lc} />
+          {/* 3 Columns */}
+          <div className="grid grid-cols-3 gap-2 text-[10px] font-semibold text-[#475569]">
+            <div className="bg-white border border-[#e2e8f0] py-1.5 rounded">Eligibility</div>
+            <div className="bg-white border border-[#e2e8f0] py-1.5 rounded">Risk</div>
+            <div className="bg-white border border-[#e2e8f0] py-1.5 rounded">Opportunity</div>
+          </div>
 
-      {/* annotation */}
-      <text x="14" y="628" fontSize="8" fill="#c5cdd8">TenderOS Bid Intelligence Engine · GFR 2017 · CVC Compliant</text>
-    </svg>
+          <div className="text-[#9ca3af] text-xs leading-none">&darr;</div>
+
+          {/* Decision Buttons */}
+          <div className="grid grid-cols-2 gap-3 pt-1">
+            <div className="bg-[#059669] text-white py-2 rounded-lg text-xs font-extrabold uppercase tracking-wider shadow-2xs">
+              BID
+            </div>
+            <div className="bg-[#e2e8f0] text-[#6b7280] py-2 rounded-lg text-xs font-extrabold uppercase tracking-wider">
+              NO BID
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
