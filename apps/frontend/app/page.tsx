@@ -126,7 +126,7 @@ export default function LandingPage() {
           Minimal Navbar — almost disappears into the page
       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       <nav className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-[#e5e7eb]">
-        <div className="max-w-7xl mx-auto px-6 h-12 flex items-center justify-between">
+        <div className="max-w-screen-2xl mx-auto px-8 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-md bg-[#1d4ed8] flex items-center justify-center">
               <Landmark className="w-3.5 h-3.5 text-white" />
@@ -154,17 +154,17 @@ export default function LandingPage() {
       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       <section
         ref={heroRef}
-        className="relative min-h-[90vh] flex items-center overflow-hidden bg-white border-b border-[#e5e7eb]"
+        className="relative min-h-[92vh] flex items-center overflow-hidden bg-white border-b border-[#e5e7eb]"
       >
         <IndiaSVGBackground />
 
-        <div className="relative z-10 max-w-7xl mx-auto px-6 w-full py-20">
-          <div className="grid lg:grid-cols-[1fr_460px] gap-16 items-center">
+        <div className="relative z-10 max-w-screen-2xl mx-auto px-8 xl:px-16 w-full py-24">
+          <div className="grid lg:grid-cols-[1fr_520px] xl:grid-cols-[1fr_560px] gap-12 xl:gap-20 items-center">
 
             {/* Left: Editorial headline */}
             <div>
               {/* Scene label */}
-              <div className="flex items-center gap-2 mb-8">
+              <div className="flex items-center gap-2 mb-10">
                 <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#9ca3af] font-mono">
                   01 · PROCUREMENT INTELLIGENCE
                 </span>
@@ -173,22 +173,22 @@ export default function LandingPage() {
               </div>
 
               {/* The headline */}
-              <h1 className="editorial-hero mb-6 fade-up">
+              <h1 className="editorial-hero mb-8 fade-up">
                 WIN MORE<br />
                 GOVERNMENT<br />
                 <span className="text-[#1d4ed8]">TENDERS.</span>
               </h1>
-              <h2 className="fade-up-1" style={{ fontSize: "clamp(28px, 3.5vw, 48px)", fontWeight: 300, letterSpacing: "-0.02em", color: "#374151", lineHeight: 1.1, marginBottom: "2rem" }}>
+              <h2 className="fade-up-1" style={{ fontSize: "clamp(26px, 3vw, 44px)", fontWeight: 300, letterSpacing: "-0.02em", color: "#374151", lineHeight: 1.1, marginBottom: "2.5rem" }}>
                 INTELLIGENTLY.
               </h2>
 
-              <p className="text-base text-[#6b7280] leading-relaxed mb-8 max-w-md fade-up-2">
+              <p className="text-lg text-[#6b7280] leading-relaxed mb-10 max-w-lg fade-up-2">
                 India&apos;s premier AI procurement intelligence platform. Every NIT from GeM,
                 CPPP, IREPS, Defence, and 36 state portals — read, understood, and scored for your business.
               </p>
 
               {/* Search bar */}
-              <div className="bg-[#f8fafc] border border-[#e5e7eb] rounded-xl p-1 flex items-center gap-2 max-w-lg mb-3 fade-up-3 shadow-sm">
+              <div className="bg-white border border-[#e5e7eb] rounded-xl p-1.5 flex items-center gap-2 max-w-xl mb-4 fade-up-3 shadow-sm">
                 <Search className="w-4 h-4 text-[#9ca3af] ml-2 flex-shrink-0" />
                 <input
                   type="text"
@@ -199,40 +199,40 @@ export default function LandingPage() {
                       window.location.href = `/dashboard/search?q=${encodeURIComponent(searchQuery)}`;
                   }}
                   placeholder="Search the procurement network…"
-                  className="flex-1 text-sm text-[#111827] placeholder:text-[#9ca3af] bg-transparent outline-none py-2"
+                  className="flex-1 text-sm text-[#111827] placeholder:text-[#9ca3af] bg-transparent outline-none py-2.5"
                 />
                 <Link
                   href={`/dashboard/search?q=${encodeURIComponent(searchQuery)}`}
-                  className="text-xs font-semibold bg-[#1d4ed8] text-white px-4 py-2 rounded-lg hover:bg-[#1e40af] transition-colors flex items-center gap-1.5 flex-shrink-0"
+                  className="text-sm font-semibold bg-[#1d4ed8] text-white px-5 py-2.5 rounded-lg hover:bg-[#1e40af] transition-colors flex items-center gap-1.5 flex-shrink-0"
                 >
-                  Search <ArrowRight className="w-3 h-3" />
+                  Search <ArrowRight className="w-3.5 h-3.5" />
                 </Link>
               </div>
 
-              <p className="text-[11px] text-[#9ca3af] mb-10 fade-up-3">
+              <p className="text-xs text-[#9ca3af] mb-12 fade-up-3">
                 GeM &middot; CPPP &middot; IREPS &middot; Defence Procurement &middot; 36 State Portals &middot; PSUs
               </p>
 
               {/* CTAs */}
-              <div className="flex items-center gap-3 fade-up-3">
+              <div className="flex items-center gap-4 fade-up-3">
                 <Link href="/dashboard"
-                  className="inline-flex items-center gap-2 font-semibold bg-[#111827] text-white px-6 py-3 rounded-xl hover:bg-[#1d4ed8] transition-all duration-200 text-sm">
+                  className="inline-flex items-center gap-2 font-semibold bg-[#111827] text-white px-7 py-3.5 rounded-xl hover:bg-[#1d4ed8] transition-all duration-200 text-sm">
                   Enter Command Center <ArrowRight className="w-4 h-4" />
                 </Link>
                 <Link href="/register"
-                  className="inline-flex items-center gap-2 text-sm font-semibold text-[#374151] border border-[#e5e7eb] bg-white px-6 py-3 rounded-xl hover:border-[#1d4ed8] hover:text-[#1d4ed8] transition-all duration-200">
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-[#374151] border border-[#e5e7eb] bg-white px-7 py-3.5 rounded-xl hover:border-[#1d4ed8] hover:text-[#1d4ed8] transition-all duration-200">
                   Free Account <ChevronRight className="w-4 h-4" />
                 </Link>
               </div>
             </div>
 
             {/* Right: Procurement dossier artifact */}
-            <div className="fade-up-2 hidden lg:block">
+            <div className="fade-up-2 hidden lg:flex flex-col justify-center">
               <HeroArtifact />
-              {/* Floating annotation */}
-              <div className="mt-3 flex items-center justify-end gap-2">
+              <div className="mt-4 flex items-center justify-between">
+                <span className="text-[10px] font-mono text-[#c5cdd8]">REF/MF/2026/AID-04812</span>
                 <span className="text-[10px] font-mono text-[#9ca3af]">
-                  Live · Generated 09 Aug 2026 04:14 IST · Source: CPPP
+                  Generated 09 Aug 2026 · 04:14 IST
                 </span>
               </div>
             </div>
@@ -244,8 +244,8 @@ export default function LandingPage() {
           SCENE 03 — THE SCALE
           Annual-report editorial statistics — no cards
       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <section className="border-b border-[#e5e7eb] bg-[#f8fafc]">
-        <div className="max-w-7xl mx-auto px-6 py-0">
+      <section className="border-b border-[#e5e7eb] bg-white">
+        <div className="max-w-screen-2xl mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-[#e5e7eb]">
             {[
               { num: stats.tenders, label: "ACTIVE TENDERS", sub: "Live across all portals", icon: Database },
@@ -255,19 +255,19 @@ export default function LandingPage() {
             ].map((s, i) => {
               const Icon = s.icon;
               return (
-                <div key={i} className="flex flex-col justify-between px-6 py-8">
+                <div key={i} className="flex flex-col justify-between px-8 xl:px-12 py-10">
                   <div>
-                    <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#9ca3af] font-mono mb-3">{s.label}</div>
+                    <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#9ca3af] font-mono mb-4">{s.label}</div>
                     <div
-                      className="font-extrabold text-[#111827] leading-none mb-1"
-                      style={{ fontSize: "clamp(32px, 4vw, 52px)", fontVariantNumeric: "tabular-nums" }}
+                      className="font-extrabold text-[#111827] leading-none mb-2"
+                      style={{ fontSize: "clamp(36px, 3.5vw, 56px)", fontVariantNumeric: "tabular-nums" }}
                     >
                       {s.num}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 mt-2">
+                  <div className="flex items-center gap-2 mt-3">
                     <Icon className="w-3.5 h-3.5 text-[#9ca3af]" />
-                    <span className="text-[11px] text-[#6b7280]">{s.sub}</span>
+                    <span className="text-xs text-[#6b7280]">{s.sub}</span>
                   </div>
                 </div>
               );
@@ -280,22 +280,22 @@ export default function LandingPage() {
           SCENE 04 — THE COVERAGE
           Portal nodes — the procurement network map
       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <section className="bg-white border-b border-[#e5e7eb] py-20">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="grid md:grid-cols-2 gap-16 items-center">
+      <section className="bg-[#f8fafc] border-b border-[#e5e7eb] py-28">
+        <div className="max-w-screen-2xl mx-auto px-8 xl:px-16">
+          <div className="grid md:grid-cols-2 gap-16 xl:gap-24 items-center">
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#9ca3af] font-mono mb-4">02 · PORTAL COVERAGE</div>
-              <h2 className="text-4xl font-extrabold text-[#111827] leading-tight mb-4 tracking-tight">
+              <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#9ca3af] font-mono mb-5">02 · PORTAL COVERAGE</div>
+              <h2 className="text-4xl xl:text-5xl font-extrabold text-[#111827] leading-tight mb-6 tracking-tight">
                 Every Indian<br />government portal.<br />
                 <span className="text-[#1d4ed8]">One platform.</span>
               </h2>
-              <p className="text-[#6b7280] leading-relaxed mb-8 max-w-sm">
+              <p className="text-lg text-[#6b7280] leading-relaxed mb-10 max-w-md">
                 Real-time aggregation across central and state procurement portals,
                 PSUs, Railways, Defence, and autonomous bodies. Updated continuously, 24×7.
               </p>
 
               {/* Portal list as data table */}
-              <div className="space-y-0 border border-[#e5e7eb] rounded-xl overflow-hidden">
+              <div className="space-y-0 border border-[#e5e7eb] rounded-xl overflow-hidden bg-white">
                 {[
                   { name: "Government e-Marketplace (GeM)", count: "18,240+", color: "#16a34a" },
                   { name: "Central Public Procurement Portal (CPPP)", count: "14,180+", color: "#1d4ed8" },
@@ -305,7 +305,7 @@ export default function LandingPage() {
                   { name: "PSUs (ONGC, BHEL, NTPC, IOCL, HAL)", count: "7,500+", color: "#475569" },
                 ].map((p, i, arr) => (
                   <div key={p.name}
-                    className={`flex items-center justify-between px-4 py-3 ${i < arr.length - 1 ? "border-b border-[#f3f4f6]" : ""} hover:bg-[#f9fafb] transition-colors`}>
+                    className={`flex items-center justify-between px-5 py-4 ${i < arr.length - 1 ? "border-b border-[#f3f4f6]" : ""} hover:bg-[#f9fafb] transition-colors`}>
                     <div className="flex items-center gap-2.5">
                       <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: p.color }} />
                       <span className="text-sm text-[#374151]">{p.name}</span>
@@ -359,20 +359,20 @@ export default function LandingPage() {
           SCENE 05 — THE INTELLIGENCE
           "From Noise to Decision" — interactive pipeline
       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <section id="platform" className="bg-[#f4f6f8] border-b border-[#e5e7eb] py-20">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="mb-10">
-            <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#9ca3af] font-mono mb-4">03 · AI PROCESSING PIPELINE</div>
-            <h2 className="text-3xl font-extrabold text-[#111827] leading-tight tracking-tight mb-3">
+      <section id="platform" className="bg-[#f4f6f8] border-b border-[#e5e7eb] py-28">
+        <div className="max-w-screen-2xl mx-auto px-8 xl:px-16">
+          <div className="mb-12">
+            <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#9ca3af] font-mono mb-5">03 · AI PROCESSING PIPELINE</div>
+            <h2 className="text-4xl xl:text-5xl font-extrabold text-[#111827] leading-tight tracking-tight mb-4">
               From 60,000 tenders<br />
               <span className="text-[#1d4ed8]">to one clear decision.</span>
             </h2>
-            <p className="text-[#6b7280] max-w-xl">
+            <p className="text-lg text-[#6b7280] max-w-xl">
               Seven AI processing layers transform raw government documents
-              into computable procurement intelligence. Click any stage.
+              into computable procurement intelligence. Click any stage to explore.
             </p>
           </div>
-          <div className="bg-white border border-[#e5e7eb] rounded-2xl overflow-hidden">
+          <div className="bg-white border border-[#e5e7eb] rounded-2xl overflow-hidden shadow-sm">
             <IntelligencePipeline />
           </div>
         </div>
@@ -382,25 +382,25 @@ export default function LandingPage() {
           SCENE 06 — THE ENGINE
           "NOT A LIST OF TENDERS." + animated decision diagram
       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <section id="intelligence" className="bg-white border-b border-[#e5e7eb] py-20">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="grid md:grid-cols-2 gap-16 items-center">
+      <section id="intelligence" className="bg-white border-b border-[#e5e7eb] py-28">
+        <div className="max-w-screen-2xl mx-auto px-8 xl:px-16">
+          <div className="grid md:grid-cols-2 gap-16 xl:gap-24 items-center">
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#9ca3af] font-mono mb-6">04 · BID INTELLIGENCE ENGINE</div>
-              <div className="mb-6">
-                <div className="text-[42px] font-extrabold text-[#111827] leading-[1.0] tracking-tight">
+              <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#9ca3af] font-mono mb-8">04 · BID INTELLIGENCE ENGINE</div>
+              <div className="mb-8">
+                <div className="font-extrabold text-[#111827] leading-[1.0] tracking-tight" style={{ fontSize: "clamp(36px, 4.5vw, 52px)" }}>
                   NOT A LIST<br />OF TENDERS.
                 </div>
-                <div className="mt-3 text-[42px] font-light text-[#374151] leading-[1.0] tracking-tight">
+                <div className="mt-4 font-light text-[#374151] leading-[1.0] tracking-tight" style={{ fontSize: "clamp(36px, 4.5vw, 52px)" }}>
                   A PROCUREMENT<br />DECISION ENGINE.
                 </div>
               </div>
-              <p className="text-[#6b7280] leading-relaxed mb-6 max-w-md">
+              <p className="text-lg text-[#6b7280] leading-relaxed mb-8 max-w-lg">
                 The engine cross-references your Company Digital Twin against every tender requirement —
                 turnover, experience, certifications, geography, MSME status — and returns
                 a decision with a cited rationale, not a list.
               </p>
-              <ul className="space-y-2 mb-8">
+              <ul className="space-y-3 mb-10">
                 {[
                   "EMD waiver detection — Udyam Rule 170 & GFR 2017",
                   "Make in India Class-I / Class-II supplier classification",
@@ -408,20 +408,22 @@ export default function LandingPage() {
                   "CVC integrity compliance and NIT clause risk analysis",
                   "QCBS vs. L1 evaluation strategy optimisation",
                 ].map(item => (
-                  <li key={item} className="flex items-start gap-2.5 text-sm text-[#374151]">
+                  <li key={item} className="flex items-start gap-3 text-sm text-[#374151]">
                     <ShieldCheck className="w-4 h-4 text-[#15803d] mt-0.5 flex-shrink-0" />
                     {item}
                   </li>
                 ))}
               </ul>
               <Link href="/dashboard"
-                className="inline-flex items-center gap-2 font-semibold bg-[#1d4ed8] text-white px-5 py-2.5 rounded-lg hover:bg-[#1e40af] transition-colors text-sm">
+                className="inline-flex items-center gap-2 font-semibold bg-[#1d4ed8] text-white px-6 py-3 rounded-lg hover:bg-[#1e40af] transition-colors text-sm">
                 Open Bid Intelligence <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
 
             {/* Animated SVG decision diagram */}
-            <BidDecisionEngine />
+            <div className="flex items-center justify-center">
+              <BidDecisionEngine />
+            </div>
           </div>
         </div>
       </section>
@@ -430,11 +432,11 @@ export default function LandingPage() {
           SCENE 07 — THE NETWORK LIVE
           Full-width Bloomberg-style intelligence console
       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <section className="bg-[#060c1a] border-b border-[#1e293b] py-20">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="mb-8">
-            <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#334155] font-mono mb-4">05 · LIVE PROCUREMENT NETWORK</div>
-            <h2 className="text-3xl font-extrabold text-white leading-tight tracking-tight">
+      <section className="bg-[#060c1a] border-b border-[#1e293b] py-28">
+        <div className="max-w-screen-2xl mx-auto px-8 xl:px-16">
+          <div className="mb-10">
+            <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#334155] font-mono mb-5">05 · LIVE PROCUREMENT NETWORK</div>
+            <h2 className="text-4xl xl:text-5xl font-extrabold text-white leading-tight tracking-tight">
               The procurement network<br />
               <span className="text-[#60a5fa]">is always moving.</span>
             </h2>
@@ -446,35 +448,35 @@ export default function LandingPage() {
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
           API Section
       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <section id="api" className="bg-white border-b border-[#e5e7eb] py-20">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="grid md:grid-cols-2 gap-16 items-start">
+      <section id="api" className="bg-[#f8fafc] border-b border-[#e5e7eb] py-28">
+        <div className="max-w-screen-2xl mx-auto px-8 xl:px-16">
+          <div className="grid md:grid-cols-2 gap-16 xl:gap-24 items-start">
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#9ca3af] font-mono mb-4">06 · PROCUREMENT API</div>
-              <h2 className="text-3xl font-extrabold text-[#111827] leading-tight tracking-tight mb-4">
+              <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#9ca3af] font-mono mb-5">06 · PROCUREMENT API</div>
+              <h2 className="text-4xl xl:text-5xl font-extrabold text-[#111827] leading-tight tracking-tight mb-6">
                 Procurement intelligence<br />
                 <span className="text-[#1d4ed8]">becomes infrastructure.</span>
               </h2>
-              <p className="text-[#6b7280] leading-relaxed mb-6">
+              <p className="text-lg text-[#6b7280] leading-relaxed mb-8">
                 ERP platforms, CRMs, consulting firms and enterprise procurement teams use the TenderOS API
                 to embed live tender data, AI bid scores, and market intelligence into their existing workflows.
               </p>
-              <div className="space-y-2 mb-8">
+              <div className="space-y-0 mb-10 border border-[#e5e7eb] rounded-xl overflow-hidden bg-white">
                 {[
                   { label: "REST API", desc: "JSON · OAuth 2.0 · Rate limited" },
                   { label: "Webhook Events", desc: "New tender · Corrigendum · Award" },
                   { label: "Bulk Export", desc: "CSV / JSONL for analytics pipelines" },
                   { label: "SLA", desc: "99.9% uptime · 4-minute sync interval" },
-                ].map(item => (
-                  <div key={item.label} className="flex items-center gap-3 py-2 border-b border-[#f3f4f6]">
-                    <span className="text-xs font-bold text-[#111827] w-28 flex-shrink-0">{item.label}</span>
-                    <span className="text-xs text-[#6b7280]">{item.desc}</span>
+                ].map((item, i, arr) => (
+                  <div key={item.label} className={`flex items-center gap-4 px-5 py-4 ${i < arr.length - 1 ? "border-b border-[#f3f4f6]" : ""} hover:bg-[#f9fafb] transition-colors`}>
+                    <span className="text-xs font-bold text-[#111827] w-32 flex-shrink-0">{item.label}</span>
+                    <span className="text-sm text-[#6b7280]">{item.desc}</span>
                   </div>
                 ))}
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-4">
                 <Link href="/register"
-                  className="inline-flex items-center gap-2 font-semibold bg-[#1d4ed8] text-white px-5 py-2.5 rounded-lg hover:bg-[#1e40af] transition-colors text-sm">
+                  className="inline-flex items-center gap-2 font-semibold bg-[#1d4ed8] text-white px-6 py-3 rounded-lg hover:bg-[#1e40af] transition-colors text-sm">
                   Get API Key
                 </Link>
                 <a href="#"
@@ -531,8 +533,8 @@ export default function LandingPage() {
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
           Footer — minimal, institutional
       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <footer className="bg-white border-t border-[#e5e7eb] py-10 px-6">
-        <div className="max-w-7xl mx-auto">
+      <footer className="bg-white border-t border-[#e5e7eb] py-16 px-8">
+        <div className="max-w-screen-2xl mx-auto">
           <div className="flex flex-col md:flex-row items-start justify-between gap-8 mb-8">
             <div>
               <div className="flex items-center gap-2 mb-3">
