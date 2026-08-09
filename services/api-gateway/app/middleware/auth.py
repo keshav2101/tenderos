@@ -7,7 +7,7 @@ import httpx
 import structlog
 from fastapi import Request
 from fastapi.responses import JSONResponse
-from jose import JWTError, jwt
+from jose import JWTError, jwt  # type: ignore[import-untyped,import-not-found]
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.config import settings

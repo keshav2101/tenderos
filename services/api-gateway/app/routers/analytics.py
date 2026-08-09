@@ -3,7 +3,7 @@ Derives realistic analytics directly from live procurement catalog & database.
 """
 
 from collections import Counter, defaultdict
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Query
 
@@ -44,7 +44,7 @@ async def get_overview():
     startup_cnt = sum(1 for t in catalog if t.get("startup_eligible")) if catalog else 3417
 
     # Derive indexed_today from catalog entries created today (or use a fraction of total as proxy)
-    today_str = datetime.utcnow().date().isoformat()
+    today_str = datetime.now(timezone.utc).date().isoformat()
     indexed_today = sum(
         1 for t in catalog
         if (t.get("created_at") or t.get("published_date", ""))[:10] == today_str
@@ -62,7 +62,7 @@ async def get_overview():
         "active_ministries": len(set(t.get("ministry") for t in catalog if t.get("ministry"))),
         "active_states": len(set(t.get("state") for t in catalog if t.get("state"))),
         "tenders_indexed_today": indexed_today,
-        "last_updated": datetime.utcnow().isoformat() + "Z",
+        "last_updated": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -135,7 +135,7 @@ async def get_source_analytics():
         "sources": results,
         "total_sources": len(results),
         "total_tenders": sum(r["count"] for r in results),
-        "last_updated": datetime.utcnow().isoformat() + "Z",
+        "last_updated": datetime.now(timezone.utc).isoformat(),
     }
 
 
