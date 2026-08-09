@@ -45,6 +45,7 @@ CORE_SERVICES=(
     "connector-service:8003"
     "search-service:8010"
     "copilot-service:8011"
+    "market-intelligence-service:8014"
     "proposal-service:8017"
     "admin-service:8019"
 )
