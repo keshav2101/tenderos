@@ -1,7 +1,19 @@
 "use client";
-import type { Tender } from "@/types/procurement";
+import type { Tender, BidRecommendation } from "@/types/procurement";
 import Link from "next/link";
 import { ArrowRight, ShieldCheck } from "lucide-react";
+
+export const CANONICAL_FEATURED_RECOMMENDATION: BidRecommendation = {
+  decision: "BID",
+  confidence: "High",
+  eligibility_score: 92,
+  win_probability: 81,
+  financial_score: 87,
+  technical_score: 95,
+  risk_level: "Low",
+  opportunity_level: "High",
+  reasoning: "High technical compatibility & MSME EMD waiver applicable under GFR 2017.",
+};
 
 function fmt(date?: string) {
   if (!date) return "28 Aug 2026 15:00 IST";
@@ -47,6 +59,7 @@ interface Props {
 }
 
 export default function HeroArtifact({ tender, isLoading }: Props) {
+  const rec = tender?.recommendation || CANONICAL_FEATURED_RECOMMENDATION;
   const title = tender?.title || "AI-based Fraud Detection System — Government of India";
   const dept = tender?.department || tender?.ministry || "Department of Revenue · CPPP";
   const val = fmtCr(tender?.estimated_cost_lakhs);
@@ -107,17 +120,19 @@ export default function HeroArtifact({ tender, isLoading }: Props) {
         <div className="flex-1 w-full space-y-2.5 min-w-0">
           <div className="p-2.5 rounded bg-[#EAF6EF] border border-[#A7F3D0]">
             <div className="text-[9px] font-bold text-[#18794E] uppercase tracking-wider mb-0.5">AI RECOMMENDATION</div>
-            <div className="text-xs font-extrabold text-[#18794E]">BID — High confidence</div>
+            <div className="text-xs font-extrabold text-[#18794E]">
+              {rec.decision} — {rec.confidence} confidence ({rec.eligibility_score}% Eligibility)
+            </div>
           </div>
 
           <div className="grid grid-cols-3 gap-1.5 text-center text-xs">
             <div>
               <div className="text-[9px] text-[#64748B]">Win Probability</div>
-              <div className="font-bold text-[#18794E] mt-0.5">81%</div>
+              <div className="font-bold text-[#18794E] mt-0.5">{rec.win_probability}%</div>
             </div>
             <div>
-              <div className="text-[9px] text-[#64748B]">Preparation Time</div>
-              <div className="font-semibold text-[#0B1F33] mt-0.5">4 hrs</div>
+              <div className="text-[9px] text-[#64748B]">Risk Level</div>
+              <div className="font-bold text-[#18794E] mt-0.5">{rec.risk_level.toUpperCase()}</div>
             </div>
             <div>
               <div className="text-[9px] text-[#64748B]">EMD Status</div>

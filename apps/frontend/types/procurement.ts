@@ -12,6 +12,18 @@ export interface ProcurementStats {
   last_updated?: string;
 }
 
+export interface BidRecommendation {
+  decision: "BID" | "NO BID";
+  confidence: "High" | "Medium" | "Low";
+  eligibility_score: number;
+  win_probability: number;
+  financial_score: number;
+  technical_score: number;
+  risk_level: "Low" | "Medium" | "High";
+  opportunity_level: "High" | "Medium" | "Low";
+  reasoning?: string;
+}
+
 export interface Tender {
   id: string;
   tender_id: string;
@@ -27,6 +39,7 @@ export interface Tender {
   submission_deadline?: string;
   status: string;
   categories?: string[];
+  recommendation?: BidRecommendation;
 }
 
 export interface PortalSource {

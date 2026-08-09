@@ -13,14 +13,21 @@ import { useLiveTenders } from "@/hooks/useLiveTenders";
 import { usePortalStats } from "@/hooks/usePortalStats";
 import { useLatestTender } from "@/hooks/useLatestTender";
 
-const ProcurementTicker      = dynamic(() => import("@/app/components/landing/ProcurementTicker"),      { ssr: false });
-const LiveNetworkStatus       = dynamic(() => import("@/app/components/landing/LiveNetworkStatus"),       { ssr: false });
-const HeroArtifact            = dynamic(() => import("@/app/components/landing/HeroArtifact"),            { ssr: false });
-const ProcurementNetworkGraph = dynamic(() => import("@/app/components/landing/ProcurementNetworkGraph"), { ssr: false });
-const IntelligencePipeline    = dynamic(() => import("@/app/components/landing/IntelligencePipeline"),   { ssr: false });
-const BidDecisionEngine        = dynamic(() => import("@/app/components/landing/BidDecisionEngine"),      { ssr: false });
-const LiveConsole             = dynamic(() => import("@/app/components/landing/LiveConsole"),              { ssr: false });
-const APIArtifact             = dynamic(() => import("@/app/components/landing/APIArtifact"),              { ssr: false });
+const ProcurementTicker        = dynamic(() => import("@/app/components/landing/ProcurementTicker"),        { ssr: false });
+const LiveNetworkStatus         = dynamic(() => import("@/app/components/landing/LiveNetworkStatus"),         { ssr: false });
+const HeroArtifact              = dynamic(() => import("@/app/components/landing/HeroArtifact"),              { ssr: false });
+const ProductFlowNarrative      = dynamic(() => import("@/app/components/landing/ProductFlowNarrative"),      { ssr: false });
+const ProcurementNetworkGraph   = dynamic(() => import("@/app/components/landing/ProcurementNetworkGraph"),   { ssr: false });
+const IntelligencePipeline      = dynamic(() => import("@/app/components/landing/IntelligencePipeline"),     { ssr: false });
+const CompanyDigitalTwinView    = dynamic(() => import("@/app/components/landing/CompanyDigitalTwinView"),    { ssr: false });
+const BidDecisionEngine          = dynamic(() => import("@/app/components/landing/BidDecisionEngine"),        { ssr: false });
+const OutcomeComparison         = dynamic(() => import("@/app/components/landing/OutcomeComparison"),         { ssr: false });
+const AICopilotDemo             = dynamic(() => import("@/app/components/landing/AICopilotDemo"),             { ssr: false });
+const ProposalGeneratorFlow     = dynamic(() => import("@/app/components/landing/ProposalGeneratorFlow"),     { ssr: false });
+const CorrigendumIntelligence   = dynamic(() => import("@/app/components/landing/CorrigendumIntelligence"),   { ssr: false });
+const LiveConsole               = dynamic(() => import("@/app/components/landing/LiveConsole"),               { ssr: false });
+const TrustVerificationSection  = dynamic(() => import("@/app/components/landing/TrustVerificationSection"),  { ssr: false });
+const APIArtifact               = dynamic(() => import("@/app/components/landing/APIArtifact"),               { ssr: false });
 
 // ── Official Responsive Layout Container ──────────────────────────────────
 const C = "w-[min(calc(100%-48px),1440px)] mx-auto min-w-0";
@@ -212,28 +219,70 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* 3. INDIA PROCUREMENT NETWORK GRAPHIC */}
+      {/* 3. PRODUCT FLOW NARRATIVE */}
       <section className="py-12 border-b border-[#D9E1E8]">
+        <div className={C}>
+          <ProductFlowNarrative />
+        </div>
+      </section>
+
+      {/* 4. INDIA PROCUREMENT NETWORK GRAPHIC */}
+      <section className="py-12 border-b border-[#D9E1E8] bg-white">
         <div className={C}>
           <ProcurementNetworkGraph />
         </div>
       </section>
 
-      {/* 4. AI PROCESSING PIPELINE */}
-      <section className="py-12 border-b border-[#D9E1E8] bg-white">
+      {/* 5. AI PROCESSING PIPELINE */}
+      <section className="py-12 border-b border-[#D9E1E8]">
         <div className={C}>
           <IntelligencePipeline />
         </div>
       </section>
 
-      {/* 5. BID INTELLIGENCE DECISION ARCHITECTURE */}
+      {/* 6. COMPANY DIGITAL TWIN */}
+      <section className="py-12 border-b border-[#D9E1E8] bg-white">
+        <div className={C}>
+          <CompanyDigitalTwinView />
+        </div>
+      </section>
+
+      {/* 7. BID INTELLIGENCE DECISION TREE */}
       <section className="py-12 border-b border-[#D9E1E8]">
         <div className={C}>
           <BidDecisionEngine />
         </div>
       </section>
 
-      {/* 6. LIVE PROCUREMENT NETWORK WATERFALL FEED */}
+      {/* 8. OUTCOME COMPARISON */}
+      <section className="py-12 border-b border-[#D9E1E8] bg-white">
+        <div className={C}>
+          <OutcomeComparison />
+        </div>
+      </section>
+
+      {/* 9. AI COPILOT PREVIEW */}
+      <section className="py-12 border-b border-[#D9E1E8]">
+        <div className={C}>
+          <AICopilotDemo />
+        </div>
+      </section>
+
+      {/* 10. PROPOSAL GENERATOR FLOW */}
+      <section className="py-12 border-b border-[#D9E1E8] bg-white">
+        <div className={C}>
+          <ProposalGeneratorFlow />
+        </div>
+      </section>
+
+      {/* 11. CORRIGENDUM INTELLIGENCE */}
+      <section className="py-12 border-b border-[#D9E1E8]">
+        <div className={C}>
+          <CorrigendumIntelligence />
+        </div>
+      </section>
+
+      {/* 12. LIVE PROCUREMENT NETWORK WATERFALL FEED */}
       <section className="py-12 border-b border-[#D9E1E8] bg-white">
         <div className={C}>
           <div className="mb-4 flex items-center justify-between">
@@ -255,8 +304,15 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* 7. DEVELOPER API SECTION */}
-      <section id="developers" className="py-12 border-b border-[#D9E1E8]">
+      {/* 13. TRUST & ENTERPRISE SECURITY */}
+      <section className="py-12 border-b border-[#D9E1E8]">
+        <div className={C}>
+          <TrustVerificationSection />
+        </div>
+      </section>
+
+      {/* 14. DEVELOPER API SECTION */}
+      <section id="developers" className="py-12 border-b border-[#D9E1E8] bg-white">
         <div className={C}>
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-stretch min-w-0">
             <div className="bg-white border border-[#D9E1E8] rounded p-6 shadow-2xs flex flex-col justify-between min-w-0">
@@ -299,7 +355,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* 8. CTA BANNER */}
+      {/* 15. CTA BANNER */}
       <section className="py-12 border-b border-[#D9E1E8] bg-[#F1F5F9]">
         <div className={C}>
           <div className="bg-[#12355B] text-white rounded p-8 flex flex-col md:flex-row items-center justify-between gap-6 min-w-0 shadow-sm">
@@ -329,7 +385,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* 9. FOOTER */}
+      {/* 16. FOOTER */}
       <footer id="company" className="bg-[#0B1F33] text-white border-t border-[#12355B]">
         <div className={`${C} py-12 lg:py-16`}>
           <div className="grid grid-cols-2 md:grid-cols-6 gap-8 mb-12">
@@ -345,9 +401,9 @@ export default function LandingPage() {
               </p>
 
               <div className="flex items-center gap-3 text-[#64748B] text-xs">
-                <a href="#" className="w-7 h-7 rounded bg-[#12355B] flex items-center justify-center text-white hover:bg-[#1F5A96] transition-colors">in</a>
-                <a href="#" className="w-7 h-7 rounded bg-[#12355B] flex items-center justify-center text-white hover:bg-[#1F5A96] transition-colors">x</a>
-                <a href="#" className="w-7 h-7 rounded bg-[#12355B] flex items-center justify-center text-white hover:bg-[#1F5A96] transition-colors">yt</a>
+                <a href="https://linkedin.com" target="_blank" rel="noreferrer" className="w-7 h-7 rounded bg-[#12355B] flex items-center justify-center text-white hover:bg-[#1F5A96] transition-colors">in</a>
+                <a href="https://x.com" target="_blank" rel="noreferrer" className="w-7 h-7 rounded bg-[#12355B] flex items-center justify-center text-white hover:bg-[#1F5A96] transition-colors">x</a>
+                <a href="https://youtube.com" target="_blank" rel="noreferrer" className="w-7 h-7 rounded bg-[#12355B] flex items-center justify-center text-white hover:bg-[#1F5A96] transition-colors">yt</a>
               </div>
             </div>
 
@@ -368,11 +424,11 @@ export default function LandingPage() {
             ))}
 
             <div>
-              <h4 className="text-xs font-bold text-white mb-3 uppercase tracking-wider">Support</h4>
+              <h4 className="text-xs font-bold text-white mb-3 uppercase tracking-wider">Support &amp; Legal</h4>
               <ul className="space-y-2.5 text-xs text-[#94A3B8]">
                 <li className="flex items-center gap-2">
                   <Mail className="w-3.5 h-3.5 text-[#64748B]" />
-                  <span>hello@tenderos.com</span>
+                  <span>support@tenderos.com</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <Phone className="w-3.5 h-3.5 text-[#64748B]" />
@@ -387,7 +443,7 @@ export default function LandingPage() {
           </div>
 
           <div className="pt-6 border-t border-[#12355B] flex flex-wrap items-center justify-between gap-4 text-xs text-[#94A3B8]">
-            <div>© {new Date().getFullYear()} TenderOS Technologies Pvt Ltd. All rights reserved.</div>
+            <div>© {new Date().getFullYear()} TenderOS Technologies. All rights reserved.</div>
             <div className="flex items-center gap-6">
               <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
               <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>

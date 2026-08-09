@@ -1,8 +1,11 @@
 "use client";
 import Link from "next/link";
 import { ArrowRight, Check, ArrowDown } from "lucide-react";
+import { CANONICAL_FEATURED_RECOMMENDATION } from "./HeroArtifact";
 
 export default function BidDecisionEngine() {
+  const rec = CANONICAL_FEATURED_RECOMMENDATION;
+
   return (
     <div className="bg-white border border-[#D9E1E8] rounded p-6 shadow-2xs flex flex-col justify-between min-w-0" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
       <div>
@@ -45,15 +48,15 @@ export default function BidDecisionEngine() {
           <div className="grid grid-cols-3 gap-3 text-center text-xs max-w-md mx-auto">
             <div className="bg-[#EAF6EF] border border-[#A7F3D0] p-2 rounded">
               <div className="text-[10px] font-semibold text-[#475569]">ELIGIBILITY</div>
-              <div className="font-mono font-extrabold text-[#18794E] mt-0.5">92% PASS</div>
+              <div className="font-mono font-extrabold text-[#18794E] mt-0.5">{rec.eligibility_score}% PASS</div>
             </div>
             <div className="bg-[#EAF6EF] border border-[#A7F3D0] p-2 rounded">
               <div className="text-[10px] font-semibold text-[#475569]">RISK SCORE</div>
-              <div className="font-mono font-extrabold text-[#18794E] mt-0.5">LOW RISK</div>
+              <div className="font-mono font-extrabold text-[#18794E] mt-0.5">{rec.risk_level.toUpperCase()} RISK</div>
             </div>
             <div className="bg-[#EAF6EF] border border-[#A7F3D0] p-2 rounded">
-              <div className="text-[10px] font-semibold text-[#475569]">OPPORTUNITY</div>
-              <div className="font-mono font-extrabold text-[#18794E] mt-0.5">HIGH</div>
+              <div className="text-[10px] font-semibold text-[#475569]">WIN PROBABILITY</div>
+              <div className="font-mono font-extrabold text-[#18794E] mt-0.5">{rec.win_probability}%</div>
             </div>
           </div>
 
@@ -61,12 +64,12 @@ export default function BidDecisionEngine() {
             <ArrowDown className="w-3.5 h-3.5" />
           </div>
 
-          {/* Level 5: Final Decision */}
+          {/* Level 5: Final Canonical Decision (Matching Hero preview) */}
           <div className="grid grid-cols-2 gap-3 max-w-sm mx-auto pt-1">
             <div className="bg-[#18794E] text-white py-2.5 rounded text-xs font-extrabold uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-2xs">
-              <Check className="w-4 h-4" /> BID RECOMMENDATION
+              <Check className="w-4 h-4" /> BID ({rec.confidence.toUpperCase()} CONFIDENCE)
             </div>
-            <div className="bg-[#E2E8F0] text-[#64748B] py-2.5 rounded text-xs font-extrabold uppercase tracking-wider flex items-center justify-center">
+            <div className="bg-[#E2E8F0] text-[#64748B] py-2.5 rounded text-xs font-extrabold uppercase tracking-wider flex items-center justify-center opacity-60">
               NO BID
             </div>
           </div>
