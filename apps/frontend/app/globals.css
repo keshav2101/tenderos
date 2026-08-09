@@ -1524,7 +1524,12 @@ kbd {
   0%   { transform: translateY(0); }
   100% { transform: translateY(-50%); }
 }
-.console-track { animation: console-scroll 30s linear infinite; }
+.console-track {
+  display: flex;
+  flex-direction: column;
+  will-change: transform;
+  animation: console-scroll 45s linear infinite;
+}
 .console-track:hover { animation-play-state: paused; }
 
 @keyframes draw-line {

@@ -19,8 +19,8 @@ const BidDecisionEngine  = dynamic(() => import("@/app/components/landing/BidDec
 const LiveConsole        = dynamic(() => import("@/app/components/landing/LiveConsole"),         { ssr: false });
 const APIArtifact        = dynamic(() => import("@/app/components/landing/APIArtifact"),         { ssr: false });
 
-// ── Unified container — used in every section ───────────────────────────
-const C = "mx-auto w-full max-w-[1600px] px-6 sm:px-10 lg:px-16";
+// ── Unified container — max 1360px with generous side padding ─────────
+const C = "mx-auto w-full max-w-[1360px] px-6 sm:px-10 lg:px-12";
 
 function IndiaBg() {
   return (

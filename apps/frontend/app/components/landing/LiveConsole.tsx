@@ -93,7 +93,7 @@ export default function LiveConsole({ tenders, isLoading, error, lastUpdated, on
     setTimeout(() => setRefreshing(false), 1200);
   }, [onRefresh]);
 
-  const doubled = tenders.length > 0 ? [...tenders, ...tenders] : [];
+  const items = tenders.length > 0 ? [...tenders, ...tenders, ...tenders, ...tenders] : [];
   const totalValue = tenders.reduce((sum, t) => sum + (t.estimated_cost_lakhs || 0), 0);
 
   return (
@@ -165,7 +165,7 @@ export default function LiveConsole({ tenders, isLoading, error, lastUpdated, on
           </div>
         ) : (
           <div className="console-track">
-            {doubled.map((t, i) => <ConsoleRow key={`${t.id}-${i}`} tender={t} />)}
+            {items.map((t, i) => <ConsoleRow key={`${t.id}-${i}`} tender={t} />)}
           </div>
         )}
       </div>
