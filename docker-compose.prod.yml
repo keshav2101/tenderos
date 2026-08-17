@@ -694,25 +694,4 @@ services:
     networks:
       - tenderos-net
 
-  # ──────────────────────────────────────────
-  # FRONTEND (Next.js — Static + SSR)
-  # ──────────────────────────────────────────
-  frontend:
-    <<: *svc-defaults
-    build:
-      context: ./apps/frontend
-      dockerfile: Dockerfile
-      args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
-        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
-    image: tenderos/frontend:1.0.0
-    container_name: tenderos-frontend
-    environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
-      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
-    ports:
-      - "3000:3000"
-    networks:
-      - tenderos-net
-    depends_on:
-      api-gateway: { condition: service_healthy }
+
