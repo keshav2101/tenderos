@@ -49,6 +49,8 @@ PUBLIC_PATHS = {
     "/api/v1/proposals",
     "/api/v1/eligibility",
     "/api/v1/recommendations",
+    # Market Intelligence for dashboard
+    "/api/v1/intelligence",
     # Portal Scrapers sync & status
     "/api/v1/connectors",
     # External webhook — Stripe sends events without a user JWT
